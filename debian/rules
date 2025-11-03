@@ -24,14 +24,14 @@ override_dh_auto_build:
 		echo "==> DEVELOPMENT: Restoring cached depot_tools"; \
 		cp -a $(CURDIR)/../build-cache/depot_tools $(CURDIR)/; \
 	fi
-	@if [ -d "$(CURDIR)/../build-cache/chromium" ]; then \
-		echo "==> DEVELOPMENT: Restoring cached chromium source"; \
+	@if [ -d "$(CURDIR)/../build-cache/chromium_src" ]; then \
+		echo "==> DEVELOPMENT: Restoring cached chromium_src (includes CEF with .git and chromium)"; \
+		cp -a $(CURDIR)/../build-cache/chromium_src $(CURDIR)/; \
+	else \
+		echo "==> DEVELOPMENT: No cache found, will use local CEF and let automate-git.py extract chromium"; \
 		mkdir -p $(CURDIR)/chromium_src; \
-		cp -a $(CURDIR)/../build-cache/chromium $(CURDIR)/chromium_src/; \
+		cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/; \
 	fi
-
-	# Step 1: Copy our CLEAN CEF source to build directory
-	cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/
 
 	# Step 2: Apply Debian patches to the copied CEF source
 	cd $(CURDIR)/chromium_src/cef && \
@@ -47,15 +47,20 @@ override_dh_auto_build:
 	@if [ ! -d "$(CURDIR)/../build-cache" ]; then \
 		echo "==> DEVELOPMENT: Creating build cache"; \
 		mkdir -p $(CURDIR)/../build-cache; \
-		if [ -d "$(CURDIR)/depot_tools" ]; then \
-			echo "==> DEVELOPMENT: Caching depot_tools"; \
-			cp -a $(CURDIR)/depot_tools $(CURDIR)/../build-cache/; \
-		fi; \
-		if [ -d "$(CURDIR)/chromium_src/chromium" ]; then \
-			echo "==> DEVELOPMENT: Caching chromium_src"; \
-			cp -a $(CURDIR)/chromium_src $(CURDIR)/../build-cache/; \
-		fi; \
 	fi
+	@if [ ! -d "$(CURDIR)/../build-cache/depot_tools" ] && [ -d "$(CURDIR)/depot_tools" ]; then \
+		echo "==> DEVELOPMENT: Caching depot_tools"; \
+		cp -a $(CURDIR)/depot_tools $(CURDIR)/../build-cache/; \
+	fi
+	@if [ ! -d "$(CURDIR)/../build-cache/chromium_src" ] && [ -d "$(CURDIR)/chromium_src" ]; then \
+		echo "==> DEVELOPMENT: Caching chromium_src (includes CEF with .git and chromium extraction)"; \
+		cp -a $(CURDIR)/chromium_src $(CURDIR)/../build-cache/; \
+	fi
+
+	# Step 3.5: Configure to use system GN instead of bundled (CRITICAL FIX)
+	@echo "==> Configuring to use system GN executable"
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
+	@ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
 
 	# Step 4: Run build using our pre-patched CEF and pre-extracted chromium
 	cd $(CURDIR)/chromium_src/cef && \
