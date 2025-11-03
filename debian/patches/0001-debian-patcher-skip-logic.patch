@@ -1,7 +1,5 @@
-diff --git a/cef/tools/patcher.py b/cef/tools/patcher.py
-index 9877ad76f..dc4cda2bf 100644
---- a/cef/tools/patcher.py
-+++ b/cef/tools/patcher.py
+--- a/tools/patcher.py
++++ b/tools/patcher.py
 @@ -47,6 +47,15 @@ def apply_patch_file(patch_file, patch_dir):
  
    result = git_apply_patch_file(patch_path, patch_dir)

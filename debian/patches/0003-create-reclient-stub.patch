@@ -1,9 +1,9 @@
---- a/cef/tools/automate/automate-git.py
-+++ b/cef/tools/automate/automate-git.py
-@@ -1585,9 +1585,33 @@ def main():
+--- a/tools/automate/automate-git.py
++++ b/tools/automate/automate-git.py
+@@ -1584,9 +1584,35 @@
    # Patch the Chromium runhooks scripts if necessary.
    apply_runhooks_patch()
-
+ 
 +  ##
 +  ## Create stub for reclient_cfgs (missing from Debian chromium tarball)
 +  ##
@@ -29,12 +29,10 @@
 +
    # Runs hooks for files that have been modified in the local working copy.
    run("gclient runhooks", chromium_dir)
-
+ 
 +  # Add depot_tools to PATH for gclient_hook.py
 +  os.environ['PATH'] = depot_tools_dir + os.pathsep + os.environ.get('PATH', '')
 +
    # Delete the src/out directory created by `gclient sync`.
    delete_directory(out_src_dir)
-
-
-if cef_dir == cef_src_dir:
+ 
