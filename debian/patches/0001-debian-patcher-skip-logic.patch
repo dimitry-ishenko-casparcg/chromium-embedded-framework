@@ -1,9 +1,9 @@
 diff --git a/tools/patcher.py b/tools/patcher.py
-index 9877ad7..f541430 100644
+index 9877ad7..f0f992a 100644
 --- a/tools/patcher.py
 +++ b/tools/patcher.py
-@@ -47,6 +47,19 @@ def apply_patch_file(patch_file, patch_dir):
-
+@@ -47,6 +47,23 @@ def apply_patch_file(patch_file, patch_dir):
+ 
    result = git_apply_patch_file(patch_path, patch_dir)
    if result == 'fail':
 +    # Debian-specific: Some patches are unnecessary or conflict with Debian builds:
@@ -26,7 +26,7 @@ index 9877ad7..f541430 100644
      write_note('ERROR',
                 'This patch failed to apply. Your build will not be correct.')
    return result
-@@ -117,6 +130,19 @@ parser.add_option(
+@@ -117,6 +134,23 @@ parser.add_option(
  if not options.patchfile is None:
    result = apply_patch_file(options.patchfile, options.patchdir)
    if result == 'fail':
