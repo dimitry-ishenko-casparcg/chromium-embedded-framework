@@ -16,67 +16,57 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	# Build CEF using Debian chromium sources
-	# Approach: Copy local CEF with Debian patches, prevent automate-git.py from updating
-	#
-	# DEVELOPMENT OPTIMIZATION: Use cached depot_tools and chromium source if available
-	# TODO: Remove this optimization for final packaging
-	@if [ -d "$(CURDIR)/../build-cache/depot_tools" ]; then \
-		echo "==> DEVELOPMENT: Restoring cached depot_tools"; \
-		cp -a $(CURDIR)/../build-cache/depot_tools $(CURDIR)/; \
-	fi
-	@if [ -d "$(CURDIR)/../build-cache/chromium_src" ]; then \
-		echo "==> DEVELOPMENT: Restoring cached chromium_src (includes CEF with .git and chromium)"; \
-		cp -a $(CURDIR)/../build-cache/chromium_src $(CURDIR)/; \
-	else \
-		echo "==> DEVELOPMENT: No cache found, will use local CEF and let automate-git.py extract chromium"; \
-		mkdir -p $(CURDIR)/chromium_src; \
-		cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/; \
-	fi
+	# Production approach: Start from pristine sources each build
 
-	# Step 2: Apply Debian patches to the copied CEF source
+	# Step 1: Copy local CEF source to build directory
+	mkdir -p $(CURDIR)/chromium_src
+	cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/
+
+	# Step 2: Remove old quilt state that would confuse patch application
+	rm -rf $(CURDIR)/chromium_src/cef/.pc
+
+	# Step 3: Apply Debian patches to CEF source
 	cd $(CURDIR)/chromium_src/cef && \
 		QUILT_PATCHES=$(CURDIR)/debian/patches quilt push -a || \
 		(echo "ERROR: Failed to apply Debian patches"; exit 1)
 
-	# Step 3: Fix version mismatch (CEF expects .0, Debian has .59)
+	# Step 3.5: Initialize CEF directory as git repository (required by automate-git.py)
+	@echo "==> Initializing git repository in CEF source"
+	cd $(CURDIR)/chromium_src/cef && \
+		git init && \
+		git add . && \
+		git commit -m "CEF source with Debian patches applied"
+	@echo "==> CEF git repository initialized"
+
+	# Step 4: Fix version mismatch (CEF expects .0, Debian has .59)
 	sed -i "s/142\.0\.7444\.0/142.0.7444.59/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
-	# Step 3.5: Pre-extract chromium if not cached (CRITICAL for GN symlink timing)
-	@if [ ! -d "$(CURDIR)/chromium_src/chromium" ]; then \
-		echo "==> Pre-extracting Chromium source for GN symlink"; \
-		mkdir -p $(CURDIR)/chromium_src/chromium; \
-		tar -xf $(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
-			--strip-components=1 \
-			-C $(CURDIR)/chromium_src/chromium; \
-		echo "==> Chromium extracted successfully"; \
-	else \
-		echo "==> Chromium already extracted (from cache)"; \
-	fi
+	# Step 5: Extract Debian chromium source tarball
+	@echo "==> Extracting Debian chromium source"
+	tar -xf $(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
+		-C $(CURDIR)/chromium_src
+	mkdir -p $(CURDIR)/chromium_src/chromium
+	mv $(CURDIR)/chromium_src/chromium-* $(CURDIR)/chromium_src/chromium/src
+	@echo "==> Chromium extracted successfully"
 
-	# Step 3.6: Configure to use system GN instead of bundled (CRITICAL FIX)
+	# Step 6: Initialize git repository in chromium (required by automate-git.py)
+	@echo "==> Initializing git repository in chromium source"
+	cd $(CURDIR)/chromium_src/chromium/src && \
+		git init && \
+		git add . && \
+		git commit -m "Initial chromium source from Debian tarball"
+	@echo "==> Git repository initialized"
+
+	# Step 7: Create symlink to system GN executable
 	@echo "==> Configuring to use system GN executable"
-	@mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
-	@ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
-	@echo "==> GN symlink created: $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn -> /usr/bin/gn"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
+	ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
+	@echo "==> GN symlink created"
 
-	# DEVELOPMENT OPTIMIZATION: Cache clean depot_tools and chromium_src for next iteration
-	# TODO: Remove this optimization for final packaging
-	@if [ ! -d "$(CURDIR)/../build-cache" ]; then \
-		echo "==> DEVELOPMENT: Creating build cache"; \
-		mkdir -p $(CURDIR)/../build-cache; \
-	fi
-	@if [ ! -d "$(CURDIR)/../build-cache/depot_tools" ] && [ -d "$(CURDIR)/depot_tools" ]; then \
-		echo "==> DEVELOPMENT: Caching depot_tools"; \
-		cp -a $(CURDIR)/depot_tools $(CURDIR)/../build-cache/; \
-	fi
-	@if [ ! -d "$(CURDIR)/../build-cache/chromium_src" ] && [ -d "$(CURDIR)/chromium_src" ]; then \
-		echo "==> DEVELOPMENT: Caching chromium_src (includes CEF with .git and chromium extraction)"; \
-		cp -a $(CURDIR)/chromium_src $(CURDIR)/../build-cache/; \
-	fi
-
-	# Step 4: Run build using our pre-patched CEF and pre-extracted chromium
+	# Step 8: Run CEF build using automate-git.py
 	cd $(CURDIR)/chromium_src/cef && \
+	export DEBIAN_BUILD=1 && \
 	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true" && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
