@@ -9,8 +9,8 @@ Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Forwarded: not-needed
 Last-Update: 2025-11-02
 
---- a/cef/tools/clang_util.py
-+++ b/cef/tools/clang_util.py
+--- a/tools/clang_util.py
++++ b/tools/clang_util.py
 @@ -22,6 +22,9 @@ if sys.platform == 'win32':
  else:
    clang_format_exe = 'clang-format'

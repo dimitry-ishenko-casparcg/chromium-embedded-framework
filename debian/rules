@@ -42,6 +42,24 @@ override_dh_auto_build:
 	sed -i "s/142\.0\.7444\.0/142.0.7444.59/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
+	# Step 3.5: Pre-extract chromium if not cached (CRITICAL for GN symlink timing)
+	@if [ ! -d "$(CURDIR)/chromium_src/chromium" ]; then \
+		echo "==> Pre-extracting Chromium source for GN symlink"; \
+		mkdir -p $(CURDIR)/chromium_src/chromium; \
+		tar -xf $(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
+			--strip-components=1 \
+			-C $(CURDIR)/chromium_src/chromium; \
+		echo "==> Chromium extracted successfully"; \
+	else \
+		echo "==> Chromium already extracted (from cache)"; \
+	fi
+
+	# Step 3.6: Configure to use system GN instead of bundled (CRITICAL FIX)
+	@echo "==> Configuring to use system GN executable"
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
+	@ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
+	@echo "==> GN symlink created: $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn -> /usr/bin/gn"
+
 	# DEVELOPMENT OPTIMIZATION: Cache clean depot_tools and chromium_src for next iteration
 	# TODO: Remove this optimization for final packaging
 	@if [ ! -d "$(CURDIR)/../build-cache" ]; then \
@@ -57,21 +75,15 @@ override_dh_auto_build:
 		cp -a $(CURDIR)/chromium_src $(CURDIR)/../build-cache/; \
 	fi
 
-	# Step 3.5: Configure to use system GN instead of bundled (CRITICAL FIX)
-	@echo "==> Configuring to use system GN executable"
-	@mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
-	@ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
-
 	# Step 4: Run build using our pre-patched CEF and pre-extracted chromium
 	cd $(CURDIR)/chromium_src/cef && \
 	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true" && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \
-		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
-		--chromium-archive-sha256=7fedcc6cf4acafeb36ca8773264b3ee06fea6f072884d320a35009fa07ef056b \
 		--branch=$(CEF_BRANCH) \
 		--no-cef-update \
+		--no-chromium-update \
 		--x64-build \
 		--no-distrib-archive \
 		--build-log-file \
