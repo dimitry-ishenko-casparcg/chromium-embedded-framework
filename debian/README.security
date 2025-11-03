@@ -1,0 +1,72 @@
+Security Update Policy for Chromium Embedded Framework
+========================================================
+
+CEF Release Cycle
+-----------------
+
+CEF follows the Chromium release cycle. When Chromium releases a new
+version, CEF is updated to match.
+
+Chromium Security Updates
+--------------------------
+
+Chromium security updates are released frequently, often multiple times
+per month for critical vulnerabilities.
+
+Maintainer Commitment
+---------------------
+
+The maintainer commits to:
+
+  1. Monitoring security.debian.org/tracker/chromium for security updates
+  2. Monitoring https://chromereleases.googleblog.com/ for Chrome releases
+  3. Rebuilding CEF within 7 days of Chromium security releases
+  4. Coordinating with Debian Chromium team when possible
+
+Testing/Unstable Only
+---------------------
+
+Due to the frequency of Chromium security updates and the significant
+build time required (2+ hours, 40GB disk space), this package is
+targeted for unstable/testing only.
+
+Stable releases would require dedicated security team support, which
+is not currently available.
+
+Per-Package Security ACLs
+--------------------------
+
+Bug #817285 (per-package security ACLs) has been IMPLEMENTED as of
+September 2023. This infrastructure allows packages like CEF to be
+maintained in unstable/testing without blocking other packages.
+
+Migration to chromium-source
+-----------------------------
+
+When bug #893448 (chromium-source package) is implemented, CEF security
+updates will flow automatically from the Debian Chromium team's work.
+This will significantly reduce the maintenance burden.
+
+Until then, CEF will be rebuilt whenever Chromium is updated in Debian.
+
+Reporting Security Issues
+--------------------------
+
+Security issues in CEF should be reported to:
+
+  1. Upstream CEF: https://bitbucket.org/chromiumembedded/cef/issues
+  2. Debian maintainer: vejeta@gmail.com
+  3. Debian Security Team: team@security.debian.org
+
+Scope
+-----
+
+This security policy applies to:
+
+  - libcef137: The CEF shared library
+  - libcef-dev: Development files
+  - cef-resources: Resource files
+
+All three packages are updated together when CEF is rebuilt.
+
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 02 Nov 2025 06:00:00 -0400

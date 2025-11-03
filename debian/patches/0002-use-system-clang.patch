@@ -1,0 +1,23 @@
+Description: Use system clang when bundled version is not available
+ Debian's chromium source tarball doesn't include the bundled clang compiler
+ in third_party/llvm-build/. This patch makes CEF's clang_util.py fall back
+ to system clang when the bundled version doesn't exist.
+ .
+ This is necessary for the version_manager.py script which uses clang to
+ parse C++ headers for API hash generation.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-02
+
+--- a/cef/tools/clang_util.py
++++ b/cef/tools/clang_util.py
+@@ -22,6 +22,9 @@ if sys.platform == 'win32':
+ else:
+   clang_format_exe = 'clang-format'
+   clang_exe = os.path.join(llvm_bin_dir, 'clang')
++  # Debian: Use system clang if bundled version doesn't exist
++  if not os.path.exists(clang_exe):
++    clang_exe = 'clang'
+ 
+ 
+ def clang_format(file_name, file_contents):

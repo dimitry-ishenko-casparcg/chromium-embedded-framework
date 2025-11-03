@@ -1,0 +1,51 @@
+diff --git content/browser/renderer_host/navigation_throttle_registry_impl.cc content/browser/renderer_host/navigation_throttle_registry_impl.cc
+index 8b7f2a3fe53a0e96e1198c0cd101dcfb54099d49..e2e5793e41903a69dea96463016f4535b492676a 100644
+--- content/browser/renderer_host/navigation_throttle_registry_impl.cc
++++ content/browser/renderer_host/navigation_throttle_registry_impl.cc
+@@ -252,11 +252,16 @@ NavigationHandle& NavigationThrottleRegistryImpl::GetNavigationHandle() {
+ }
+ 
+ void NavigationThrottleRegistryImpl::AddThrottle(
+-    std::unique_ptr<NavigationThrottle> navigation_throttle) {
++    std::unique_ptr<NavigationThrottle> navigation_throttle,
++    bool first) {
+   CHECK(navigation_throttle);
+   TRACE_EVENT1("navigation", "NavigationThrottleRegistryImpl::AddThrottle",
+                "navigation_throttle", navigation_throttle->GetNameForLogging());
+-  throttles_.push_back(std::move(navigation_throttle));
++  if (first) {
++    throttles_.emplace(throttles_.begin(), std::move(navigation_throttle));
++  } else {
++    throttles_.push_back(std::move(navigation_throttle));
++  }
+ }
+ 
+ bool NavigationThrottleRegistryImpl::HasThrottle(const std::string& name) {
+diff --git content/browser/renderer_host/navigation_throttle_registry_impl.h content/browser/renderer_host/navigation_throttle_registry_impl.h
+index 9887ba175cef06096205b5d17be8df1f7b45e139..c9ee6fd29bf03dbcc72b48e902bc3e9a86619e70 100644
+--- content/browser/renderer_host/navigation_throttle_registry_impl.h
++++ content/browser/renderer_host/navigation_throttle_registry_impl.h
+@@ -135,7 +135,8 @@ class CONTENT_EXPORT NavigationThrottleRegistryImpl
+   // Implements NavigationThrottleRegistry:
+   NavigationHandle& GetNavigationHandle() override;
+   void AddThrottle(
+-      std::unique_ptr<NavigationThrottle> navigation_throttle) override;
++      std::unique_ptr<NavigationThrottle> navigation_throttle,
++      bool first = false) override;
+   bool HasThrottle(const std::string& name) override;
+   bool EraseThrottleForTesting(const std::string& name) override;
+   bool IsHTTPOrHTTPS() override;
+diff --git content/public/browser/navigation_throttle_registry.h content/public/browser/navigation_throttle_registry.h
+index eb84b25e92132ad7cd05ce5e5fd30f9260db989d..872f3f4826dae186a66dfdca1a16727847340ea7 100644
+--- content/public/browser/navigation_throttle_registry.h
++++ content/public/browser/navigation_throttle_registry.h
+@@ -28,7 +28,8 @@ class CONTENT_EXPORT NavigationThrottleRegistry {
+   // be called on `navigation_throttle`.
+   // AddThrottle() disallows `navigation_throttle` to be nullptr.
+   virtual void AddThrottle(
+-      std::unique_ptr<NavigationThrottle> navigation_throttle) = 0;
++      std::unique_ptr<NavigationThrottle> navigation_throttle,
++      bool first = false) = 0;
+ 
+   // Checks if the registry contains a throttle with the given name. Returns
+   // true if the throttle is found.

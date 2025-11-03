@@ -1,0 +1,86 @@
+Chromium Embedded Framework for Debian
+=======================================
+
+EXPERIMENTAL STATUS
+-------------------
+
+This package is EXPERIMENTAL and targeted for unstable/testing only.
+It is NOT intended for stable releases at this time.
+
+Package Structure and Chromium Integration
+--------------------------------------------
+
+**CEF Source Structure:**
+
+This package maintains CEF source files in the cef/ subdirectory, NOT at
+the package root:
+
+  chromium-embedded-framework/
+  ├── debian/              # Debian packaging files
+  ├── cef/                 # CEF source code
+  │   ├── tools/
+  │   ├── include/
+  │   └── ...
+  └── chromium_*.orig.tar.xz  # Chromium tarball (parent directory)
+
+**Why chromium is NOT bundled:**
+
+Unlike qt6-webengine (which bundles Chromium in src/3rdparty/chromium/
+because Qt upstream ships it that way), CEF upstream does NOT bundle
+Chromium sources. CEF's build system expects to extract Chromium
+separately at build time.
+
+Therefore, chromium is a BUILD DEPENDENCY, not a component tarball.
+
+**Build Process:**
+
+This package uses Debian's chromium source tarball as input to CEF's
+automate-git.py script. Build requirements:
+
+  - 40GB disk space
+  - 8GB RAM minimum
+  - ~2 hours build time
+  - Debian chromium tarball (chromium_*.orig.tar.xz)
+
+**Development vs Final Packaging Modes:**
+
+  Development mode (current):
+    - Uses cached chromium tarball (../chromium_*.orig.tar.xz)
+    - Enables rapid iteration without repeated downloads
+    - debian/rules contains cache optimization logic
+
+  Final mode (when Bug #893448 is resolved):
+    - Will use chromium-source binary package
+    - Automatic dependency resolution via apt
+    - Cache logic removed from debian/rules
+
+The packaging has been designed to make this migration straightforward -
+only debian/rules needs updating to use chromium-source instead of the
+local chromium tarball.
+
+Packages Enabled
+----------------
+
+This CEF package enables functionality in:
+
+  - obs-studio: Browser sources (currently disabled with -DENABLE_BROWSER=FALSE)
+  - stremio-gtk: Entire application (currently cannot be packaged)
+  - casparcg-server: HTTP support (currently disabled)
+  - nageru: Potential improvements (to be investigated)
+
+These packages have been waiting for CEF since 2018 (bug #915400).
+
+Security Updates
+----------------
+
+See README.security for the security update policy.
+
+For More Information
+--------------------
+
+  - CEF Project: https://bitbucket.org/chromiumembedded/cef
+  - Bug #915400: RFP for CEF
+  - Bug #893448: RFP for chromium-source
+  - Bug #817285: Per-package security ACLs (IMPLEMENTED)
+
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 02 Nov 2025 06:00:00 -0400

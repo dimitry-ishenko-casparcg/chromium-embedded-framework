@@ -1,0 +1,86 @@
+diff --git content/browser/renderer_host/render_widget_host_view_aura.cc content/browser/renderer_host/render_widget_host_view_aura.cc
+index b8f74e321a8bd8bd65e89cf9d794651c9f6f8705..5709da8c355cc784d08afac826b6978affa48658 100644
+--- content/browser/renderer_host/render_widget_host_view_aura.cc
++++ content/browser/renderer_host/render_widget_host_view_aura.cc
+@@ -8,6 +8,7 @@
+ #include <memory>
+ #include <set>
+ #include <string_view>
++#include <tuple>
+ #include <utility>
+ 
+ #include "base/auto_reset.h"
+@@ -53,6 +54,7 @@
+ #include "content/public/browser/content_browser_client.h"
+ #include "content/public/browser/device_service.h"
+ #include "content/public/browser/render_view_host.h"
++#include "content/public/browser/web_contents.h"
+ #include "content/public/common/page_visibility_state.h"
+ #include "services/service_manager/public/cpp/interface_provider.h"
+ #include "third_party/blink/public/common/input/web_input_event.h"
+@@ -752,6 +754,9 @@ gfx::Rect RenderWidgetHostViewAura::GetViewBounds() {
+ void RenderWidgetHostViewAura::UpdateBackgroundColor() {
+   CHECK(GetBackgroundColor());
+ 
++  if (!window_) {
++    return;
++  }
+   SkColor color = *GetBackgroundColor();
+   window_->layer()->SetColor(color);
+ }
+@@ -1101,6 +1106,12 @@ void RenderWidgetHostViewAura::TransformPointToRootSurface(gfx::PointF* point) {
+ }
+ 
+ gfx::Rect RenderWidgetHostViewAura::GetBoundsInRootWindow() {
++  if (!root_window_bounds_callback_.is_null()) {
++    if (auto bounds = root_window_bounds_callback_.Run()) {
++      return *bounds;
++    }
++  }
++
+   aura::Window* top_level = window_->GetToplevelWindow();
+   gfx::Rect bounds(top_level->GetBoundsInScreen());
+ 
+@@ -2667,6 +2678,16 @@ void RenderWidgetHostViewAura::CreateAuraWindow(aura::client::WindowType type) {
+   window_->layer()->SetColor(GetBackgroundColor() ? *GetBackgroundColor()
+                                                   : SK_ColorWHITE);
+   UpdateFrameSinkIdRegistration();
++
++  // Do this after |window_| is created to avoid crashes on Win10.
++  // See https://crbug.com/761389.
++  auto* web_contents =
++      WebContents::FromRenderViewHost(RenderViewHost::From(host()));
++  if (web_contents) {
++    // TODO(mostynb): actually use prefs.  Landing this as a separate CL
++    // first to rebaseline some unreliable layout tests.
++    std::ignore = web_contents->GetOrCreateWebPreferences();
++  }
+ }
+ 
+ void RenderWidgetHostViewAura::UpdateFrameSinkIdRegistration() {
+diff --git content/browser/renderer_host/render_widget_host_view_aura.h content/browser/renderer_host/render_widget_host_view_aura.h
+index 7328d8cc05de07a66685ce4ca41a57385b7acc6b..906a62fdd580a8e69dfe8432e718d492b5fb9adc 100644
+--- content/browser/renderer_host/render_widget_host_view_aura.h
++++ content/browser/renderer_host/render_widget_host_view_aura.h
+@@ -449,6 +449,12 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
+   }
+ #endif  // BUILDFLAG(IS_WIN)
+ 
++  using RootWindowBoundsCallback =
++      base::RepeatingCallback<std::optional<gfx::Rect>()>;
++  void SetRootWindowBoundsCallback(const RootWindowBoundsCallback& callback) {
++    root_window_bounds_callback_ = callback;
++  }
++
+  protected:
+   ~RenderWidgetHostViewAura() override;
+ 
+@@ -872,6 +878,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
+ 
+   std::optional<display::ScopedDisplayObserver> display_observer_;
+ 
++  RootWindowBoundsCallback root_window_bounds_callback_;
++
+   base::WeakPtrFactory<RenderWidgetHostViewAura> weak_ptr_factory_{this};
+ };
+ 

@@ -1,0 +1,174 @@
+chromium-embedded-framework for Debian
+======================================
+
+This package has a NON-STANDARD build workflow that requires manual preparation.
+
+CRITICAL: Chromium Source Requirement
+--------------------------------------
+
+CEF (Chromium Embedded Framework) requires Chromium browser source code as a
+build input. Unlike typical Debian packages, this source is NOT included in the
+package's orig.tar.gz and is NOT automatically downloaded during build.
+
+MANDATORY BUILD PREPARATION
+----------------------------
+
+Before building this package, you MUST manually download the Debian chromium
+source tarball and place it in the parent directory:
+
+    # From the parent directory of chromium-embedded-framework/
+    $ apt-get source --download-only chromium
+
+This creates:
+    chromium_142.0.7444.59.orig.tar.xz  (~961 MB)
+
+The build system (debian/rules) will reference this file at:
+    ../chromium_142.0.7444.59.orig.tar.xz
+
+Build Workflow
+--------------
+
+1. Prepare build environment:
+
+    $ cd /path/to/workspace/
+    $ apt-get source --download-only chromium
+    $ ls -lh chromium_142.0.7444.59.orig.tar.xz
+    # Verify file exists and is ~961 MB
+
+2. Extract/clone CEF package:
+
+    # If using git:
+    $ git clone <salsa-repo-url> chromium-embedded-framework
+
+    # If using source package:
+    $ dpkg-source -x chromium-embedded-framework_*.dsc
+
+3. Build package:
+
+    $ cd chromium-embedded-framework/
+    $ dpkg-buildpackage -us -uc
+
+The build process will:
+- Step 1: Clone CEF repository (branch 7444) using automate-git.py
+- Step 2: Extract chromium tarball to chromium_src/chromium/
+- Step 3: Apply Debian patches to CEF (using quilt)
+- Step 4: Build CEF binary distribution
+
+Expected build time: 2-3 hours on modern hardware
+Required disk space: ~40 GB total (Chromium ~6GB extracted + CEF build ~34GB)
+
+GBP (git-buildpackage) Workflow
+--------------------------------
+
+This package is PARTIALLY compatible with gbp:
+
+    $ gbp buildpackage --git-prebuild="test -f ../chromium_*.orig.tar.xz"
+
+The .gbp.conf file includes a prebuild check to verify chromium tarball exists.
+
+However, standard "gbp import-orig" workflow is NOT supported because:
+- CEF orig.tar.gz contains only CEF source (~50MB)
+- Chromium tarball is a build input, NOT part of the source package
+- No mechanism exists to auto-download build-time source dependencies
+
+pbuilder/sbuild Compatibility
+------------------------------
+
+NOT YET SUPPORTED.
+
+These tools require special setup to make the chromium tarball available inside
+the build chroot. Possible approaches:
+
+1. Copy tarball into chroot before build:
+    $ sudo cp chromium_*.orig.tar.xz /var/cache/pbuilder/build/*/tmp/buildd/*/..
+
+2. Use bind mount to make tarball accessible
+
+3. Wait for Debian Bug #893448 to be resolved (chromium-source package)
+
+Why This Non-Standard Approach?
+--------------------------------
+
+Debian Bug #893448 (filed 2018, still open) requests a chromium-source binary
+package to solve this exact problem. Until that exists, manual setup is required.
+
+Alternative approaches were considered and rejected:
+
+❌ Embed chromium in CEF source package:
+   - Would create ~1GB source package (unacceptable for Debian)
+   - Violates Debian Policy: "do not put code where canonical version is elsewhere"
+   - Duplicates Debian's chromium security patches
+
+❌ Download chromium during build:
+   - Violates Debian Policy: builds must be reproducible without network
+   - Source packages must be buildable offline
+
+✅ Current approach (manual chromium tarball):
+   - Uses Debian's official chromium source (includes security patches)
+   - Complies with Debian Policy (no embedded code, no network builds)
+   - Documented workflow for maintainers/builders
+   - Migration path when Bug #893448 is resolved
+
+Future Migration
+----------------
+
+When Debian Bug #893448 is resolved and chromium-source package exists:
+
+debian/control will change to:
+    Build-Depends: chromium-source (>= 142.0)
+
+debian/rules will change to:
+    --chromium-archive=/usr/src/chromium/chromium.tar.xz
+
+This README.source and manual setup will no longer be needed.
+
+Version Compatibility
+---------------------
+
+CEF branch 7444 requires Chromium 142.0.7444.x sources.
+
+The build system includes version compatibility fixes:
+- CEF expects 142.0.7444.53 (upstream Chromium tag)
+- Debian has 142.0.7444.59 (with Debian patches)
+- debian/rules patches CHROMIUM_BUILD_COMPATIBILITY.txt during build
+
+When updating to new CEF/Chromium versions:
+1. Update CEF_BRANCH in debian/rules
+2. Update chromium version in debian/rules --chromium-archive path
+3. Update SHA256 hash in debian/rules --chromium-archive-sha256
+4. Test build with new versions
+
+Debugging Build Issues
+----------------------
+
+Build log locations:
+- automate-git.py output: shown in dpkg-buildpackage output
+- CEF patch application: shown during Step 3 of build
+- Chromium compilation: shown during Step 4 of build
+
+Common issues:
+
+1. "chromium tarball not found":
+   → Run apt-get source --download-only chromium in parent directory
+
+2. "Patch application failed":
+   → Check debian/patches/series is correct
+   → Verify patches apply: cd chromium_src/cef && quilt push -a
+
+3. "Version mismatch":
+   → Update CHROMIUM_BUILD_COMPATIBILITY.txt patch in debian/rules
+
+4. "Disk space full":
+   → Build requires ~40GB free space
+
+Contact
+-------
+
+Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bugs: https://bugs.debian.org/chromium-embedded-framework
+Upstream: https://bitbucket.org/chromiumembedded/cef
+
+Related Debian Bugs:
+- #893448: Request for chromium-source binary package
+- #915400: RFP/ITP for chromium-embedded-framework
+- #919382: casparcg-server HTTP support (blocked by lack of CEF)

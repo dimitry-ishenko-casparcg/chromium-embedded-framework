@@ -1,0 +1,125 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEBIAN_BUILD = 1
+
+# CEF version/branch
+# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.59)
+CEF_BRANCH = 7444
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# automate-git.py handles configuration
+	@echo "CEF build will be configured by automate-git.py"
+
+override_dh_auto_build:
+	# Build CEF using Debian chromium sources
+	# Approach: Copy local CEF with Debian patches, prevent automate-git.py from updating
+	#
+	# DEVELOPMENT OPTIMIZATION: Use cached depot_tools and chromium source if available
+	# TODO: Remove this optimization for final packaging
+	@if [ -d "$(CURDIR)/../build-cache/depot_tools" ]; then \
+		echo "==> DEVELOPMENT: Restoring cached depot_tools"; \
+		cp -a $(CURDIR)/../build-cache/depot_tools $(CURDIR)/; \
+	fi
+	@if [ -d "$(CURDIR)/../build-cache/chromium" ]; then \
+		echo "==> DEVELOPMENT: Restoring cached chromium source"; \
+		mkdir -p $(CURDIR)/chromium_src; \
+		cp -a $(CURDIR)/../build-cache/chromium $(CURDIR)/chromium_src/; \
+	fi
+
+	# Step 1: Copy our CLEAN CEF source to build directory
+	cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/
+
+	# Step 2: Apply Debian patches to the copied CEF source
+	cd $(CURDIR)/chromium_src/cef && \
+		QUILT_PATCHES=$(CURDIR)/debian/patches quilt push -a || \
+		(echo "ERROR: Failed to apply Debian patches"; exit 1)
+
+	# Step 3: Fix version mismatch (CEF expects .0, Debian has .59)
+	sed -i "s/142\.0\.7444\.0/142.0.7444.59/" \
+		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
+
+	# DEVELOPMENT OPTIMIZATION: Cache clean depot_tools and chromium_src for next iteration
+	# TODO: Remove this optimization for final packaging
+	@if [ ! -d "$(CURDIR)/../build-cache" ]; then \
+		echo "==> DEVELOPMENT: Creating build cache"; \
+		mkdir -p $(CURDIR)/../build-cache; \
+		if [ -d "$(CURDIR)/depot_tools" ]; then \
+			echo "==> DEVELOPMENT: Caching depot_tools"; \
+			cp -a $(CURDIR)/depot_tools $(CURDIR)/../build-cache/; \
+		fi; \
+		if [ -d "$(CURDIR)/chromium_src/chromium" ]; then \
+			echo "==> DEVELOPMENT: Caching chromium_src"; \
+			cp -a $(CURDIR)/chromium_src $(CURDIR)/../build-cache/; \
+		fi; \
+	fi
+
+	# Step 4: Run build using our pre-patched CEF and pre-extracted chromium
+	cd $(CURDIR)/chromium_src/cef && \
+	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true" && \
+	python3 tools/automate/automate-git.py \
+		--download-dir=$(CURDIR)/chromium_src \
+		--depot-tools-dir=$(CURDIR)/depot_tools \
+		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
+		--chromium-archive-sha256=7fedcc6cf4acafeb36ca8773264b3ee06fea6f072884d320a35009fa07ef056b \
+		--branch=$(CEF_BRANCH) \
+		--no-cef-update \
+		--x64-build \
+		--no-distrib-archive \
+		--build-log-file \
+		--minimal-distrib
+
+override_dh_auto_install:
+	# Install libcef.so
+	install -D -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/libcef.so \
+		$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/libcef.so.137.0.1
+
+	# Create soname symlink
+	ln -s libcef.so.137.0.1 \
+		$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/libcef.so.137
+
+	# Install headers
+	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
+	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/include \
+		$(CURDIR)/debian/libcef-dev/usr/include/cef
+
+	# Install cmake config files if they exist
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/cmake ]; then \
+		mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
+		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/cmake/* \
+			$(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
+	fi
+
+	# Install resources (PAK files, locales)
+	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.pak \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Resources/*.pak \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
+
+	# Install locales
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales ]; then \
+		mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
+		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales/*.pak \
+			$(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
+	fi
+
+	# Install other required libraries from Release directory
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.so*; do \
+		if [ -f "$$lib" ] && [ "$$(basename $$lib)" != "libcef.so" ]; then \
+			install -D -m644 "$$lib" \
+				"$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/$$(basename $$lib)"; \
+		fi \
+	done
+
+override_dh_auto_test:
+	# Skip tests for now - CEF tests require X display
+	@echo "Skipping CEF tests (require X display)"
+
+override_dh_auto_clean:
+	rm -rf chromium_src/
+	rm -rf depot_tools/
+	dh_auto_clean

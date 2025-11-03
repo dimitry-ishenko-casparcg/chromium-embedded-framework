@@ -1,0 +1,10 @@
+chromium-embedded-framework (137.0.1-1) UNRELEASED; urgency=medium
+
+  * Initial release (Closes: #915400)
+  * EXPERIMENTAL package for unstable/testing only
+  * Builds against upstream Chromium sources via automate-git.py
+  * Will migrate to chromium-source when available (bug #893448)
+  * Enables obs-studio browser sources, stremio-gtk packaging,
+    casparcg-server HTTP support
+
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 02 Nov 2025 06:00:00 -0400
