@@ -22,9 +22,6 @@ if sys.platform == 'win32':
 else:
   clang_format_exe = 'clang-format'
   clang_exe = os.path.join(llvm_bin_dir, 'clang')
-  # Debian: Use system clang if bundled version doesn't exist
-  if not os.path.exists(clang_exe):
-    clang_exe = 'clang'
 
 
 def clang_format(file_name, file_contents):

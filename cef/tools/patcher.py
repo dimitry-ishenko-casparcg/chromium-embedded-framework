@@ -47,15 +47,6 @@ def apply_patch_file(patch_file, patch_dir):
 
   result = git_apply_patch_file(patch_path, patch_dir)
   if result == 'fail':
-    # Debian-specific: Some patches are unnecessary or conflict with Debian builds:
-    # - gn_config: Debian strips Windows-specific files (chrome/installer/mini_installer/*)
-    # - libxml_visibility: Debian unbundles libraries to use system versions (libxml)
-    # - chrome_browser_browser: Conflicts with Debian's chromium UI patches
-    # These patches fail but are safe to skip for Debian builds.
-    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser']
-    if 'DEBIAN_BUILD' in os.environ and patch_file in debian_skip_patches:
-      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
-      return 'skip'
     write_note('ERROR',
                'This patch failed to apply. Your build will not be correct.')
   return result
