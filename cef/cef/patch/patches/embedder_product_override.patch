@@ -1,0 +1,37 @@
+diff --git components/embedder_support/user_agent_utils.cc components/embedder_support/user_agent_utils.cc
+index 8c44d2265b3d3d02f507661517218bec8e6a0164..07dd90da1fc36c069857047ffd724e24a79630d6 100644
+--- components/embedder_support/user_agent_utils.cc
++++ components/embedder_support/user_agent_utils.cc
+@@ -27,6 +27,7 @@
+ #include "build/branding_buildflags.h"
+ #include "build/build_config.h"
+ #include "build/util/chromium_git_revision.h"
++#include "cef/libcef/features/features.h"
+ #include "components/embedder_support/pref_names.h"
+ #include "components/embedder_support/switches.h"
+ #include "components/policy/core/common/policy_pref_names.h"
+@@ -55,6 +56,10 @@
+ #include <sys/utsname.h>
+ #endif
+ 
++#if BUILDFLAG(ENABLE_CEF)
++constexpr char kUserAgentProductAndVersion[] = "user-agent-product";
++#endif
++
+ namespace embedder_support {
+ 
+ namespace {
+@@ -474,6 +479,13 @@ std::string BuildOSCpuInfo(
+ 
+ std::string GetProductAndVersion(
+     UserAgentReductionEnterprisePolicyState user_agent_reduction) {
++#if BUILDFLAG(ENABLE_CEF)
++  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
++  if (command_line->HasSwitch(kUserAgentProductAndVersion)) {
++    return command_line->GetSwitchValueASCII(kUserAgentProductAndVersion);
++  }
++#endif
++
+   return ShouldReduceUserAgentMinorVersion(user_agent_reduction)
+              ? version_info::GetProductNameAndVersionForReducedUserAgent(
+                    blink::features::kUserAgentFrozenBuildVersion.Get())

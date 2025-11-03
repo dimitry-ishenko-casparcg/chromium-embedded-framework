@@ -1,0 +1,45 @@
+diff --git ui/base/resource/resource_bundle.cc ui/base/resource/resource_bundle.cc
+index d0b91eb5ba06c965bf8f4a42933f47563dd94672..a1c0a4748607fb9f189f04ae8ce3dc2cbce2bfef 100644
+--- ui/base/resource/resource_bundle.cc
++++ ui/base/resource/resource_bundle.cc
+@@ -1016,6 +1016,12 @@ ResourceBundle::ResourceBundle(Delegate* delegate)
+     : delegate_(delegate),
+       locale_resources_data_lock_(new base::Lock),
+       max_scale_factor_(k100Percent) {
++  // With CEF's multi-threaded mode the ResourceBundle may be created on the
++  // main thread and then accessed on the UI thread. Allow the SequenceChecker
++  // to re-bind on the UI thread when CalledOnValidSequence() is called for the
++  // first time.
++  DETACH_FROM_SEQUENCE(sequence_checker_);
++
+   mangle_localized_strings_ = base::CommandLine::ForCurrentProcess()->HasSwitch(
+       switches::kMangleLocalizedStrings);
+ }
+@@ -1025,6 +1031,11 @@ ResourceBundle::~ResourceBundle() {
+   UnloadLocaleResources();
+ }
+ 
++void ResourceBundle::CleanupOnUIThread() {
++  FreeImages();
++  font_cache_.clear();
++}
++
+ // static
+ void ResourceBundle::InitSharedInstance(Delegate* delegate) {
+   DCHECK(g_shared_instance_ == nullptr) << "ResourceBundle initialized twice";
+diff --git ui/base/resource/resource_bundle.h ui/base/resource/resource_bundle.h
+index cb3cb9ae8c0c01d59ac4035e5a9603eab65c1ed1..fc0b4c11d588ddf66695e2552f425fa9999de387 100644
+--- ui/base/resource/resource_bundle.h
++++ ui/base/resource/resource_bundle.h
+@@ -263,6 +263,11 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
+   ResourceBundle(const ResourceBundle&) = delete;
+   ResourceBundle& operator=(const ResourceBundle&) = delete;
+ 
++  // With CEF's multi-threaded mode the ResourceBundle may be created/destroyed
++  // on the main thread but accessed on the UI thread. Call this method on the
++  // UI thread to clean up resources before destruction.
++  void CleanupOnUIThread();
++
+   // Loads a secondary locale data pack using the given file region.
+   void LoadAdditionalLocaleDataWithPakFileRegion(
+       base::File pak_file,

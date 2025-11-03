@@ -1,0 +1,126 @@
+Source: chromium-embedded-framework
+Section: libs
+Priority: optional
+Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Build-Depends: debhelper-compat (= 13),
+               python3,
+               clang,
+               cmake,
+               ninja-build,
+               pkg-config,
+               build-essential,
+               libgtk-3-dev,
+               libglib2.0-dev,
+               libpango1.0-dev,
+               libatk1.0-dev,
+               libcairo2-dev,
+               libx11-dev,
+               libxext-dev,
+               libxfixes-dev,
+               libxdamage-dev,
+               libxcomposite-dev,
+               libxrandr-dev,
+               libxrender-dev,
+               libxtst-dev,
+               libxss-dev,
+               libgdk-pixbuf-2.0-dev,
+               libasound2-dev,
+               libpulse-dev,
+               libdbus-1-dev,
+               libdrm-dev,
+               libgbm-dev,
+               libgl1-mesa-dev,
+               libgles2-mesa-dev,
+               libegl1-mesa-dev,
+               libnspr4-dev,
+               libnss3-dev,
+               libcups2-dev,
+               libexpat1-dev,
+               libkrb5-dev,
+               libpam0g-dev,
+               libffi-dev,
+               zlib1g-dev,
+               libbz2-dev,
+               libsnappy-dev,
+               liblzma-dev,
+               libzstd-dev,
+               libxml2-dev,
+               libxslt1-dev,
+               libre2-dev,
+               libicu-dev,
+               libjpeg-dev,
+               libpng-dev,
+               libwebp-dev,
+               libopus-dev,
+               libvpx-dev,
+               libavcodec-dev,
+               libavformat-dev,
+               libavutil-dev,
+               libevent-dev,
+               libminizip-dev,
+               libprotobuf-dev,
+               protobuf-compiler,
+               libflac-dev,
+               libspeex-dev,
+               libharfbuzz-dev,
+               libfreetype-dev,
+               libfontconfig-dev,
+               liblcms2-dev,
+               libopenjp2-7-dev,
+               libva-dev,
+               libwayland-dev,
+               wayland-protocols,
+               libxkbcommon-dev,
+               libgcrypt20-dev,
+               libsystemd-dev,
+               yasm,
+               git,
+               curl,
+               wget
+Standards-Version: 4.7.2
+Homepage: https://bitbucket.org/chromiumembedded/cef
+Vcs-Browser: https://salsa.debian.org/debian/chromium-embedded-framework
+Vcs-Git: https://salsa.debian.org/debian/chromium-embedded-framework.git
+
+Package: libcef137
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)
+ The Chromium Embedded Framework (CEF) is a simple framework for embedding
+ Chromium-based browsers in other applications.
+ .
+ This package provides the CEF shared library.
+ .
+ WARNING: This package is EXPERIMENTAL and targets unstable/testing only.
+ It currently builds against upstream Chromium sources. When the
+ chromium-source package becomes available (bug #893448), this will
+ migrate to using Debian's patched Chromium sources for improved
+ security consistency.
+ .
+ This package enables functionality in obs-studio (browser sources),
+ stremio-gtk (media center application), and casparcg-server (HTTP support).
+
+Package: libcef-dev
+Architecture: amd64
+Section: libdevel
+Depends: libcef137 (= ${binary:Version}), ${misc:Depends}
+Description: Chromium Embedded Framework - development files
+ The Chromium Embedded Framework (CEF) is a simple framework for embedding
+ Chromium-based browsers in other applications.
+ .
+ This package provides the development files (headers, static libraries)
+ needed to build applications using CEF.
+ .
+ WARNING: This package is EXPERIMENTAL. See libcef137 description for details.
+
+Package: cef-resources
+Architecture: all
+Depends: ${misc:Depends}
+Description: Chromium Embedded Framework - resource files
+ The Chromium Embedded Framework (CEF) is a simple framework for embedding
+ Chromium-based browsers in other applications.
+ .
+ This package provides resource files (PAK files, locales) required by CEF
+ applications at runtime.
+ .
+ WARNING: This package is EXPERIMENTAL. See libcef137 description for details.

@@ -1,0 +1,43 @@
+diff --git third_party/blink/public/web/web_element.h third_party/blink/public/web/web_element.h
+index c815617ca66eed330360f459f7f757ace87903bf..607836579e35cb33bd027b6039f48c1509de5706 100644
+--- third_party/blink/public/web/web_element.h
++++ third_party/blink/public/web/web_element.h
+@@ -83,6 +83,9 @@ class BLINK_EXPORT WebElement : public WebNode {
+   WebString TextContent() const;
+   WebString TextContentAbridged(unsigned int max_length) const;
+   WebString InnerHTML() const;
++  WebString AttributeLocalName(unsigned index) const;
++  WebString AttributeValue(unsigned index) const;
++  unsigned AttributeCount() const;
+ 
+   void Focus();
+ 
+diff --git third_party/blink/renderer/core/exported/web_element.cc third_party/blink/renderer/core/exported/web_element.cc
+index 4fe00c4b2666ecbb6f7eb9dd32c9d27c5601eb15..12f0d7c1d38c2f0f1e532d12e3e6f1639e78fbb4 100644
+--- third_party/blink/renderer/core/exported/web_element.cc
++++ third_party/blink/renderer/core/exported/web_element.cc
+@@ -128,6 +128,24 @@ void WebElement::SetAttribute(const WebString& attr_name,
+                                   IGNORE_EXCEPTION_FOR_TESTING);
+ }
+ 
++unsigned WebElement::AttributeCount() const {
++  if (!ConstUnwrap<Element>()->hasAttributes())
++    return 0;
++  return ConstUnwrap<Element>()->Attributes().size();
++}
++
++WebString WebElement::AttributeLocalName(unsigned index) const {
++  if (index >= AttributeCount())
++    return WebString();
++  return ConstUnwrap<Element>()->Attributes().at(index).LocalName();
++}
++
++WebString WebElement::AttributeValue(unsigned index) const {
++  if (index >= AttributeCount())
++    return WebString();
++  return ConstUnwrap<Element>()->Attributes().at(index).Value();
++}
++
+ WebString WebElement::TextContent() const {
+   return ConstUnwrap<Element>()->textContent();
+ }

@@ -1,0 +1,40 @@
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
+@@ -1585,9 +1585,33 @@ def main():
+   # Patch the Chromium runhooks scripts if necessary.
+   apply_runhooks_patch()
+
++  ##
++  ## Create stub for reclient_cfgs (missing from Debian chromium tarball)
++  ##
++
++  reclient_stub = os.path.join(chromium_src_dir, 'buildtools', 'reclient_cfgs', 'configure_reclient_cfgs.py')
++  os.makedirs(os.path.dirname(reclient_stub), exist_ok=True)
++  with open(reclient_stub, 'w') as f:
++    f.write('#!/usr/bin/env python3\n# Stub for Debian builds\nimport sys\nsys.exit(0)\n')
++
++  ##
++  ## Patch chromium BUILD.gn to remove catapult/telemetry dependency
++  ## (Debian unbundled this development tool not needed for CEF)
++  ##
++
++  build_gn = os.path.join(chromium_src_dir, 'BUILD.gn')
++  with open(build_gn, 'r') as f:
++    content = f.read()
++  content = content.replace(
++    '"//third_party/catapult/telemetry:bitmaptools($host_toolchain)",',
++    '# Debian: catapult/telemetry unbundled\n        # "//third_party/catapult/telemetry:bitmaptools($host_toolchain)",')
++  with open(build_gn, 'w') as f:
++    f.write(content)
++
+   # Runs hooks for files that have been modified in the local working copy.
+   run("gclient runhooks", chromium_dir)
+
++  # Add depot_tools to PATH for gclient_hook.py
++  os.environ['PATH'] = depot_tools_dir + os.pathsep + os.environ.get('PATH', '')
++
+   # Delete the src/out directory created by `gclient sync`.
+   delete_directory(out_src_dir)
+
+
+if cef_dir == cef_src_dir:
