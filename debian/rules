@@ -67,7 +67,7 @@ override_dh_auto_build:
 	# Step 8: Run CEF build using automate-git.py
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true" && \
+	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true rust_sysroot_absolute=\"/usr\" rustc_version=\"1.90.0\"" && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \
