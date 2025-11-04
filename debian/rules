@@ -84,10 +84,13 @@ override_dh_auto_build:
 	# Step 6.5: Patch Chromium DEPS to disable git submodule checking
 	# gclient runhooks calls GetSubmoduleDiff() when git_dependencies != 'DEPS'
 	# Setting git_dependencies = 'DEPS' disables submodule checks (not needed for Debian builds)
+	# Note: DEPS file uses SINGLE quotes around 'SYNC', not double quotes
 	@echo "==> Patching chromium/src/DEPS to disable git submodule checks"
-	sed -i 's/git_dependencies = "SYNC"/git_dependencies = "DEPS"/' \
+	sed -i "s/git_dependencies = 'SYNC'/git_dependencies = 'DEPS'/" \
 		$(CURDIR)/chromium_src/chromium/src/DEPS
 	@echo "==> DEPS patched: git_dependencies set to 'DEPS'"
+	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
+	# after depot_tools is cloned but before gclient runhooks
 
 	# Step 7: Create symlink to system GN executable
 	@echo "==> Configuring to use system GN executable"
