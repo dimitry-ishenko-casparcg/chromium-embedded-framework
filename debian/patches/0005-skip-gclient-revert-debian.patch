@@ -1,0 +1,31 @@
+Description: Skip gclient revert for Debian tarball-based builds
+ The automate-git.py script calls `gclient revert --nohooks` when changing
+ chromium checkouts, which requires a git repository with an 'origin' remote.
+ .
+ Debian builds use extracted tarballs rather than git clones, so we initialize
+ a local git repository (required by automate-git.py) but don't configure
+ remotes. Since we're building from a pristine tarball extraction, there are
+ no local changes to revert anyway.
+ .
+ This patch skips the gclient revert step when DEBIAN_BUILD=1 is set.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-04
+
+diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
+index 04a801b..fa96f28 100644
+--- a/tools/automate/automate-git.py
++++ b/tools/automate/automate-git.py
+@@ -1566,7 +1566,11 @@ if chromium_checkout_changed:
+         run("%s clean -dffx" % (git_exe), chromium_src_dir)
+       else:
+         # Revert all changes in the Chromium checkout.
+-        run("gclient revert --nohooks", chromium_dir)
++        # Skip for Debian builds (tarball has no remote, nothing to revert)
++        if 'DEBIAN_BUILD' not in os.environ:
++          run("gclient revert --nohooks", chromium_dir)
++        else:
++          msg('Debian: Skipping gclient revert (tarball-based build has no changes)')
+
+     # Checkout the requested branch.
+     run("%s checkout %s%s" %
