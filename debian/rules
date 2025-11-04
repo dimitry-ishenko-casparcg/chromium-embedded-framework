@@ -75,6 +75,12 @@ override_dh_auto_build:
 
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
 	@echo "==> Initializing git repository in chromium source"
+	# Remove broken .git from Debian chromium tarball (has no 'origin' remote)
+	# Note: We intentionally do NOT add 'origin' remote here because:
+	#   1. We're using Debian tarball sources, not upstream chromium
+	#   2. Patch 0005 skips gclient revert which would need 'origin'
+	#   3. No network operations needed - all sources are local
+	rm -rf $(CURDIR)/chromium_src/chromium/src/.git && \
 	cd $(CURDIR)/chromium_src/chromium/src && \
 		git init && \
 		git add . && \
