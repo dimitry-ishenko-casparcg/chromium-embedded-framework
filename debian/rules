@@ -76,19 +76,19 @@ override_dh_auto_build:
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
 	@echo "==> Initializing git repository in chromium source"
 	# Remove broken .git from Debian chromium tarball (has no 'origin' remote)
-	# Note: We intentionally do NOT add 'origin' remote here because:
+	# Note: We intentionally do NOT add 'origin' remote or tags here because:
 	#   1. We're using Debian tarball sources, not upstream chromium
 	#   2. Patch 0005 skips gclient revert which would need 'origin'
-	#   3. No network operations needed - all sources are local
-	# We create git tags that automate-git.py expects for checkout operations
+	#   3. Patch 0006 skips chromium checkout which would need tags
+	#   4. No git operations needed - all sources are local
+	#   5. Forward compatible: when chromium-source package exists, patch 0006
+	#      will skip checkout and preserve the real git repo with real tags
 	rm -rf $(CURDIR)/chromium_src/chromium/src/.git && \
 	cd $(CURDIR)/chromium_src/chromium/src && \
 		git init && \
 		git add . && \
-		git commit -m "Initial chromium source from Debian tarball" && \
-		git tag 142.0.7444.53 && \
-		git tag 142.0.7444.59
-	@echo "==> Git repository initialized with version tags"
+		git commit -m "Initial chromium source from Debian tarball"
+	@echo "==> Git repository initialized"
 
 	# Step 6.5: Patch Chromium DEPS to disable git submodule checking
 	# gclient runhooks calls GetSubmoduleDiff() when git_dependencies != 'DEPS'
