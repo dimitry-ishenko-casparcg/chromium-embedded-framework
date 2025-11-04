@@ -1,21 +1,16 @@
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
-index c107d75..fb3c0b8 100644
+index c107d75..04a801b 100644
 --- a/tools/automate/automate-git.py
 +++ b/tools/automate/automate-git.py
-@@ -1557,7 +1557,8 @@ if os.path.exists(out_src_dir):
-     move_directory(out_src_dir, old_out_dir)
- 
- # Update the Chromium checkout.
--if chromium_checkout_changed:
-+# Skip git operations for Debian builds - we already have correct source from tarball.
-+if 'DEBIAN_BUILD' not in os.environ and chromium_checkout_changed:
-   if not options.nochromiumhistory:
-     if not chromium_checkout_new and not options.fastupdate:
-       if options.forceclean and options.forcecleandeps:
-@@ -1607,6 +1608,40 @@ content = content.replace(
+@@ -1607,11 +1607,41 @@ content = content.replace(
  with open(build_gn, 'w') as f:
    f.write(content)
  
+-  # Runs hooks for files that have been modified in the local working copy.
+-  run("gclient runhooks", chromium_dir)
++# Delete the src/out directory created by `gclient sync`.
++delete_directory(out_src_dir)
++
 +# Debian-specific: Patch Chromium .gn file with exec_script_whitelist.
 +# CEF uses exec_script in BUILD.gn (//cef/tools/gypi_to_gn.py) which is
 +# security-restricted by GN. The .gn file controls exec_script permissions.
@@ -37,12 +32,10 @@ index c107d75..fb3c0b8 100644
 +      msg('Debian: Patched .gn with exec_script_whitelist for CEF')
 +    else:
 +      msg('Debian: .gn already contains exec_script_whitelist')
-+
+ 
+-  # Delete the src/out directory created by `gclient sync`.
+-  delete_directory(out_src_dir)
 +  # Debian-specific: Run gclient sync to process patched DEPS file.
-+  # debian/rules patches DEPS to set git_dependencies = 'DEPS' (disables submodule checks).
-+  # gclient needs to read DEPS via 'gclient sync' to know about this setting.
-+  # We skip normal gclient sync above, so we run it here with --nohooks.
-+  # This must run after depot_tools exists but before gclient runhooks.
 +  msg('Debian: Running gclient sync to process patched DEPS')
 +  run("gclient sync --nohooks", chromium_dir)
 +  msg('Debian: gclient sync completed')
@@ -50,6 +43,8 @@ index c107d75..fb3c0b8 100644
 +# Patch the Chromium runhooks scripts if necessary.
 +apply_runhooks_patch()
 +
-   # Runs hooks for files that have been modified in the local working copy.
-   run("gclient runhooks", chromium_dir)
++# Runs hooks for files that have been modified in the local working copy.
++run("gclient runhooks", chromium_dir)
  
+ if cef_dir == cef_src_dir:
+   # Running in fast update mode.
