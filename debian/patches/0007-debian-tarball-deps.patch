@@ -9,14 +9,75 @@ Description: Add source_tarball conditions to chromium DEPS for tarball builds
  This eliminates all git fetch/clone operations during Phase 2a build,
  ensuring compliance with Debian's no-internet build policy.
  .
- Regenerated for Debian chromium 142.0.7444.59 (CEF's original patch was for .53)
+ Regenerated for Debian chromium 142.0.7444.59 as single unified diff
 Author: Debian CEF Maintainers
 Forwarded: not-needed
 Last-Update: 2025-11-05
 
+diff --git a/chromium/src/DEPS b/chromium/src/DEPS
+index d434718..c79eece 100644
 --- a/chromium/src/DEPS
 +++ b/chromium/src/DEPS
-@@ -4198,6 +4198,7 @@ hooks = [
+@@ -1614,8 +1614,10 @@ deps = {
+     'dep_type': 'cipd',
+   },
+
+-  'src/chrome/test/data/xr/webvr_info':
+-    Var('chromium_git') + '/external/github.com/toji/webvr.info.git' + '@' + 'c58ae99b9ff9e2aa4c524633519570bf33536248',
++  'src/chrome/test/data/xr/webvr_info': {
++    'url': Var('chromium_git') + '/external/github.com/toji/webvr.info.git' + '@' + 'c58ae99b9ff9e2aa4c524633519570bf33536248',
++    'condition': 'not source_tarball',
++  },
+
+   'src/clank': {
+     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
+@@ -2048,11 +2050,15 @@ deps = {
+       'condition': 'checkout_linux or checkout_chromeos',
+   },
+
+-  'src/third_party/crossbench':
+-    Var('chromium_git') + '/crossbench.git' + '@' + Var('crossbench_revision'),
++  'src/third_party/crossbench': {
++    'url': Var('chromium_git') + '/crossbench.git' + '@' + Var('crossbench_revision'),
++    'condition': 'not source_tarball',
++  },
+
+-  'src/third_party/crossbench-web-tests':
+-    Var('chromium_git') + '/chromium/web-tests.git' + '@' + Var('crossbench_web_tests_revision'),
++  'src/third_party/crossbench-web-tests': {
++    'url': Var('chromium_git') + '/chromium/web-tests.git' + '@' + Var('crossbench_web_tests_revision'),
++    'condition': 'not source_tarball',
++  },
+
+   'src/third_party/depot_tools':
+     Var('chromium_git') + '/chromium/tools/depot_tools.git' + '@' + '675a3a9ccd7cf9367bb4caa58c30f08b56d45ef5',
+@@ -2060,8 +2066,10 @@ deps = {
+   'src/third_party/devtools-frontend/src':
+     Var('chromium_git') + '/devtools/devtools-frontend' + '@' + Var('devtools_frontend_revision'),
+
+-  'src/third_party/dom_distiller_js/dist':
+-    Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '199de96b345ada7c6e7e6ba3d2fa7a6911b8767d',
++  'src/third_party/dom_distiller_js/dist': {
++    'url': Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '199de96b345ada7c6e7e6ba3d2fa7a6911b8767d',
++    'condition': 'not source_tarball',
++  },
+
+   'src/third_party/dragonbox/src':
+     Var('chromium_git') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
+@@ -2339,8 +2347,10 @@ deps = {
+   'src/third_party/libaom/source/libaom':
+     Var('aomedia_git') + '/aom.git' + '@' +  '2a70ad7bee390757eaa83aff12f310ba53915e9f',
+
+-  'src/third_party/crabbyavif/src':
+-    Var('chromium_git') + '/external/github.com/webmproject/CrabbyAvif.git' + '@' + Var('crabbyavif_revision'),
++  'src/third_party/crabbyavif/src': {
++    'url': Var('chromium_git') + '/external/github.com/webmproject/CrabbyAvif.git' + '@' + Var('crabbyavif_revision'),
++    'condition': 'not source_tarball',
++  },
+
+   'src/third_party/nearby/src':
+     Var('chromium_git') + '/external/github.com/google/nearby-connections.git' + '@' + Var('nearby_revision'),
+@@ -4198,6 +4208,7 @@ hooks = [
    {
      # Update LASTCHANGE.
      'name': 'lastchange',
@@ -25,7 +86,7 @@ Last-Update: 2025-11-05
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-o', 'src/build/util/LASTCHANGE'],
    },
-@@ -4205,7 +4206,7 @@ hooks = [
+@@ -4205,7 +4216,7 @@ hooks = [
      # Update lastchange_commit_position.h (only for CrOS).
      'name': 'lastchange_commit_position_cros',
      'pattern': '.',
@@ -34,7 +95,7 @@ Last-Update: 2025-11-05
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-m', 'CHROMIUM',
                 '--commit-position-header',
-@@ -4215,6 +4216,7 @@ hooks = [
+@@ -4215,6 +4226,7 @@ hooks = [
      # Update GPU lists version string (for gpu/config).
      'name': 'gpu_lists_version',
      'pattern': '.',
@@ -42,7 +103,7 @@ Last-Update: 2025-11-05
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-m', 'GPU_LISTS_VERSION',
                 '--revision-id-only',
-@@ -4224,6 +4226,7 @@ hooks = [
+@@ -4224,6 +4236,7 @@ hooks = [
      # Update skia_commit_hash.h.
      'name': 'lastchange_skia',
      'pattern': '.',
@@ -50,7 +111,7 @@ Last-Update: 2025-11-05
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-m', 'SKIA_COMMIT_HASH',
                 '-s', 'src/third_party/skia',
-@@ -4233,6 +4236,7 @@ hooks = [
+@@ -4233,6 +4246,7 @@ hooks = [
      # Update dawn_version.h.
      'name': 'lastchange_dawn',
      'pattern': '.',
@@ -58,62 +119,3 @@ Last-Update: 2025-11-05
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-m', 'DAWN_COMMIT_HASH',
                 '-s', 'src/third_party/dawn',
-@@ -1614,8 +1614,10 @@ deps = {
-     'dep_type': 'cipd',
-   },
- 
--  'src/chrome/test/data/xr/webvr_info':
--    Var('chromium_git') + '/external/github.com/toji/webvr.info.git' + '@' + 'c58ae99b9ff9e2aa4c524633519570bf33536248',
-+  'src/chrome/test/data/xr/webvr_info': {
-+    'url': Var('chromium_git') + '/external/github.com/toji/webvr.info.git' + '@' + 'c58ae99b9ff9e2aa4c524633519570bf33536248',
-+    'condition': 'not source_tarball',
-+  },
- 
-   'src/clank': {
-     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
-@@ -2048,11 +2050,15 @@ deps = {
-       'condition': 'checkout_linux or checkout_chromeos',
-   },
- 
--  'src/third_party/crossbench':
--    Var('chromium_git') + '/crossbench.git' + '@' + Var('crossbench_revision'),
-+  'src/third_party/crossbench': {
-+    'url': Var('chromium_git') + '/crossbench.git' + '@' + Var('crossbench_revision'),
-+    'condition': 'not source_tarball',
-+  },
- 
--  'src/third_party/crossbench-web-tests':
--    Var('chromium_git') + '/chromium/web-tests.git' + '@' + Var('crossbench_web_tests_revision'),
-+  'src/third_party/crossbench-web-tests': {
-+    'url': Var('chromium_git') + '/chromium/web-tests.git' + '@' + Var('crossbench_web_tests_revision'),
-+    'condition': 'not source_tarball',
-+  },
- 
-   'src/third_party/depot_tools':
-     Var('chromium_git') + '/chromium/tools/depot_tools.git' + '@' + '675a3a9ccd7cf9367bb4caa58c30f08b56d45ef5',
-@@ -2060,8 +2066,10 @@ deps = {
-   'src/third_party/devtools-frontend/src':
-     Var('chromium_git') + '/devtools/devtools-frontend' + '@' + Var('devtools_frontend_revision'),
- 
--  'src/third_party/dom_distiller_js/dist':
--    Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '199de96b345ada7c6e7e6ba3d2fa7a6911b8767d',
-+  'src/third_party/dom_distiller_js/dist': {
-+    'url': Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '199de96b345ada7c6e7e6ba3d2fa7a6911b8767d',
-+    'condition': 'not source_tarball',
-+  },
- 
-   'src/third_party/dragonbox/src':
-     Var('chromium_git') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
-@@ -2339,8 +2347,10 @@ deps = {
-   'src/third_party/libaom/source/libaom':
-     Var('aomedia_git') + '/aom.git' + '@' +  '2a70ad7bee390757eaa83aff12f310ba53915e9f',
- 
--  'src/third_party/crabbyavif/src':
--    Var('chromium_git') + '/external/github.com/webmproject/CrabbyAvif.git' + '@' + Var('crabbyavif_revision'),
-+  'src/third_party/crabbyavif/src': {
-+    'url': Var('chromium_git') + '/external/github.com/webmproject/CrabbyAvif.git' + '@' + Var('crabbyavif_revision'),
-+    'condition': 'not source_tarball',
-+  },
- 
-   'src/third_party/nearby/src':
-     Var('chromium_git') + '/external/github.com/google/nearby-connections.git' + '@' + Var('nearby_revision'),
