@@ -299,6 +299,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \
 		--branch=$(CEF_BRANCH) \
+		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
 		--no-cef-update \
 		--x64-build \
 		--no-distrib-archive \
