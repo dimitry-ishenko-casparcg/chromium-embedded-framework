@@ -114,15 +114,11 @@ override_dh_auto_build:
 	fi
 	@echo "==> depot_tools cloned"
 
-	# Step 6.7: Apply CEF's tarball patches (required for source_tarball mode)
-	@echo "==> Applying CEF tarball patches"
-	python3 $(CURDIR)/chromium_src/cef/tools/patcher.py \
-		--patch-file $(CURDIR)/chromium_src/cef/patch/patches/tarball_deps \
-		--patch-dir $(CURDIR)/chromium_src/chromium/src
-	python3 $(CURDIR)/chromium_src/cef/tools/patcher.py \
-		--patch-file $(CURDIR)/chromium_src/cef/patch/patches/tarball_gclient \
-		--patch-dir $(CURDIR)/depot_tools
-	@echo "==> CEF tarball patches applied"
+	# Step 6.7: Apply Debian-specific tarball patches (Build 94 working solution)
+	@echo "==> Applying Debian tarball patches (DEPS and gclient)"
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/0007-debian-tarball-deps.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/0008-debian-tarball-gclient-toplevel.patch
+	@echo "==> Debian tarball patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
 	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
@@ -296,14 +292,6 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil
 	echo '# Stub BUILD.gn for Debian builds - bundled tool' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
 	echo 'source_set("gsutil") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
-	@echo "==> Creating stub third_party/unrar/BUILD.gn (missing dependency)"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/unrar
-	echo '# Stub BUILD.gn for Debian builds - unrar not needed for CEF' > $(CURDIR)/chromium_src/chromium/src/third_party/unrar/BUILD.gn
-	echo 'source_set("unrar") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/unrar/BUILD.gn
-	@echo "==> Creating stub third_party/updater/BUILD.gn (missing dependency)"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/updater
-	echo '# Stub BUILD.gn for Debian builds - updater not needed for CEF' > $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
-	echo 'group("old_updater") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
 	@echo "==> Stub files created"
 
 	## Step 7b: Pre-patch .gn if it exists from a previous build
