@@ -75,7 +75,8 @@ override_dh_auto_build:
 
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
 	@echo "==> Initializing git repository in chromium source"
-	# Remove broken .git from Debian chromium tarball (has no 'origin' remote)
+	# Remove ALL .git directories from Debian chromium tarball to prevent conflicts
+	# gclient sync will move any existing .git directories to _bad_scm, which breaks the build
 	# Note: We intentionally do NOT add 'origin' remote or tags here because:
 	#   1. We're using Debian tarball sources, not upstream chromium
 	#   2. Patch 0005 skips gclient revert which would need 'origin'
@@ -84,7 +85,9 @@ override_dh_auto_build:
 	#   5. No git/network operations needed - all sources are local (Debian CI compatible)
 	#   6. Forward compatible: when chromium-source package exists, patch 0006
 	#      will skip checkout and preserve the real git repo with real tags
-	rm -rf $(CURDIR)/chromium_src/chromium/src/.git && \
+	@echo "==> Removing all .git directories from chromium tree (prevents gclient sync conflicts)"
+	find $(CURDIR)/chromium_src/chromium/src -type d -name '.git' -exec rm -rf {} + 2>/dev/null || true
+	@echo "==> Creating new git repository in chromium/src"
 	cd $(CURDIR)/chromium_src/chromium/src && \
 		git init && \
 		git add . && \
@@ -109,6 +112,13 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0007-debian-tarball-deps.patch
 	patch -p1 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0008-debian-tarball-gclient.patch
 	@echo "==> Tarball patches applied: source_tarball mode enabled"
+
+	# Step 6.7: Additional DEPS fix for generate_location_tags hook
+	# Patch 0007 hunk for this fails to apply, so we use sed directly
+	@echo "==> Fixing generate_location_tags condition in DEPS"
+	sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
+		$(CURDIR)/chromium_src/chromium/src/DEPS
+	@echo "==> generate_location_tags condition fixed"
 
 	# Step 7: Create symlink to system GN executable
 	@echo "==> Configuring to use system GN executable"
@@ -287,7 +297,17 @@ override_dh_auto_build:
 		fi; \
 	fi
 
-	## Step 8: Run automate-git.py build script
+	## Step 8: Pre-clone and patch depot_tools
+	## automate-git.py will use this pre-patched depot_tools instead of cloning fresh
+	@echo "==> Pre-cloning depot_tools for patching"
+	if [ ! -d $(CURDIR)/depot_tools ]; then \
+		git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $(CURDIR)/depot_tools; \
+	fi
+	@echo "==> Patching depot_tools/gclient.py for source_tarball support"
+	patch -p1 -d $(CURDIR)/depot_tools < $(CURDIR)/debian/patches/0008-debian-tarball-gclient-toplevel.patch
+	@echo "==> depot_tools patched successfully"
+
+	## Step 9: Run automate-git.py build script
 	## This single command handles: depot_tools download, Chromium sync, GN config, and build
 	## The exec_script restriction is handled by patch 0004-patch-gn-for-exec-script.patch
 	## which modifies automate-git.py to patch .gn after sync but before running hooks
