@@ -1,0 +1,32 @@
+Description: Add source_tarball support to gclient for tarball builds
+ This patch prevents gclient from performing git operations when building
+ from tarball sources by checking the source_tarball flag.
+ .
+ Regenerated for Debian (CEF's original patch may have different line numbers)
+ .
+ This is critical for no-internet builds in Debian CI.
+Author: Debian CEF Maintainers
+Forwarded: not-needed
+Last-Update: 2025-11-05
+
+--- a/chromium/src/third_party/depot_tools/gclient.py
++++ b/chromium/src/third_party/depot_tools/gclient.py
+@@ -1000,7 +1000,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
+         if self.git_dependencies_state == gclient_eval.SUBMODULES:
+             deps.update(self.ParseGitSubmodules())
+
+-        if self.git_dependencies_state != gclient_eval.DEPS:
++        if not self.get_vars().get('source_tarball', False) and \
++           self.git_dependencies_state != gclient_eval.DEPS:
+             # Git submodules are used - get their state.
+             self._known_dependency_diff = self.CreateSCM().GetSubmoduleDiff()
+             self._dependency_index_state = self.CreateSCM(
+@@ -1218,7 +1219,7 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
+             self.FuzzyMatchUrl(revision_overrides), None)
+         if not revision_override and not self.managed:
+             revision_override = 'unmanaged'
+-        if run_scm and self.url:
++        if not self.get_vars().get('source_tarball', False) and run_scm and self.url:
+             # Create a shallow copy to mutate revision.
+             options = copy.copy(options)
+             options.revision = revision_override
