@@ -15,10 +15,8 @@ index 9877ad7..e80f5af 100644
 +    # - angle_commit_config: ANGLE graphics library config conflicts with Debian patches
 +    # These patches fail but are safe to skip for Debian builds.
 +    # Note: tarball_deps and tarball_gclient now have Debian-specific versions (patches 0007-0008)
-+    # Applied manually in debian/rules before automate-git.py runs, so skip CEF's versions
 +    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser',
-+                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config',
-+                            'tarball_deps', 'tarball_gclient']
++                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config', 'tarball_deps', 'tarball_gclient']
 +    patch_base = os.path.splitext(patch_file)[0]  # Remove .patch extension
 +    if 'DEBIAN_BUILD' in os.environ and patch_base in debian_skip_patches:
 +      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
@@ -39,10 +37,8 @@ index 9877ad7..e80f5af 100644
 +    # - angle_commit_config: ANGLE graphics library config conflicts with Debian patches
 +    # These patches fail but are safe to skip for Debian builds.
 +    # Note: tarball_deps and tarball_gclient now have Debian-specific versions (patches 0007-0008)
-+    # Applied manually in debian/rules before automate-git.py runs, so skip CEF's versions
 +    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser',
-+                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config',
-+                            'tarball_deps', 'tarball_gclient']
++                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config', 'tarball_deps', 'tarball_gclient']
 +    patch_base = os.path.splitext(options.patchfile)[0]  # Remove .patch extension
 +    if 'DEBIAN_BUILD' in os.environ and patch_base in debian_skip_patches:
 +      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
