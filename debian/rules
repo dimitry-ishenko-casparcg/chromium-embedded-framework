@@ -107,7 +107,14 @@ override_dh_auto_build:
 	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
 	# Since we extract chromium BEFORE running automate-git.py, we must apply patches ourselves
 
-	# Step 6.6: Apply CEF's tarball patches (required for source_tarball mode)
+	# Step 6.6: Pre-clone depot_tools (needed for tarball_gclient patch)
+	@echo "==> Pre-cloning depot_tools for tarball patching"
+	if [ ! -d $(CURDIR)/depot_tools ]; then \
+		git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $(CURDIR)/depot_tools; \
+	fi
+	@echo "==> depot_tools cloned"
+
+	# Step 6.7: Apply CEF's tarball patches (required for source_tarball mode)
 	@echo "==> Applying CEF tarball patches"
 	python3 $(CURDIR)/chromium_src/cef/tools/patcher.py \
 		--patch-file $(CURDIR)/chromium_src/cef/patch/patches/tarball_deps \
@@ -117,7 +124,7 @@ override_dh_auto_build:
 		--patch-dir $(CURDIR)/depot_tools
 	@echo "==> CEF tarball patches applied"
 
-	# Step 6.7: Additional DEPS fix for generate_location_tags hook
+	# Step 6.8: Additional DEPS fix for generate_location_tags hook
 	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
 	@echo "==> Fixing generate_location_tags condition in DEPS"
 	sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
@@ -301,15 +308,7 @@ override_dh_auto_build:
 		fi; \
 	fi
 
-	## Step 8: Pre-clone depot_tools (automate-git.py will patch it automatically)
-	## When --chromium-archive is used, automate-git.py applies tarball_gclient patch
-	@echo "==> Pre-cloning depot_tools (automate-git.py will patch for tarball mode)"
-	if [ ! -d $(CURDIR)/depot_tools ]; then \
-		git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $(CURDIR)/depot_tools; \
-	fi
-	@echo "==> depot_tools cloned (automate-git.py will apply patches)"
-
-	## Step 9: Run automate-git.py build script
+	## Step 8: Run automate-git.py build script
 	## This single command handles: depot_tools download, Chromium sync, GN config, and build
 	## The exec_script restriction is handled by patch 0004-patch-gn-for-exec-script.patch
 	## which modifies automate-git.py to patch .gn after sync but before running hooks
