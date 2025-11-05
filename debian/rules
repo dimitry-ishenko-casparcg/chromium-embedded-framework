@@ -104,10 +104,20 @@ override_dh_auto_build:
 	@echo "==> DEPS patched: git_dependencies set to 'DEPS'"
 	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
 	# after depot_tools is cloned but before gclient runhooks
-	# Note: automate-git.py applies tarball_deps and tarball_gclient patches automatically
-	# when --chromium-archive is used (see automate-git.py lines 1486-1488)
+	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
+	# Since we extract chromium BEFORE running automate-git.py, we must apply patches ourselves
 
-	# Step 6.6: Additional DEPS fix for generate_location_tags hook
+	# Step 6.6: Apply CEF's tarball patches (required for source_tarball mode)
+	@echo "==> Applying CEF tarball patches"
+	python3 $(CURDIR)/chromium_src/cef/tools/patcher.py \
+		--patch-file $(CURDIR)/chromium_src/cef/patch/patches/tarball_deps \
+		--patch-dir $(CURDIR)/chromium_src/chromium/src
+	python3 $(CURDIR)/chromium_src/cef/tools/patcher.py \
+		--patch-file $(CURDIR)/chromium_src/cef/patch/patches/tarball_gclient \
+		--patch-dir $(CURDIR)/depot_tools
+	@echo "==> CEF tarball patches applied"
+
+	# Step 6.7: Additional DEPS fix for generate_location_tags hook
 	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
 	@echo "==> Fixing generate_location_tags condition in DEPS"
 	sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
