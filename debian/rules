@@ -321,6 +321,7 @@ override_dh_auto_build:
 		--branch=$(CEF_BRANCH) \
 		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
 		--no-cef-update \
+		--force-build \
 		--x64-build \
 		--no-distrib-archive \
 		--build-log-file \
