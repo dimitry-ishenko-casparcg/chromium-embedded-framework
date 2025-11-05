@@ -1,8 +1,11 @@
 Description: Add source_tarball support to gclient for tarball builds
  This patch prevents gclient from performing git operations when building
- from tarball sources by checking the source_tarball flag.
+ from tarball sources by checking the source_tarball flag in three locations.
  .
- Regenerated for Debian (CEF's original patch may have different line numbers)
+ Modified methods:
+ - Line 1003: Skip git submodule operations when source_tarball=True
+ - Line 1221: Skip SCM sync operations when source_tarball=True
+ - Line 1838: Skip _CheckConfig validation when source_tarball=True (NEW in v2)
  .
  This is critical for no-internet builds in Debian CI.
 Author: Debian CEF Maintainers
@@ -30,3 +33,13 @@ Last-Update: 2025-11-05
              # Create a shallow copy to mutate revision.
              options = copy.copy(options)
              options.revision = revision_override
+@@ -1838,6 +1839,9 @@ solutions = %(solution_list)s
+     def _CheckConfig(self):
+         """Verify that the config matches the state of the existing checked-out
+         solutions."""
++        if self.get_vars().get('source_tarball', False):
++            # Skip validation when building from tarball - no git repos to check
++            return
+         for dep in self.dependencies:
+             if dep.managed and dep.url:
+                 scm = dep.CreateSCM()
