@@ -3,7 +3,7 @@ Description: Add source_tarball conditions to chromium DEPS for tarball builds
  when building from Debian-provided chromium tarball sources.
  .
  Modified sections:
- - Five hooks (lastchange, gpu_lists_version, lastchange_skia, lastchange_dawn, lastchange_commit_position_cros)
+ - Six hooks (lastchange, gpu_lists_version, lastchange_skia, lastchange_dawn, lastchange_commit_position_cros, generate_location_tags)
  - Four dependency entries (webvr_info, crossbench, crossbench-web-tests, dom_distiller_js, crabbyavif)
  .
  This eliminates all git fetch/clone operations during Phase 2a build,
@@ -116,6 +116,12 @@ index d434718..c79eece 100644
      'name': 'lastchange_dawn',
      'pattern': '.',
 +    'condition': 'not source_tarball',
-     'action': ['python3', 'src/build/util/lastchange.py',
-                '-m', 'DAWN_COMMIT_HASH',
-                '-s', 'src/third_party/dawn',
+@@ -4714,7 +4728,7 @@ hooks = [
+       '--out',
+       'src/testing/location_tags.json',
+     ],
+-    'condition': 'generate_location_tags',
++    'condition': 'generate_location_tags and not source_tarball',
+   },
+
+   # Configure remote exec cfg files
