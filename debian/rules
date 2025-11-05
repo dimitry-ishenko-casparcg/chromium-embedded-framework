@@ -300,11 +300,12 @@ override_dh_auto_build:
 
 	## Step 7b: Pre-patch .gn if it exists from a previous build
 	## Why: In incremental builds, .gn may already exist and need patching
-	## Simplification: Not needed if building from clean state every time
+	## Fix: Add //cef/BUILD.gn to exec_script_allowlist (not exec_script_whitelist)
+	## This matches CEF's gn_config.patch
 	@echo "==> Pre-patching .gn file if it exists"
 	if [ -f $(CURDIR)/chromium_src/chromium/src/.gn ]; then \
-		if ! grep -q "exec_script_whitelist" $(CURDIR)/chromium_src/chromium/src/.gn; then \
-			sed -i '/^default_args = {/a\  exec_script_whitelist = [\n    "//cef/tools/gypi_to_gn.py",\n  ]' $(CURDIR)/chromium_src/chromium/src/.gn; \
+		if ! grep -q '"//cef/BUILD.gn"' $(CURDIR)/chromium_src/chromium/src/.gn; then \
+			sed -i '/"\/\/build_overrides\/build.gni",/a\\\n      "//cef/BUILD.gn",' $(CURDIR)/chromium_src/chromium/src/.gn; \
 		fi; \
 	fi
 
