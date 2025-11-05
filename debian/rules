@@ -61,8 +61,8 @@ override_dh_auto_build:
 		git commit -m "CEF source with Debian patches applied"
 	@echo "==> CEF git repository initialized"
 
-	# Step 4: Fix version mismatch (CEF expects .0, Debian has .59)
-	sed -i "s/142\.0\.7444\.0/142.0.7444.59/" \
+	# Step 4: Fix version mismatch (CEF expects .53, Debian has .59)
+	sed -i "s/142\.0\.7444\.53/142.0.7444.59/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Extract Debian chromium source tarball
