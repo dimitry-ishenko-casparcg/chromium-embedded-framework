@@ -104,17 +104,11 @@ override_dh_auto_build:
 	@echo "==> DEPS patched: git_dependencies set to 'DEPS'"
 	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
 	# after depot_tools is cloned but before gclient runhooks
+	# Note: automate-git.py applies tarball_deps and tarball_gclient patches automatically
+	# when --chromium-archive is used (see automate-git.py lines 1486-1488)
 
-	# Step 6.6: Apply tarball mode patches (Phase 2a)
-	# These patches add 'condition: not source_tarball' to DEPS hooks and gclient.py
-	# Critical for no-internet builds (Debian CI compatible)
-	@echo "==> Applying Phase 2a tarball patches to chromium sources"
-	patch -p1 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0007-debian-tarball-deps.patch
-	patch -p1 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0008-debian-tarball-gclient.patch
-	@echo "==> Tarball patches applied: source_tarball mode enabled"
-
-	# Step 6.7: Additional DEPS fix for generate_location_tags hook
-	# Patch 0007 hunk for this fails to apply, so we use sed directly
+	# Step 6.6: Additional DEPS fix for generate_location_tags hook
+	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
 	@echo "==> Fixing generate_location_tags condition in DEPS"
 	sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
 		$(CURDIR)/chromium_src/chromium/src/DEPS
@@ -297,15 +291,13 @@ override_dh_auto_build:
 		fi; \
 	fi
 
-	## Step 8: Pre-clone and patch depot_tools
-	## automate-git.py will use this pre-patched depot_tools instead of cloning fresh
-	@echo "==> Pre-cloning depot_tools for patching"
+	## Step 8: Pre-clone depot_tools (automate-git.py will patch it automatically)
+	## When --chromium-archive is used, automate-git.py applies tarball_gclient patch
+	@echo "==> Pre-cloning depot_tools (automate-git.py will patch for tarball mode)"
 	if [ ! -d $(CURDIR)/depot_tools ]; then \
 		git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $(CURDIR)/depot_tools; \
 	fi
-	@echo "==> Patching depot_tools/gclient.py for source_tarball support"
-	patch -p1 -d $(CURDIR)/depot_tools < $(CURDIR)/debian/patches/0008-debian-tarball-gclient-toplevel.patch
-	@echo "==> depot_tools patched successfully"
+	@echo "==> depot_tools cloned (automate-git.py will apply patches)"
 
 	## Step 9: Run automate-git.py build script
 	## This single command handles: depot_tools download, Chromium sync, GN config, and build
