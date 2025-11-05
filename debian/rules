@@ -106,8 +106,8 @@ override_dh_auto_build:
 	# These patches add 'condition: not source_tarball' to DEPS hooks and gclient.py
 	# Critical for no-internet builds (Debian CI compatible)
 	@echo "==> Applying Phase 2a tarball patches to chromium sources"
-	patch -p0 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0007-debian-tarball-deps.patch
-	patch -p0 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0008-debian-tarball-gclient.patch
+	patch -p1 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0007-debian-tarball-deps.patch
+	patch -p1 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0008-debian-tarball-gclient.patch
 	@echo "==> Tarball patches applied: source_tarball mode enabled"
 
 	# Step 7: Create symlink to system GN executable
