@@ -305,7 +305,7 @@ override_dh_auto_build:
 	@echo "==> Pre-patching .gn file if it exists"
 	if [ -f $(CURDIR)/chromium_src/chromium/src/.gn ]; then \
 		if ! grep -q '"//cef/BUILD.gn"' $(CURDIR)/chromium_src/chromium/src/.gn; then \
-			sed -i '/"\/\/build_overrides\/build.gni",/a\\\n      "//cef/BUILD.gn",' $(CURDIR)/chromium_src/chromium/src/.gn; \
+			sed -i '/"\/\/build_overrides\/build.gni",/a\      "//cef/BUILD.gn",' $(CURDIR)/chromium_src/chromium/src/.gn; \
 		fi; \
 	fi
 
