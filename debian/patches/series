@@ -4,5 +4,3 @@
 0004-patch-gn-for-exec-script.patch
 0005-skip-gclient-revert-debian.patch
 0006-skip-chromium-checkout-debian.patch
-0007-debian-tarball-deps.patch
-0008-debian-tarball-gclient.patch

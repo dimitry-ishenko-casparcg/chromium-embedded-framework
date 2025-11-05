@@ -102,6 +102,14 @@ override_dh_auto_build:
 	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
 	# after depot_tools is cloned but before gclient runhooks
 
+	# Step 6.6: Apply tarball mode patches (Phase 2a)
+	# These patches add 'condition: not source_tarball' to DEPS hooks and gclient.py
+	# Critical for no-internet builds (Debian CI compatible)
+	@echo "==> Applying Phase 2a tarball patches to chromium sources"
+	patch -p0 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0007-debian-tarball-deps.patch
+	patch -p0 -d $(CURDIR)/chromium_src < $(CURDIR)/debian/patches/0008-debian-tarball-gclient.patch
+	@echo "==> Tarball patches applied: source_tarball mode enabled"
+
 	# Step 7: Create symlink to system GN executable
 	@echo "==> Configuring to use system GN executable"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
