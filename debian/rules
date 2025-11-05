@@ -300,6 +300,10 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/unrar
 	echo '# Stub BUILD.gn for Debian builds - unrar not needed for CEF' > $(CURDIR)/chromium_src/chromium/src/third_party/unrar/BUILD.gn
 	echo 'source_set("unrar") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/unrar/BUILD.gn
+	@echo "==> Creating stub third_party/updater/BUILD.gn (missing dependency)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/updater
+	echo '# Stub BUILD.gn for Debian builds - updater not needed for CEF' > $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
+	echo 'group("old_updater") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
 	@echo "==> Stub files created"
 
 	## Step 7b: Pre-patch .gn if it exists from a previous build
