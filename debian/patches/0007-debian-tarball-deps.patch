@@ -1,10 +1,15 @@
-Description: Add source_tarball conditions to chromium DEPS hooks for tarball builds
- This patch adds 'condition': 'not source_tarball' to five hooks in chromium's
- DEPS file to prevent git operations when building from tarball sources.
+Description: Add source_tarball conditions to chromium DEPS for tarball builds
+ This patch adds 'condition': 'not source_tarball' to prevent git operations
+ when building from Debian-provided chromium tarball sources.
+ .
+ Modified sections:
+ - Five hooks (lastchange, gpu_lists_version, lastchange_skia, lastchange_dawn, lastchange_commit_position_cros)
+ - Four dependency entries (webvr_info, crossbench, crossbench-web-tests, dom_distiller_js, crabbyavif)
+ .
+ This eliminates all git fetch/clone operations during Phase 2a build,
+ ensuring compliance with Debian's no-internet build policy.
  .
  Regenerated for Debian chromium 142.0.7444.59 (CEF's original patch was for .53)
- .
- This is critical for no-internet builds in Debian CI.
 Author: Debian CEF Maintainers
 Forwarded: not-needed
 Last-Update: 2025-11-05
@@ -53,3 +58,62 @@ Last-Update: 2025-11-05
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-m', 'DAWN_COMMIT_HASH',
                 '-s', 'src/third_party/dawn',
+@@ -1614,8 +1614,10 @@ deps = {
+     'dep_type': 'cipd',
+   },
+ 
+-  'src/chrome/test/data/xr/webvr_info':
+-    Var('chromium_git') + '/external/github.com/toji/webvr.info.git' + '@' + 'c58ae99b9ff9e2aa4c524633519570bf33536248',
++  'src/chrome/test/data/xr/webvr_info': {
++    'url': Var('chromium_git') + '/external/github.com/toji/webvr.info.git' + '@' + 'c58ae99b9ff9e2aa4c524633519570bf33536248',
++    'condition': 'not source_tarball',
++  },
+ 
+   'src/clank': {
+     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
+@@ -2048,11 +2050,15 @@ deps = {
+       'condition': 'checkout_linux or checkout_chromeos',
+   },
+ 
+-  'src/third_party/crossbench':
+-    Var('chromium_git') + '/crossbench.git' + '@' + Var('crossbench_revision'),
++  'src/third_party/crossbench': {
++    'url': Var('chromium_git') + '/crossbench.git' + '@' + Var('crossbench_revision'),
++    'condition': 'not source_tarball',
++  },
+ 
+-  'src/third_party/crossbench-web-tests':
+-    Var('chromium_git') + '/chromium/web-tests.git' + '@' + Var('crossbench_web_tests_revision'),
++  'src/third_party/crossbench-web-tests': {
++    'url': Var('chromium_git') + '/chromium/web-tests.git' + '@' + Var('crossbench_web_tests_revision'),
++    'condition': 'not source_tarball',
++  },
+ 
+   'src/third_party/depot_tools':
+     Var('chromium_git') + '/chromium/tools/depot_tools.git' + '@' + '675a3a9ccd7cf9367bb4caa58c30f08b56d45ef5',
+@@ -2060,8 +2066,10 @@ deps = {
+   'src/third_party/devtools-frontend/src':
+     Var('chromium_git') + '/devtools/devtools-frontend' + '@' + Var('devtools_frontend_revision'),
+ 
+-  'src/third_party/dom_distiller_js/dist':
+-    Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '199de96b345ada7c6e7e6ba3d2fa7a6911b8767d',
++  'src/third_party/dom_distiller_js/dist': {
++    'url': Var('chromium_git') + '/chromium/dom-distiller/dist.git' + '@' + '199de96b345ada7c6e7e6ba3d2fa7a6911b8767d',
++    'condition': 'not source_tarball',
++  },
+ 
+   'src/third_party/dragonbox/src':
+     Var('chromium_git') + '/external/github.com/jk-jeon/dragonbox.git' + '@' + '6c7c925b571d54486b9ffae8d9d18a822801cbda',
+@@ -2339,8 +2347,10 @@ deps = {
+   'src/third_party/libaom/source/libaom':
+     Var('aomedia_git') + '/aom.git' + '@' +  '2a70ad7bee390757eaa83aff12f310ba53915e9f',
+ 
+-  'src/third_party/crabbyavif/src':
+-    Var('chromium_git') + '/external/github.com/webmproject/CrabbyAvif.git' + '@' + Var('crabbyavif_revision'),
++  'src/third_party/crabbyavif/src': {
++    'url': Var('chromium_git') + '/external/github.com/webmproject/CrabbyAvif.git' + '@' + Var('crabbyavif_revision'),
++    'condition': 'not source_tarball',
++  },
+ 
+   'src/third_party/nearby/src':
+     Var('chromium_git') + '/external/github.com/google/nearby-connections.git' + '@' + Var('nearby_revision'),
