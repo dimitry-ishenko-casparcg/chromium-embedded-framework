@@ -10,15 +10,13 @@ index 9877ad7..f0f992a 100644
 +    # - gn_config: Debian strips Windows-specific files (chrome/installer/mini_installer/*)
 +    # - libxml_visibility: Debian unbundles libraries to use system versions (libxml)
 +    # - chrome_browser_browser: Conflicts with Debian's chromium UI patches
-+    # - tarball_deps: Line mismatches due to Debian chromium 142.0.7444.59 vs CEF upstream 142.0.7444.0
 +    # - chrome_browser_profile_menu: Same version mismatch issue as tarball_deps
 +    # - v8_build: V8 build configuration conflicts with Debian's V8 patches
-+    # - tarball_gclient: gclient configuration mismatches in Debian tarball
 +    # - angle_commit_config: ANGLE graphics library config conflicts with Debian patches
 +    # These patches fail but are safe to skip for Debian builds.
++    # Note: tarball_deps and tarball_gclient now have Debian-specific versions (patches 0007-0008)
 +    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser',
-+                            'tarball_deps', 'chrome_browser_profile_menu', 'v8_build',
-+                            'tarball_gclient', 'angle_commit_config']
++                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config']
 +    patch_base = os.path.splitext(patch_file)[0]  # Remove .patch extension
 +    if 'DEBIAN_BUILD' in os.environ and patch_base in debian_skip_patches:
 +      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
@@ -34,15 +32,13 @@ index 9877ad7..f0f992a 100644
 +    # - gn_config: Debian strips Windows-specific files (chrome/installer/mini_installer/*)
 +    # - libxml_visibility: Debian unbundles libraries to use system versions (libxml)
 +    # - chrome_browser_browser: Conflicts with Debian's chromium UI patches
-+    # - tarball_deps: Line mismatches due to Debian chromium 142.0.7444.59 vs CEF upstream 142.0.7444.0
 +    # - chrome_browser_profile_menu: Same version mismatch issue as tarball_deps
 +    # - v8_build: V8 build configuration conflicts with Debian's V8 patches
-+    # - tarball_gclient: gclient configuration mismatches in Debian tarball
 +    # - angle_commit_config: ANGLE graphics library config conflicts with Debian patches
 +    # These patches fail but are safe to skip for Debian builds.
++    # Note: tarball_deps and tarball_gclient now have Debian-specific versions (patches 0007-0008)
 +    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser',
-+                            'tarball_deps', 'chrome_browser_profile_menu', 'v8_build',
-+                            'tarball_gclient', 'angle_commit_config']
++                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config']
 +    patch_base = os.path.splitext(options.patchfile)[0]  # Remove .patch extension
 +    if 'DEBIAN_BUILD' in os.environ and patch_base in debian_skip_patches:
 +      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
