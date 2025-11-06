@@ -48,3 +48,4 @@ build-cache/
 *.tmp
 *.bak
 tmp/
+__pycache__/
