@@ -1,0 +1,15 @@
+diff --git a/tools/gn_args.py b/tools/gn_args.py
+index 56c83bb..5cec1ab 100644
+--- a/tools/gn_args.py
++++ b/tools/gn_args.py
+@@ -353,7 +353,9 @@ def GetRequiredArgs():
+   Return required GN args. Also enforced by assert() in //cef/BUILD.gn.
+   """
+   result = {
+-      'optimize_webui': True,
++      # Note: optimize_webui removed from required args to align with Debian
++      # chromium policy (which uses optimize_webui=false). This allows Debian
++      # builds to use optimize_webui=false while maintaining CEF compatibility.
+       # Enable support for Widevine CDM.
+       'enable_widevine': True,
+ 

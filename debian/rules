@@ -70,7 +70,9 @@ override_dh_auto_build:
 	tar -xf $(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
 		-C $(CURDIR)/chromium_src
 	mkdir -p $(CURDIR)/chromium_src/chromium
-	mv $(CURDIR)/chromium_src/chromium-* $(CURDIR)/chromium_src/chromium/src
+	@if [ -d $(CURDIR)/chromium_src/chromium-* ]; then \
+		mv $(CURDIR)/chromium_src/chromium-* $(CURDIR)/chromium_src/chromium/src 2>/dev/null || true; \
+	fi
 	@echo "==> Chromium extracted successfully"
 
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
@@ -99,9 +101,13 @@ override_dh_auto_build:
 	# Setting git_dependencies = 'DEPS' disables submodule checks (not needed for Debian builds)
 	# Note: DEPS file uses SINGLE quotes around 'SYNC', not double quotes
 	@echo "==> Patching chromium/src/DEPS to disable git submodule checks"
-	sed -i "s/git_dependencies = 'SYNC'/git_dependencies = 'DEPS'/" \
-		$(CURDIR)/chromium_src/chromium/src/DEPS
-	@echo "==> DEPS patched: git_dependencies set to 'DEPS'"
+	@if [ -f $(CURDIR)/chromium_src/chromium/src/DEPS ]; then \
+		sed -i "s/git_dependencies = 'SYNC'/git_dependencies = 'DEPS'/" \
+			$(CURDIR)/chromium_src/chromium/src/DEPS && \
+		echo "==> DEPS patched: git_dependencies set to 'DEPS'"; \
+	else \
+		echo "WARNING: DEPS file not found at $(CURDIR)/chromium_src/chromium/src/DEPS, skipping patch (may be handled by automate-git.py)"; \
+	fi
 	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
 	# after depot_tools is cloned but before gclient runhooks
 	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
@@ -114,11 +120,14 @@ override_dh_auto_build:
 	fi
 	@echo "==> depot_tools cloned"
 
-	# Step 6.7: Apply Debian-specific tarball patches (Build 94 working solution)
-	@echo "==> Applying Debian tarball patches (DEPS and gclient)"
-	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/0007-debian-tarball-deps.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/0008-debian-tarball-gclient-toplevel.patch
-	@echo "==> Debian tarball patches applied"
+	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
+	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
+	# and use .chromium.patch suffix to distinguish them from CEF patches
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, and optimize_images)"
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-disable-optimize-images-when-optimize-webui-false.chromium.patch
+	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
 	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
@@ -140,6 +149,8 @@ override_dh_auto_build:
 	echo '# Debian uses system libopus instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '# These are test/demo targets not needed for CEF' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'source_set("opus") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'config("opus_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("opus_compare") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("opus_demo") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("test_opus_api") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
@@ -178,6 +189,7 @@ override_dh_auto_build:
 	echo '# Debian uses system libjpeg instead of bundled libjpeg-turbo' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
 	echo 'source_set("simd") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'source_set("simd_asm") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
 	@echo "==> Creating stub third_party/catapult/third_party/typ/BUILD.gn"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
 	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
@@ -186,6 +198,20 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
 	echo '# Stub BUILD.gn for Debian builds - uses system libc++' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'source_set("libc++") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	@echo "==> Creating stub third_party/libc++/src/include/__config_site (Debian uses system libc++)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include
+	echo '// Stub __config_site for Debian builds - uses system libc++' > $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__config_site
+	echo '// Debian uses system libc++ instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__config_site
+	echo '// Empty config site file' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__config_site
+	@echo "==> Creating stub third_party/libc++/src/include/__assertion_handler (Debian uses system libc++)"
+	echo '// Stub __assertion_handler for Debian builds - uses system libc++' > $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
+	echo '// Debian uses system libc++ instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
+	echo '#ifndef _LIBCPP_ASSERTION_HANDLER' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
+	echo '#define _LIBCPP_ASSERTION_HANDLER(message) __builtin_abort()' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
+	echo '#endif' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-22-init-8940-g4d4cb757-4' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
@@ -203,6 +229,8 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zlib
 	echo '# Stub BUILD.gn for Debian builds - uses system zlib' > $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	echo 'source_set("zlib") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'source_set("minizip") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'config("zlib_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	@echo "==> Creating stub third_party/harfbuzz-ng/harfbuzz.gni (Debian uses system harfbuzz)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng
 	echo '# Stub harfbuzz.gni for Debian builds - uses system harfbuzz' > $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng/harfbuzz.gni
@@ -223,10 +251,12 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zstd
 	echo '# Stub BUILD.gn for Debian builds - uses system zstd' > $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
 	echo 'source_set("decompress") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	echo 'source_set("compress") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
 	@echo "==> Creating stub third_party/catapult/tracing/tracing/BUILD.gn (Debian strips catapult)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing
 	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
 	echo 'group("reserved_infos") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
+	echo 'group("histogram") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
 	@echo "==> Creating stub base/third_party/double_conversion/BUILD.gn (Debian uses system double-conversion)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion
 	echo '# Stub BUILD.gn for Debian builds - uses system double-conversion' > $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
@@ -235,6 +265,7 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing
 	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
 	echo 'group("convert_chart_json") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
+	echo 'executable("generate_about_tracing") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
 	@echo "==> Creating stub third_party/enterprise_companion/BUILD.gn (Debian strips enterprise_companion)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion
 	echo '# Stub BUILD.gn for Debian builds - enterprise_companion stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion/BUILD.gn
@@ -252,6 +283,9 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxml
 	echo '# Stub BUILD.gn for Debian builds - uses system libxml2' > $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
 	echo 'source_set("xml_reader") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("xml_writer") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("libxml") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("libxml_utils") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
 	@echo "==> Creating stub third_party/flac/BUILD.gn (Debian uses system flac)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/flac
 	echo '# Stub BUILD.gn for Debian builds - uses system flac' > $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
@@ -260,6 +294,8 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/dav1d
 	echo '# Stub BUILD.gn for Debian builds - uses system dav1d' > $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
 	echo 'source_set("dav1d") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'config("dav1d_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'group("dav1d_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
 	@echo "==> Creating stub third_party/libxslt/BUILD.gn (Debian uses system libxslt)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxslt
 	echo '# Stub BUILD.gn for Debian builds - uses system libxslt' > $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
@@ -272,6 +308,7 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test
 	echo '# Stub BUILD.gn for Debian builds - test data directory' > $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test/BUILD.gn
 	echo 'group("puffin_patch_test") {}' >> $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test/BUILD.gn
+	echo 'group("puffin_patch_test_files") {}' >> $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test/BUILD.gn
 	@echo "==> Creating stub third_party/fontconfig/fontconfig.gni (Debian uses system fontconfig)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig
 	echo '# Stub fontconfig.gni for Debian builds - uses system fontconfig' > $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/fontconfig.gni
@@ -280,19 +317,33 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests
 	echo '# Stub BUILD.gn for Debian builds - test directory' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
 	echo 'group("SystemUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+	echo 'executable("swiftshader_system_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
 	@echo "==> Creating stub third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn (test directory)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests
 	echo '# Stub BUILD.gn for Debian builds - test directory' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
 	echo 'group("ReactorUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'executable("swiftshader_reactor_llvm_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'executable("swiftshader_reactor_subzero_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
 	@echo "==> Creating stub third_party/swiftshader/third_party/llvm-10.0/BUILD.gn (bundled library)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0
 	echo '# Stub BUILD.gn for Debian builds - bundled library' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
 	echo 'source_set("llvm-10.0") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
+	echo 'source_set("swiftshader_llvm") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
 	@echo "==> Creating stub third_party/catapult/third_party/gsutil/BUILD.gn (bundled tool)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil
 	echo '# Stub BUILD.gn for Debian builds - bundled tool' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
 	echo 'source_set("gsutil") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
+	@echo "==> Creating stub third_party/updater/BUILD.gn (test dependency)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/updater
+	echo '# Stub BUILD.gn for Debian builds - updater test dependency' > $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
+	echo 'group("old_updater") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
+	@echo "==> Creating stub third_party/openh264/BUILD.gn (Debian uses system openh264)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/openh264
+	echo '# Stub BUILD.gn for Debian builds - uses system openh264' > $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'source_set("decoder") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'source_set("encoder") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
 	@echo "==> Stub files created"
+	@echo "==> Note: optimize_webui=false in GN_DEFINES avoids need for WASM file (Build 119)"
 
 	## Step 7b: Pre-patch .gn if it exists from a previous build
 	## Why: In incremental builds, .gn may already exist and need patching
@@ -311,7 +362,7 @@ override_dh_auto_build:
 	## which modifies automate-git.py to patch .gn after sync but before running hooks
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true rust_sysroot_absolute=\"/usr\" rust_force_head_revision=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true" && \
+	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true rust_sysroot_absolute=\"/usr\" rust_force_head_revision=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false" && \
 	export PATH=$(CURDIR)/depot_tools:$$PATH && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
@@ -373,6 +424,6 @@ override_dh_auto_test:
 	@echo "Skipping CEF tests (require X display)"
 
 override_dh_auto_clean:
-	rm -rf chromium_src/
+	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
 	rm -rf depot_tools/
 	dh_auto_clean
