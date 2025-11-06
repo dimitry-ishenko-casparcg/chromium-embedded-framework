@@ -1,6 +1,7 @@
-0001-debian-patcher-skip-logic.patch
-0002-use-system-clang.patch
-0003-create-reclient-stub.patch
-0004-patch-gn-for-exec-script.patch
-0005-skip-gclient-revert-debian.patch
-0006-skip-chromium-checkout-debian.patch
+0001-debian-patcher-skip-logic.cef.patch
+0002-use-system-clang.cef.patch
+0003-create-reclient-stub.cef.patch
+0004-patch-gn-for-exec-script.cef.patch
+0005-skip-gclient-revert-debian.cef.patch
+0006-skip-chromium-checkout-debian.cef.patch
+0007-allow-optimize-webui-false-debian.cef.patch

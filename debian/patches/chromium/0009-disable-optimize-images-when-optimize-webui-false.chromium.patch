@@ -1,0 +1,42 @@
+Description: Conditionally enable optimize_images based on optimize_webui flag
+ When optimize_webui=false (Debian policy), the optimize_images target should
+ not execute, avoiding WASM/rollup dependencies. This patch wraps optimize_images
+ in an if(optimize_webui) condition and provides a stub group target when disabled
+ to satisfy dependencies from other targets.
+ .
+ This prevents the build from requiring node_modules/@rollup/wasm-node WASM files
+ when optimize_webui=false is set in GN_DEFINES, while maintaining compatibility
+ with targets that depend on optimize_images.
+Author: Debian CEF Maintainers
+Forwarded: not-needed
+Last-Update: 2025-11-06
+
+--- a/third_party/devtools-frontend/src/front_end/Images/BUILD.gn
++++ b/third_party/devtools-frontend/src/front_end/Images/BUILD.gn
+@@ -3,6 +3,7 @@
+ # found in the LICENSE file.
+ 
+ import("//build/timestamp.gni")
++import("//ui/webui/resources/tools/build_webui.gni")
+ import("../../config/gni/devtools_image_files.gni")
+ import("../../scripts/build/ninja/devtools_pre_built.gni")
+ import("../../scripts/build/ninja/node.gni")
+@@ -27,6 +28,9 @@
+   ]
+ }
+ 
++# Only optimize images if optimize_webui is enabled (Debian uses optimize_webui=false)
++# When disabled, create a stub group target to satisfy dependencies
++if (optimize_webui) {
+ node_action("optimize_images") {
+   script = "node_modules/@rollup/wasm-node/dist/bin/rollup"
+ 
+@@ -73,3 +77,8 @@
+     }
+   }
+ }
++} else {
++  # Stub target when optimize_webui=false to satisfy dependencies
++  # Empty group - other targets depend on this but it does nothing when optimize_webui is disabled
++  group("optimize_images") {}
++}
