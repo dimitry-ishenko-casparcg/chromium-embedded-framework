@@ -126,7 +126,8 @@ override_dh_auto_build:
 	@echo "==> Applying Debian Chromium patches (DEPS, gclient, and optimize_images)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-disable-optimize-images-when-optimize-webui-false.chromium.patch
+	@echo "==> Applying optimize_images patch manually (patch format issue)"
+	@python3 $(CURDIR)/debian/scripts/apply-optimize-images-patch.py $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/front_end/Images/BUILD.gn || true
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
