@@ -113,12 +113,26 @@ override_dh_auto_build:
 	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
 	# Since we extract chromium BEFORE running automate-git.py, we must apply patches ourselves
 
-	# Step 6.6: Pre-clone depot_tools (needed for tarball_gclient patch)
-	@echo "==> Pre-cloning depot_tools for tarball patching"
-	if [ ! -d $(CURDIR)/depot_tools ]; then \
-		git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $(CURDIR)/depot_tools; \
+	# Step 6.6: Verify depot_tools is present (bundled in source package)
+	# For local dev: depot_tools directory must exist in package root
+	# For Debian CI: depot_tools comes from orig.tar.xz (bundled with source)
+	# Network isolation: NO downloads allowed - depot_tools must be pre-existing
+	@echo "==> Verifying depot_tools is present"
+	@if [ ! -d $(CURDIR)/depot_tools ]; then \
+		echo "ERROR: depot_tools directory not found at $(CURDIR)/depot_tools"; \
+		echo "ERROR:"; \
+		echo "ERROR: depot_tools must be present in the package source."; \
+		echo "ERROR:"; \
+		echo "ERROR: For local development builds:"; \
+		echo "ERROR:   Ensure depot_tools/ directory exists in: $(CURDIR)/"; \
+		echo "ERROR:   (clone it once if missing, then keep for all builds)"; \
+		echo "ERROR:"; \
+		echo "ERROR: For official Debian packaging:"; \
+		echo "ERROR:   depot_tools must be bundled in chromium-embedded-framework_X.Y.Z.orig.tar.xz"; \
+		echo "ERROR:   This ensures Debian CI (sbuild/pbuilder) can build without network access."; \
+		exit 1; \
 	fi
-	@echo "==> depot_tools cloned"
+	@echo "==> depot_tools found and ready"
 
 	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
