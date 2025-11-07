@@ -194,11 +194,16 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
 	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
 	echo 'group("typ") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
-	# Note: DO NOT create stubs for third_party/libc++ or buildtools/third_party/libc++
-	# Reason: Debian chromium tarball includes complete libc++ headers (__config_site, __assertion_handler, etc.)
-	# Creating empty stubs breaks compilation with "implicit instantiation of undefined template" errors
-	# Solution: Let the build use bundled libc++ from chromium tarball (Build 95 fix)
-	@echo "==> Using bundled libc++ from Chromium tarball (headers intact, no stubs needed)"
+	# Create BUILD.gn stub for GN build system, but use headers from chromium tarball
+	# BUILD.gn is required by //build/config/BUILDCONFIG.gn:606 (:all_modules target)
+	# DO NOT stub header files (__config_site, __assertion_handler) - they exist in tarball
+	@echo "==> Creating stub buildtools/third_party/libc++/BUILD.gn (for GN), using tarball headers"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
+	echo '# Stub BUILD.gn for Debian builds - GN requires this file' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'source_set("libc++") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-22-init-8940-g4d4cb757-4' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
