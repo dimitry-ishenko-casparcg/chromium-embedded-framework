@@ -4,7 +4,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEBIAN_BUILD = 1
 
 # CEF version/branch
-# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.59)
+# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.134)
 CEF_BRANCH = 7444
 
 %:
@@ -61,13 +61,13 @@ override_dh_auto_build:
 		git commit -m "CEF source with Debian patches applied"
 	@echo "==> CEF git repository initialized"
 
-	# Step 4: Fix version mismatch (CEF expects .53, Debian has .59)
-	sed -i "s/142\.0\.7444\.53/142.0.7444.59/" \
+	# Step 4: Fix version mismatch (CEF expects .53, Debian has .134)
+	sed -i "s/142\.0\.7444\.53/142.0.7444.134/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Extract Debian chromium source tarball
 	@echo "==> Extracting Debian chromium source"
-	tar -xf $(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
+	tar -xf $(CURDIR)/../chromium_142.0.7444.134.orig.tar.xz \
 		-C $(CURDIR)/chromium_src
 	mkdir -p $(CURDIR)/chromium_src/chromium
 	@if [ -d $(CURDIR)/chromium_src/chromium-* ]; then \
@@ -360,7 +360,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.59.orig.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.134.orig.tar.xz \
 		--no-cef-update \
 		--force-build \
 		--x64-build \
