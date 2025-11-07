@@ -1,0 +1,43 @@
+Description: Fix DRI pkg-config error for Debian builds
+ The dri.pc file doesn't exist in Debian, so we use a default value
+ for the DRI driver directory based on the architecture.
+ .
+ This patch modifies build/config/linux/dri/BUILD.gn to use a default
+ value when pkg-config fails, preventing build errors.
+Author: Debian CEF Maintainers
+Forwarded: not-needed
+Last-Update: 2025-11-06
+
+diff --git a/chromium/src/build/config/linux/dri/BUILD.gn b/chromium/src/build/config/linux/dri/BUILD.gn
+index 1234567..abcdefg 100644
+--- a/chromium/src/build/config/linux/dri/BUILD.gn
++++ b/chromium/src/build/config/linux/dri/BUILD.gn
+@@ -6,13 +6,19 @@
+ 
+ assert(is_linux, "This file should only be referenced on Linux")
+ 
+-pkg_config("dri") {
+-  packages = [ "dri" ]
+-  dri_driver_dir = exec_script(pkg_config_script,
+-                               common_pkg_config_args + pkg_config_args + [
+-                                     "--dridriverdir",
+-                                     "dri",
+-                                   ],
+-                               "string")
+-  defines = [ "DRI_DRIVER_DIR=\"$dri_driver_dir\"" ]
++# Debian doesn't provide dri.pc, so we use a default value
++# based on the architecture. The typical location is /usr/lib/<arch>/dri
++_dri_driver_dir_default = "/usr/lib/${current_cpu}/dri"
++if (current_cpu == "x64") {
++  _dri_driver_dir_default = "/usr/lib/x86_64-linux-gnu/dri"
++} else if (current_cpu == "x86") {
++  _dri_driver_dir_default = "/usr/lib/i386-linux-gnu/dri"
++} else if (current_cpu == "arm64") {
++  _dri_driver_dir_default = "/usr/lib/aarch64-linux-gnu/dri"
++} else if (current_cpu == "arm") {
++  _dri_driver_dir_default = "/usr/lib/arm-linux-gnueabihf/dri"
++}
++
++config("dri") {
++  defines = [ "DRI_DRIVER_DIR=\"${_dri_driver_dir_default}\"" ]
+ }

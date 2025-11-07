@@ -123,11 +123,10 @@ override_dh_auto_build:
 	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
-	@echo "==> Applying Debian Chromium patches (DEPS, gclient, and optimize_images)"
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, and DRI fix)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
-	@echo "==> Applying optimize_images patch manually (patch format issue)"
-	@python3 $(CURDIR)/debian/scripts/apply-optimize-images-patch.py $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/front_end/Images/BUILD.gn || true
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
@@ -195,24 +194,11 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
 	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
 	echo 'group("typ") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
-	@echo "==> Creating stub buildtools/third_party/libc++/BUILD.gn"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
-	echo '# Stub BUILD.gn for Debian builds - uses system libc++' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'source_set("libc++") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	@echo "==> Creating stub third_party/libc++/src/include/__config_site (Debian uses system libc++)"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include
-	echo '// Stub __config_site for Debian builds - uses system libc++' > $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__config_site
-	echo '// Debian uses system libc++ instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__config_site
-	echo '// Empty config site file' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__config_site
-	@echo "==> Creating stub third_party/libc++/src/include/__assertion_handler (Debian uses system libc++)"
-	echo '// Stub __assertion_handler for Debian builds - uses system libc++' > $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
-	echo '// Debian uses system libc++ instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
-	echo '#ifndef _LIBCPP_ASSERTION_HANDLER' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
-	echo '#define _LIBCPP_ASSERTION_HANDLER(message) __builtin_abort()' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
-	echo '#endif' >> $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include/__assertion_handler
+	# Note: DO NOT create stubs for third_party/libc++ or buildtools/third_party/libc++
+	# Reason: Debian chromium tarball includes complete libc++ headers (__config_site, __assertion_handler, etc.)
+	# Creating empty stubs breaks compilation with "implicit instantiation of undefined template" errors
+	# Solution: Let the build use bundled libc++ from chromium tarball (Build 95 fix)
+	@echo "==> Using bundled libc++ from Chromium tarball (headers intact, no stubs needed)"
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-22-init-8940-g4d4cb757-4' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
