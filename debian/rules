@@ -194,16 +194,27 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
 	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
 	echo 'group("typ") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
-	# Create BUILD.gn stub for GN build system, but use headers from chromium tarball
+	# Create BUILD.gn stub for GN build system, AND copy __config_site + __assertion_handler from chromium tarball
 	# BUILD.gn is required by //build/config/BUILDCONFIG.gn:606 (:all_modules target)
-	# DO NOT stub header files (__config_site, __assertion_handler) - they exist in tarball
-	@echo "==> Creating stub buildtools/third_party/libc++/BUILD.gn (for GN), using tarball headers"
+	# __config_site and __assertion_handler must be copied from chromium tarball (perfetto copy has full config)
+	@echo "==> Creating buildtools/third_party/libc++/ BUILD.gn, __config_site, and __assertion_handler"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
 	echo '# Stub BUILD.gn for Debian builds - GN requires this file' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'source_set("libc++") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# Copy __config_site and __assertion_handler from perfetto's copy (has full Chromium config)
+	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
+	# Fix _LIBCPP_INSTRUMENTED_WITH_ASAN: comment out empty definition (build passes -D_LIBCPP_INSTRUMENTED_WITH_ASAN=0)
+	sed -i 's/^#define _LIBCPP_INSTRUMENTED_WITH_ASAN$$/\/\* #define _LIBCPP_INSTRUMENTED_WITH_ASAN *\//' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Fix _LIBCPP_REMOVE_TRANSITIVE_INCLUDES: comment out (breaks iostream template instantiation)
+	sed -i 's/^#define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES$$/\/\* #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES *\//' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-22-init-8940-g4d4cb757-4' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
