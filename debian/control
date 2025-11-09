@@ -5,6 +5,8 @@ Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Build-Depends: debhelper-compat (= 13),
                python3,
                clang,
+               libc++-dev,
+               libc++abi-dev,
                cmake,
                ninja-build,
                generate-ninja,
@@ -77,7 +79,9 @@ Build-Depends: debhelper-compat (= 13),
                yasm,
                git,
                curl,
-               wget
+               wget,
+               rollup,
+               node-rollup-plugin-node-resolve
 Standards-Version: 4.7.2
 Homepage: https://bitbucket.org/chromiumembedded/cef
 Vcs-Browser: https://salsa.debian.org/debian/chromium-embedded-framework
