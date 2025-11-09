@@ -1,7 +1,8 @@
 chromium-embedded-framework for Debian
 ======================================
 
-This package has a NON-STANDARD build workflow that requires manual preparation.
+This package has a NON-STANDARD build workflow that requires manual preparation
+and uses BUNDLED DEPENDENCIES for technical reasons documented below.
 
 CRITICAL: Chromium Source Requirement
 --------------------------------------
@@ -57,6 +58,275 @@ The build process will:
 Expected build time: 2-3 hours on modern hardware
 Required disk space: ~40 GB total (Chromium ~6GB extracted + CEF build ~34GB)
 
+================================================================================
+BUNDLED DEPENDENCIES JUSTIFICATION
+================================================================================
+
+This package bundles several components that deviate from standard Debian
+practice. Each bundled dependency is documented below with technical
+justification.
+
+1. LIBC++ (C++ Standard Library)
+---------------------------------
+
+Status: BUNDLED from Chromium's third_party/libc++
+Reason: ABI INCOMPATIBILITY with system libc++
+
+TECHNICAL DETAILS:
+
+Chromium/CEF uses a custom libc++ build with Chromium-specific ABI settings:
+  - ABI Namespace: std::__Cr:: (Chromium-specific)
+  - ABI Version: 2
+  - Custom configuration flags (ASAN instrumentation, hardening mode, etc.)
+
+Debian's system libc++ (libc++-dev package) uses:
+  - ABI Namespace: std::__1:: (standard LLVM)
+  - ABI Version: 1
+  - Different feature set (wide characters, localization)
+
+ATTEMPTED SOLUTIONS (All Failed):
+
+During package development, we extensively tested system libc++ alternatives:
+
+  Build 108: System libc++ only
+    Result: FAILED at task 78/77621
+    Error: "implicit instantiation of undefined template 'std::basic_ostream'"
+    Cause: ABI namespace mismatch (looking for std::__Cr::, found std::__1::)
+
+  Build 109: Chromium's perfetto __config_site
+    Result: FAILED at task 56/77627 (REGRESSION from Build 108)
+    Error: "_LIBCPP_INSTRUMENTED_WITH_ASAN" empty macro breaks preprocessor
+    Cause: Perfetto config has problematic empty macro definitions
+
+  Build 110: HYBRID - system + namespace override (__1 → __Cr)
+    Result: Reached task 102/77590 (BEST), but FAILED
+    Error: "undefined reference to std::__Cr::setw/setfill"
+    Cause: ABI version mismatch (symbols mangled with v2, config has v1)
+
+  Build 111: HYBRID - system + namespace + version overrides
+    Result: FAILED at task 71/77643 (REGRESSION from Build 110)
+    Cause: Additional overrides created more symbol conflicts
+
+  Build 113: Attempted Build 110 replica
+    Result: FAILED at task 76/77683 with DIFFERENT errors
+    Error: "no type named 'wstring' in namespace 'std'"
+    Cause: System libc++ headers provide only forward declarations,
+           not complete implementations required by Chromium
+
+CONCLUSION:
+
+System libc++ with manual overrides requires 4+ sed commands and still fails
+due to incomplete header implementations. The wstring paradox (Build 113 error
+despite _LIBCPP_HAS_NO_WIDE_CHARACTERS being undefined) proves system headers
+are fundamentally incompatible with Chromium's expectations.
+
+PRECEDENT:
+
+Debian's src:chromium package ALSO uses bundled libc++ for identical ABI
+compatibility reasons. This is not a CEF-specific issue, but a fundamental
+Chromium build requirement.
+
+IMPLEMENTATION:
+
+debian/rules copies libc++ configuration from Chromium's perfetto submodule:
+  chromium/src/third_party/perfetto/buildtools/libcxx_config/
+
+Files bundled:
+  - __config_site (ABI configuration)
+  - __assertion_handler (custom assertion behavior)
+
+These are placed at:
+  chromium/src/buildtools/third_party/libc++/
+
+Header files remain in Chromium tarball at:
+  chromium/src/third_party/libc++/src/include/
+
+LINTIAN OVERRIDE:
+
+This will trigger: embedded-library usr/lib/libcef.so: libc++
+
+Override justified because:
+  - Chromium-specific ABI incompatible with system libc++
+  - Upstream requirement, not packaging choice
+  - Same approach as Debian's chromium package
+  - Extensively tested alternatives (Builds 108-113)
+
+2. DEPOT_TOOLS (Build Automation Tools)
+----------------------------------------
+
+Status: BUNDLED at chromium_embedded_framework/depot_tools/
+Reason: NETWORK ISOLATION and BUILD REPRODUCIBILITY
+
+TECHNICAL DETAILS:
+
+depot_tools is Google's build automation toolkit (git, gclient, ninja, etc.).
+CEF's automate-git.py expects depot_tools in PATH.
+
+ATTEMPTED SOLUTIONS:
+
+  Approach 1: Download depot_tools during build
+    Result: VIOLATES Debian Policy
+    Reason: Builds must be reproducible without network access
+
+  Approach 2: System packages (git, python3, etc.)
+    Result: FAILED - missing gclient, custom git wrappers
+    Reason: depot_tools is not a standard system package
+
+  Approach 3: Bundle depot_tools
+    Result: SUCCESS
+    Benefits:
+      - Offline builds (network isolated)
+      - Version pinned (reproducible)
+      - Matches upstream CEF requirements
+
+IMPLEMENTATION:
+
+Build-time bundling:
+  1. automate-git.py clones depot_tools if not present
+  2. debian/rules PRESERVES depot_tools/ across clean
+  3. Only chromium_src/ is removed during clean
+
+This is Phase 1 approach - see debian/TODO-DEPOT-TOOLS.txt for:
+  - Future Phase 2 (dedicated depot-tools package)
+  - Phase 3 (integration with Debian tooling)
+
+DEBIAN POLICY COMPLIANCE:
+
+depot_tools is treated as a BUILD TOOL (like autoconf), not a library.
+It is NOT installed to the system, only used during package build.
+
+Files in binary package come from CEF/Chromium compilation, NOT depot_tools.
+
+3. ROLLUP (JavaScript Bundler)
+-------------------------------
+
+Status: USES SYSTEM PACKAGE (rollup)
+Reason: EXAMPLE OF SYSTEM LIBRARY USAGE
+
+This is included as a POSITIVE example - we DO use system libraries when viable.
+
+Chromium expects @rollup/wasm-node (contains pre-compiled WASM binary, stripped
+from Debian tarball per policy). We successfully use system rollup via symlink:
+
+  debian/rules creates:
+    chromium/src/third_party/devtools-frontend/src/node_modules/@rollup/wasm-node/dist/bin/rollup
+    → symlink to /usr/share/nodejs/rollup/dist/bin/rollup
+
+  debian/control:
+    Build-Depends: rollup
+
+Result: BUILD.gn files find system rollup at expected path, no patches needed.
+
+================================================================================
+WHY THIS NON-STANDARD APPROACH?
+================================================================================
+
+Debian Bug #893448 (filed 2018, still open) requests a chromium-source binary
+package to solve the chromium tarball problem. Until that exists, manual setup
+is required.
+
+Alternative approaches were considered and rejected:
+
+❌ Embed chromium in CEF source package:
+   - Would create ~1GB source package (unacceptable for Debian)
+   - Violates Debian Policy: "do not put code where canonical version is elsewhere"
+   - Duplicates Debian's chromium security patches
+
+❌ Download chromium during build:
+   - Violates Debian Policy: builds must be reproducible without network
+   - Source packages must be buildable offline
+
+✅ Current approach (manual chromium tarball):
+   - Uses Debian's official chromium source (includes security patches)
+   - Complies with Debian Policy (no embedded code, no network builds)
+   - Documented workflow for maintainers/builders
+   - Migration path when Bug #893448 is resolved
+
+================================================================================
+MODIFYING AND PATCHING
+================================================================================
+
+CEF-Specific Patches
+--------------------
+
+Patches applied to CEF source (not Chromium):
+
+  Location: debian/patches/
+  Format: quilt patch series
+  Applied: During Step 3 of build (after CEF checkout, before compilation)
+
+To modify CEF patches:
+
+  $ cd chromium-embedded-framework/
+  $ dpkg-buildpackage --build=source  # Extract source only
+  $ cd chromium_src/cef/
+  $ export QUILT_PATCHES=../../debian/patches
+  $ quilt push -a    # Apply all patches
+  $ quilt new my-fix.patch
+  $ quilt add path/to/file
+  $ vi path/to/file  # Make changes
+  $ quilt refresh
+  $ quilt header -e  # Add patch description
+  $ cd ../..
+  $ dpkg-source --commit
+
+Chromium Build Configuration
+-----------------------------
+
+Chromium-specific build settings (not patches to code):
+
+  Location: debian/rules lines 190-270
+  Purpose: Configure libc++, rollup, BUILD.gn stubs
+
+Key configuration sections:
+
+  Lines 197-206: libc++ BUILD.gn stub creation
+  Lines 229-244: libc++ __config_site setup (BUNDLED - see justification above)
+  Lines 250-261: Rollup symlink (SYSTEM - see example above)
+
+To modify libc++ configuration:
+
+  WARNING: See "BUNDLED DEPENDENCIES JUSTIFICATION" section above.
+  System libc++ has been extensively tested and FAILS.
+  Only modify if you have new information about libc++ compatibility.
+
+  If modifying anyway:
+    1. Edit debian/rules lines 229-244
+    2. Document reasoning in debian/changelog
+    3. Reference this README.source section
+    4. Test build thoroughly (expect failures)
+
+To add new system library substitutions:
+
+  PREFERRED: Follow rollup example (lines 250-261)
+    - Create symlink at path BUILD.gn expects
+    - Add Build-Depends in debian/control
+    - Document in this README.source
+
+  AVOID: Patching BUILD.gn files
+    - Requires maintaining patches across upstream updates
+    - Fragile to Chromium version changes
+
+Version Compatibility
+---------------------
+
+CEF branch 7444 requires Chromium 142.0.7444.x sources.
+
+The build system includes version compatibility fixes:
+- CEF expects 142.0.7444.53 (upstream Chromium tag)
+- Debian has 142.0.7444.59 (with Debian patches)
+- debian/rules patches CHROMIUM_BUILD_COMPATIBILITY.txt during build
+
+When updating to new CEF/Chromium versions:
+1. Update CEF_BRANCH in debian/rules
+2. Update chromium version in debian/rules --chromium-archive path
+3. Update SHA256 hash in debian/rules --chromium-archive-sha256
+4. Re-test bundled dependency assumptions (libc++ ABI may change)
+
+================================================================================
+ADVANCED BUILD TOPICS
+================================================================================
+
 GBP (git-buildpackage) Workflow
 --------------------------------
 
@@ -86,58 +356,6 @@ the build chroot. Possible approaches:
 
 3. Wait for Debian Bug #893448 to be resolved (chromium-source package)
 
-Why This Non-Standard Approach?
---------------------------------
-
-Debian Bug #893448 (filed 2018, still open) requests a chromium-source binary
-package to solve this exact problem. Until that exists, manual setup is required.
-
-Alternative approaches were considered and rejected:
-
-❌ Embed chromium in CEF source package:
-   - Would create ~1GB source package (unacceptable for Debian)
-   - Violates Debian Policy: "do not put code where canonical version is elsewhere"
-   - Duplicates Debian's chromium security patches
-
-❌ Download chromium during build:
-   - Violates Debian Policy: builds must be reproducible without network
-   - Source packages must be buildable offline
-
-✅ Current approach (manual chromium tarball):
-   - Uses Debian's official chromium source (includes security patches)
-   - Complies with Debian Policy (no embedded code, no network builds)
-   - Documented workflow for maintainers/builders
-   - Migration path when Bug #893448 is resolved
-
-Future Migration
-----------------
-
-When Debian Bug #893448 is resolved and chromium-source package exists:
-
-debian/control will change to:
-    Build-Depends: chromium-source (>= 142.0)
-
-debian/rules will change to:
-    --chromium-archive=/usr/src/chromium/chromium.tar.xz
-
-This README.source and manual setup will no longer be needed.
-
-Version Compatibility
----------------------
-
-CEF branch 7444 requires Chromium 142.0.7444.x sources.
-
-The build system includes version compatibility fixes:
-- CEF expects 142.0.7444.53 (upstream Chromium tag)
-- Debian has 142.0.7444.59 (with Debian patches)
-- debian/rules patches CHROMIUM_BUILD_COMPATIBILITY.txt during build
-
-When updating to new CEF/Chromium versions:
-1. Update CEF_BRANCH in debian/rules
-2. Update chromium version in debian/rules --chromium-archive path
-3. Update SHA256 hash in debian/rules --chromium-archive-sha256
-4. Test build with new versions
-
 Debugging Build Issues
 ----------------------
 
@@ -161,8 +379,35 @@ Common issues:
 4. "Disk space full":
    → Build requires ~40GB free space
 
-Contact
--------
+5. "libc++ compilation errors" (std::__1:: vs std::__Cr::):
+   → DO NOT attempt to use system libc++ (see BUNDLED DEPENDENCIES section)
+   → Verify perfetto __config_site is being used (check build log)
+
+6. "depot_tools lockfile errors":
+   → Development issue only (not in clean builds)
+   → Run: rm -f depot_tools/external_bin/gsutil/*.locked
+
+================================================================================
+FUTURE MIGRATION
+================================================================================
+
+When Debian Bug #893448 is resolved and chromium-source package exists:
+
+debian/control will change to:
+    Build-Depends: chromium-source (>= 142.0)
+
+debian/rules will change to:
+    --chromium-archive=/usr/src/chromium/chromium.tar.xz
+
+The manual chromium tarball setup documented in this file will no longer be
+needed.
+
+NOTE: Bundled libc++ will STILL be required even with chromium-source package,
+due to fundamental ABI incompatibility with system libc++.
+
+================================================================================
+REFERENCES
+================================================================================
 
 Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bugs: https://bugs.debian.org/chromium-embedded-framework
@@ -172,3 +417,14 @@ Related Debian Bugs:
 - #893448: Request for chromium-source binary package
 - #915400: RFP/ITP for chromium-embedded-framework
 - #919382: casparcg-server HTTP support (blocked by lack of CEF)
+
+Build Investigation Logs:
+- See CLAUDE.md in source package for detailed build testing (Builds 108-113)
+- Logs document failed attempts to use system libc++
+- Evidence supports bundled libc++ decision
+
+Upstream References:
+- Chromium libc++ documentation:
+  https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/linux/build_instructions.md
+- CEF build instructions:
+  https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md

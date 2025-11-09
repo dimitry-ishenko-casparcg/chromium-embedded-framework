@@ -7,6 +7,10 @@ Build-Depends: debhelper-compat (= 13),
                clang,
                libc++-dev,
                libc++abi-dev,
+# Note: CEF uses bundled libc++ from Chromium due to ABI incompatibility.
+# libc++-dev/libc++abi-dev above are kept for other build dependencies only.
+# See debian/README.source section "BUNDLED DEPENDENCIES JUSTIFICATION" for
+# detailed technical explanation and failed system libc++ attempts (Builds 108-113).
                cmake,
                ninja-build,
                generate-ninja,

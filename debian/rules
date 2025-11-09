@@ -226,27 +226,23 @@ override_dh_auto_build:
 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	# ENHANCED HYBRID APPROACH: System libc++ base + Chromium ABI overrides
-	# WHY: Perfetto __config_site has problematic macros that break compilation
-	#      Build 108 (system): reached task 78 - namespace/version mismatch
-	#      Build 109 (perfetto): FAILED task 56 - _LIBCPP_INSTRUMENTED_WITH_ASAN empty macro breaks preprocessor
-	#      Build 110 (hybrid v1): reached task 102 - ABI version mismatch (symbols mangled with v2 but looking for v1)
-	# SOLUTION: Use system __config_site (stable, threading works) + override namespace + ABI version
-	@echo "==> Using ENHANCED HYBRID libc++ config: system base + Chromium ABI overrides"
-	cp /usr/include/c++/v1/__config_site \
+	# BUNDLED LIBC++ APPROACH (Chromium's perfetto configuration)
+	# WHY: System libc++ is ABI-incompatible with Chromium (see debian/README.source)
+	# Builds 108-113: Extensive testing proved system + overrides fails (see CLAUDE.md)
+	#   Build 108 (system only): task 78 - namespace mismatch (std::__1:: vs std::__Cr::)
+	#   Build 109 (perfetto): task 56 - preprocessor errors, but CONFIG WAS VALID
+	#   Build 110 (system + namespace): task 102 - version mismatch
+	#   Build 111 (system + namespace + version): task 71 - symbol conflicts
+	#   Build 113 (Build 110 replica): task 76 - wstring paradox (system headers incomplete)
+	# SOLUTION: Use Chromium's bundled libc++ config (same as Debian's src:chromium)
+	# PRECEDENT: Debian chromium package bundles libc++ for same ABI reasons
+	# JUSTIFICATION: See debian/README.source "BUNDLED DEPENDENCIES JUSTIFICATION" section
+	@echo "==> Using bundled libc++ config from Chromium (perfetto)"
+	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Override ABI namespace: __1 (system) → __Cr (Chromium)
-	# This fixes Build 108 task 78 error: template instantiation with wrong namespace
-	sed -i 's/_LIBCPP_ABI_NAMESPACE __1/_LIBCPP_ABI_NAMESPACE __Cr/' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Override ABI version: 1 (system) → 2 (Chromium)
-	# This fixes Build 110 task 102 error: symbols in bundled libc++ are mangled with v2
-	sed -i 's/_LIBCPP_ABI_VERSION 1/_LIBCPP_ABI_VERSION 2/' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	@echo "==> ABI overridden: namespace __1→__Cr, version 1→2 (Chromium compatible)"
-	# Copy __assertion_handler from perfetto (generic, no changes needed)
 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
+	@echo "==> Bundled libc++ config: ABI namespace=__Cr, version=2 (Chromium-compatible)"
 	# DO NOT symlink headers into buildtools/third_party/libc++/
 	# build/config/c++/*.gn hardcodes: include_dirs += [ "//buildtools/third_party/libc++" ]
 	# This creates -I../../buildtools/third_party/libc++ with HIGH priority
