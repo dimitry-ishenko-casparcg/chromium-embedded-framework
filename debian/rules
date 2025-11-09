@@ -113,30 +113,38 @@ override_dh_auto_build:
 	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
 	# Since we extract chromium BEFORE running automate-git.py, we must apply patches ourselves
 
-	# Step 6.6: Verify depot_tools is present (bundled in source package)
-	# For local dev: depot_tools directory must exist in package root
-	# For Debian CI: depot_tools comes from orig.tar.xz (bundled with source)
-	# Network isolation: NO downloads allowed - depot_tools must be pre-existing
-	@echo "==> Verifying depot_tools is present"
+	# Step 6.6: Verify depot_tools is present (BUNDLED DEPENDENCY - Phase 1)
+	# CURRENT APPROACH (Phase 1): depot_tools treated as bundled dependency
+	#   - User clones depot_tools once: git clone https://...depot_tools.git
+	#   - debian/rules clean PRESERVES depot_tools/ (not removed)
+	#   - Works for local development and testing
+	# FUTURE (Phase 2 - see debian/TODO-DEPOT-TOOLS.txt):
+	#   - Option A: Include depot_tools in orig.tar.xz
+	#   - Option B: Package depot_tools separately as Debian package
+	# Network isolation: NO downloads during build - depot_tools must pre-exist
+	@echo "==> Verifying depot_tools is present (bundled dependency)"
 	@if [ ! -d $(CURDIR)/depot_tools ]; then \
 		echo "ERROR: depot_tools directory not found at $(CURDIR)/depot_tools"; \
 		echo "ERROR:"; \
-		echo "ERROR: depot_tools must be present in the package source."; \
+		echo "ERROR: FIRST-TIME SETUP REQUIRED:"; \
+		echo "ERROR:   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools"; \
 		echo "ERROR:"; \
-		echo "ERROR: For local development builds:"; \
-		echo "ERROR:   Ensure depot_tools/ directory exists in: $(CURDIR)/"; \
-		echo "ERROR:   (clone it once if missing, then keep for all builds)"; \
-		echo "ERROR:"; \
-		echo "ERROR: For official Debian packaging:"; \
-		echo "ERROR:   depot_tools must be bundled in chromium-embedded-framework_X.Y.Z.orig.tar.xz"; \
-		echo "ERROR:   This ensures Debian CI (sbuild/pbuilder) can build without network access."; \
+		echo "ERROR: After setup, depot_tools will be preserved across builds (not removed by 'clean')."; \
+		echo "ERROR: See debian/TODO-DEPOT-TOOLS.txt for packaging plans."; \
 		exit 1; \
 	fi
-	@echo "==> depot_tools found and ready"
+	@echo "==> depot_tools found (bundled dependency - Phase 1 approach)"
+
+	# Step 6.6.1: Reset depot_tools to pristine state (since it's preserved across builds)
+	# depot_tools is a git repository, so we can reset it to clean state before patching
+	@echo "==> Resetting depot_tools to pristine state"
+	cd $(CURDIR)/depot_tools && git reset --hard HEAD && git clean -fd
+	@echo "==> depot_tools reset complete"
 
 	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
+	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
 	@echo "==> Applying Debian Chromium patches (DEPS, gclient, and DRI fix)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
@@ -218,17 +226,47 @@ override_dh_auto_build:
 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	# Copy __config_site and __assertion_handler from perfetto's copy (has full Chromium config)
-	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
+	# ENHANCED HYBRID APPROACH: System libc++ base + Chromium ABI overrides
+	# WHY: Perfetto __config_site has problematic macros that break compilation
+	#      Build 108 (system): reached task 78 - namespace/version mismatch
+	#      Build 109 (perfetto): FAILED task 56 - _LIBCPP_INSTRUMENTED_WITH_ASAN empty macro breaks preprocessor
+	#      Build 110 (hybrid v1): reached task 102 - ABI version mismatch (symbols mangled with v2 but looking for v1)
+	# SOLUTION: Use system __config_site (stable, threading works) + override namespace + ABI version
+	@echo "==> Using ENHANCED HYBRID libc++ config: system base + Chromium ABI overrides"
+	cp /usr/include/c++/v1/__config_site \
 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Override ABI namespace: __1 (system) → __Cr (Chromium)
+	# This fixes Build 108 task 78 error: template instantiation with wrong namespace
+	sed -i 's/_LIBCPP_ABI_NAMESPACE __1/_LIBCPP_ABI_NAMESPACE __Cr/' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Override ABI version: 1 (system) → 2 (Chromium)
+	# This fixes Build 110 task 102 error: symbols in bundled libc++ are mangled with v2
+	sed -i 's/_LIBCPP_ABI_VERSION 1/_LIBCPP_ABI_VERSION 2/' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	@echo "==> ABI overridden: namespace __1→__Cr, version 1→2 (Chromium compatible)"
+	# Copy __assertion_handler from perfetto (generic, no changes needed)
 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
-	# Fix _LIBCPP_INSTRUMENTED_WITH_ASAN: comment out empty definition (build passes -D_LIBCPP_INSTRUMENTED_WITH_ASAN=0)
-	sed -i 's/^#define _LIBCPP_INSTRUMENTED_WITH_ASAN$$/\/\* #define _LIBCPP_INSTRUMENTED_WITH_ASAN *\//' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Fix _LIBCPP_REMOVE_TRANSITIVE_INCLUDES: comment out (breaks iostream template instantiation)
-	sed -i 's/^#define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES$$/\/\* #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES *\//' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# DO NOT symlink headers into buildtools/third_party/libc++/
+	# build/config/c++/*.gn hardcodes: include_dirs += [ "//buildtools/third_party/libc++" ]
+	# This creates -I../../buildtools/third_party/libc++ with HIGH priority
+	# If headers are in that directory, compiler finds them via -I instead of -isystem
+	# This breaks libc++ C wrapper headers (math.h, cstring) because #include_next fails
+	# Correct setup: buildtools/third_party/libc++/ contains ONLY __config_site and __assertion_handler
+	# Actual headers come from -isystem../../third_party/libc++/src/include (LOWER priority, correct)
+	# NO sed hacks needed - system __config_site is already properly configured
+	# Use system rollup instead of bundled @rollup/wasm-node (avoids WASM binary dependency)
+	# CREATE SYMLINK at exact path BUILD.gn files expect: node_modules/@rollup/wasm-node/dist/bin/rollup
+	@echo "==> Using system rollup (from rollup package)"
+	if [ ! -f /usr/share/nodejs/rollup/dist/bin/rollup ]; then \
+		echo "ERROR: System rollup binary not found at /usr/share/nodejs/rollup/dist/bin/rollup"; \
+		echo "Install: apt-get install rollup"; \
+		exit 1; \
+	fi
+	@echo "==> Creating symlink for @rollup/wasm-node → system rollup"
+	cd $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src && \
+	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
+	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-22-init-8940-g4d4cb757-4' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
@@ -442,5 +480,10 @@ override_dh_auto_test:
 
 override_dh_auto_clean:
 	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
-	rm -rf depot_tools/
+	# NOTE: depot_tools is treated as BUNDLED DEPENDENCY (not removed during clean)
+	# TEMPORARY APPROACH: For official Debian submission, depot_tools must be:
+	#   - Included in orig.tar.xz, OR
+	#   - Packaged separately as debian package
+	# See: debian/TODO-DEPOT-TOOLS.txt for Phase 2 plan
+	# DO NOT remove depot_tools/ here - it's part of the source package
 	dh_auto_clean
