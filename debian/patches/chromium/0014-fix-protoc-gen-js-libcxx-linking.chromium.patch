@@ -13,8 +13,6 @@ Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Forwarded: not-needed
 Last-Update: 2025-11-10
 
-diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
-index 0000000000..1111111111 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
 @@ -16,6 +16,10 @@ if (current_toolchain == host_toolchain) {
