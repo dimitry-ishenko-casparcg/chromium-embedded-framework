@@ -1,0 +1,30 @@
+Description: Disable Google Storage downloads for network isolation
+ For Debian builds, all required source files must be present in the source
+ tarball. This patch disables download_from_google_storage.py to enforce
+ network isolation during package builds.
+ .
+ The script is called by gclient hooks to download test data files from
+ Google Cloud Storage (gs://chromium-telemetry/). In Debian builds, these
+ downloads are forbidden by policy.
+ .
+ This patch makes the script a no-op by returning immediately. Any missing
+ test data will be caught during build, not silently downloaded.
+ .
+ Impact: Enforces Debian network isolation policy, prevents silent downloads
+ during build, ensures all build artifacts come from source tarball only.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-10
+
+--- a/download_from_google_storage.py
++++ b/download_from_google_storage.py
+@@ -565,6 +565,10 @@ def download_from_google_storage(
+
+ def main(args):
++    # Debian: Network isolation - disable all Google Storage downloads
++    # All required files must be present in source tarball
++    return 0
++
+     usage = ('usage: %prog [options] target\n'
+              'Target must be:\n'
+              '  (default) a sha1 sum ([A-Za-z0-9]{40}).\n'
