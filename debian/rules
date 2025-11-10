@@ -145,7 +145,7 @@ override_dh_auto_build:
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
-	@echo "==> Applying Debian Chromium patches (DEPS, gclient, and DRI fix)"
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
@@ -226,23 +226,42 @@ override_dh_auto_build:
 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	# BUNDLED LIBC++ APPROACH (Chromium's perfetto configuration)
-	# WHY: System libc++ is ABI-incompatible with Chromium (see debian/README.source)
-	# Builds 108-113: Extensive testing proved system + overrides fails (see CLAUDE.md)
-	#   Build 108 (system only): task 78 - namespace mismatch (std::__1:: vs std::__Cr::)
-	#   Build 109 (perfetto): task 56 - preprocessor errors, but CONFIG WAS VALID
-	#   Build 110 (system + namespace): task 102 - version mismatch
-	#   Build 111 (system + namespace + version): task 71 - symbol conflicts
-	#   Build 113 (Build 110 replica): task 76 - wstring paradox (system headers incomplete)
-	# SOLUTION: Use Chromium's bundled libc++ config (same as Debian's src:chromium)
-	# PRECEDENT: Debian chromium package bundles libc++ for same ABI reasons
-	# JUSTIFICATION: See debian/README.source "BUNDLED DEPENDENCIES JUSTIFICATION" section
-	@echo "==> Using bundled libc++ config from Chromium (perfetto)"
+	# PERFETTO-BASED CONFIG with ASAN + TRANSITIVE INCLUDES fixes (Build 117)
+	# DATA: Build 116 (perfetto + ASAN fix) task 47, Build 115 (system) task 48
+	# ANALYSIS: Build 116 failed with "no type named 'ostream'" in abseil-cpp
+	#   - ROOT CAUSE: perfetto has #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
+	#   - Abseil expects transitive includes (doesn't explicitly #include <iostream>)
+	#   - Build 114 had ASAN error at task 51, Build 116 fixed that but hit transitive includes error at task 47
+	# HISTORICAL SOLUTION (CLAUDE.md:329): "Required multiple sed hacks to fix ASAN, REMOVE_TRANSITIVE_INCLUDES, etc."
+	# FIX: Use perfetto base (correct ABI v2, namespace __Cr, hardening=NONE) + disable BOTH problematic macros
+	@echo "==> Using perfetto libc++ config with ASAN + TRANSITIVE INCLUDES fixes (Build 117)"
+	# Step 1: Copy perfetto __config_site (ABI v2, namespace __Cr, hardening=NONE)
 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Step 2: FIX ASAN - Comment out empty macro that breaks preprocessor
+	sed -i 's/^#define _LIBCPP_INSTRUMENTED_WITH_ASAN$$/\/* #define _LIBCPP_INSTRUMENTED_WITH_ASAN - disabled: empty macro causes preprocessor errors *\//' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Step 3: FIX TRANSITIVE INCLUDES - Comment out to enable transitive includes for abseil-cpp
+	sed -i 's/^#define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES$$/\/* #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES - disabled: abseil needs transitive includes *\//' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Step 4: DEFINE POSITIVE FEATURE MACROS - perfetto only undefines negatives, causing guards to fail
+	# Without these, code that checks "#if _LIBCPP_HAS_THREADS" evaluates to false (undefined = 0)
+	# This affects abseil-cpp, ICU, and other components using standard library features
+	@echo "==> Defining positive libc++ feature macros in __config_site"
+	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_LOCALIZATION \*\/$$/a #define _LIBCPP_HAS_LOCALIZATION 1' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK \*\/$$/a #define _LIBCPP_HAS_MONOTONIC_CLOCK 1' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_WIDE_CHARACTERS \*\/$$/a #define _LIBCPP_HAS_WIDE_CHARACTERS 1' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_FILESYSTEM \*\/$$/a #define _LIBCPP_HAS_FILESYSTEM 1' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_THREADS \*\/$$/a #define _LIBCPP_HAS_THREADS 1' \
+		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# Step 5: Copy __assertion_handler (safe, generic)
 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
-	@echo "==> Bundled libc++ config: ABI namespace=__Cr, version=2 (Chromium-compatible)"
+	@echo "==> Perfetto config applied: ABI v2, namespace=__Cr, hardening=NONE, ASAN disabled, transitive includes enabled, feature macros defined"
 	# DO NOT symlink headers into buildtools/third_party/libc++/
 	# build/config/c++/*.gn hardcodes: include_dirs += [ "//buildtools/third_party/libc++" ]
 	# This creates -I../../buildtools/third_party/libc++ with HIGH priority
@@ -250,7 +269,6 @@ override_dh_auto_build:
 	# This breaks libc++ C wrapper headers (math.h, cstring) because #include_next fails
 	# Correct setup: buildtools/third_party/libc++/ contains ONLY __config_site and __assertion_handler
 	# Actual headers come from -isystem../../third_party/libc++/src/include (LOWER priority, correct)
-	# NO sed hacks needed - system __config_site is already properly configured
 	# Use system rollup instead of bundled @rollup/wasm-node (avoids WASM binary dependency)
 	# CREATE SYMLINK at exact path BUILD.gn files expect: node_modules/@rollup/wasm-node/dist/bin/rollup
 	@echo "==> Using system rollup (from rollup package)"
