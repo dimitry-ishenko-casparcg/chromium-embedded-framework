@@ -141,6 +141,26 @@ These are placed at:
 Header files remain in Chromium tarball at:
   chromium/src/third_party/libc++/src/include/
 
+CRITICAL FIX - Feature Macros (Step 4):
+
+Perfetto's __config_site only UNDEFINES negative feature guards but doesn't
+DEFINE positive equivalents. This causes conditional compilation guards to fail:
+
+  Example: /* #undef _LIBCPP_HAS_NO_THREADS */
+
+Without explicit definition, code checking "#if _LIBCPP_HAS_THREADS" evaluates
+to false (undefined = 0), disabling threading features.
+
+debian/rules Step 4 (lines 247-260) adds positive definitions:
+  - _LIBCPP_HAS_LOCALIZATION 1
+  - _LIBCPP_HAS_MONOTONIC_CLOCK 1
+  - _LIBCPP_HAS_WIDE_CHARACTERS 1
+  - _LIBCPP_HAS_FILESYSTEM 1
+  - _LIBCPP_HAS_THREADS 1
+
+This fix resolved compilation errors across ALL C++ components (abseil-cpp,
+ICU, protobuf, etc.) discovered during Builds 117-123.
+
 LINTIAN OVERRIDE:
 
 This will trigger: embedded-library usr/lib/libcef.so: libc++
@@ -419,8 +439,9 @@ Related Debian Bugs:
 - #919382: casparcg-server HTTP support (blocked by lack of CEF)
 
 Build Investigation Logs:
-- See CLAUDE.md in source package for detailed build testing (Builds 108-113)
-- Logs document failed attempts to use system libc++
+- See CLAUDE.md in source package for detailed build testing (Builds 108-123)
+- Logs document failed attempts to use system libc++ (Builds 108-113)
+- Logs document libc++ feature macros fix (Builds 117-123)
 - Evidence supports bundled libc++ decision
 
 Upstream References:
