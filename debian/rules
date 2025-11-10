@@ -145,11 +145,13 @@ override_dh_auto_build:
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
-	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust)"
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, libc++, network isolation)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-fix-protoc-gen-js-libcxx-linking.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
