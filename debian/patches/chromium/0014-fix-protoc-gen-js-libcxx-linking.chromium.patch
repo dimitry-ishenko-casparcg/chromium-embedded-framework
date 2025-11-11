@@ -1,10 +1,10 @@
 Description: Fix protoc-gen-js libc++ runtime linking
- protoc-gen-js uses std::__Cr:: symbols but doesn't explicitly depend on libc++.
- With use_custom_libcxx=true, the link command includes -nostdlib++ but doesn't
- link libc++.a, causing undefined symbol errors at task 1600/76623.
+ protoc-gen-js links with -nostdlib++ but doesn't explicitly link libc++,
+ causing undefined symbol errors at task 1604/76523.
  .
- This patch adds an explicit dependency on //buildtools/third_party/libc++ to
- ensure proper linking of the bundled libc++ static library.
+ This patch adds libs = [ "c++" ] to explicitly link against system libc++.
+ Adding a GN dependency on //buildtools/third_party/libc++ doesn't work because
+ the stub BUILD.gn has sources = [] (empty), so no library is actually linked.
  .
  Error: ld.lld: error: undefined symbol: std::__Cr::__libcpp_verbose_abort
         ld.lld: error: undefined symbol: operator new(unsigned long)
@@ -15,14 +15,13 @@ Last-Update: 2025-11-10
 
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
-@@ -16,6 +16,10 @@ if (current_toolchain == host_toolchain) {
-     deps = [
-       "//third_party/protobuf:protoc_lib",
-
-+      # Debian: Explicitly depend on libc++ for proper linking with use_custom_libcxx=true
-+      "//buildtools/third_party/libc++",
-+      "//buildtools/third_party/libc++abi",
-+
+@@ -22,6 +22,9 @@ if (current_toolchain == host_toolchain) {
        # Default manifest on Windows (a no-op elsewhere).
        "//build/win:default_exe_manifest",
      ]
++
++    # Debian: Explicitly link libc++ when using -nostdlib++
++    libs = [ "c++" ]
+     configs -= [ "//build/config/compiler:chromium_code" ]
+     configs += [ "//build/config/compiler:no_chromium_code" ]
+   }
