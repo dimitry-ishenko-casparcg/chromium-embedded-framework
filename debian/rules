@@ -224,8 +224,27 @@ override_dh_auto_build:
 	# __config_site and __assertion_handler must be copied from chromium tarball (perfetto copy has full config)
 	@echo "==> Creating buildtools/third_party/libc++/ BUILD.gn, __config_site, and __assertion_handler"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
-	echo '# Stub BUILD.gn for Debian builds - GN requires this file' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'source_set("libc++") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# Create REAL BUILD.gn that builds bundled libc++ library (not stub)
+	# Needed for patch 0014 v3 which links protoc-gen-js against bundled libc++
+	# Uses all .cpp files from third_party/libc++/src/src/ (69 files)
+	@echo "==> Building bundled libc++ static library (namespace __Cr from perfetto config)"
+	echo '# Real BUILD.gn for Debian builds - compiles bundled libc++ library' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo 'static_library("libc++") {' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  sources = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	find $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/src -name "*.cpp" | \
+		sed 's|$(CURDIR)/chromium_src/chromium/src|    "//|' | sed 's/$$/"/' | \
+		sed 's|//third_party|//third_party|' | sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  include_dirs = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '    "//buildtools/third_party/libc++",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '    "//third_party/libc++/src/include",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  configs -= [ "//build/config/compiler:chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  configs += [ "//build/config/compiler:no_chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '# Keep these groups for compatibility with GN configuration' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
