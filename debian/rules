@@ -233,7 +233,7 @@ override_dh_auto_build:
 	echo 'static_library("libc++") {' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '  sources = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	find $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/src -name "*.cpp" | \
-		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/"/' | \
+		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/",/' | \
 		sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '  include_dirs = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
