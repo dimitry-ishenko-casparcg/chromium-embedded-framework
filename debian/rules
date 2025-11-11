@@ -243,6 +243,7 @@ override_dh_auto_build:
 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '  configs -= [ "//build/config/compiler:chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '  configs += [ "//build/config/compiler:no_chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	echo '  cflags_cc = [ "-std=c++23" ]  # libc++ requires C++23 (from upstream chromium BUILD.gn)' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '# Keep these groups for compatibility with GN configuration' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
