@@ -236,7 +236,7 @@ override_dh_auto_build:
 		grep -v '/win32/' | grep -v '/ibm/' | grep -v 'pstl/libdispatch' | \
 		grep -v 'ryu/f2s.cpp' | grep -v 'ryu/d2s.cpp' | grep -v 'ryu/d2fixed.cpp' | \
 		grep -v 'random_shuffle.cpp' | grep -v 'random.cpp' | grep -v 'locale.cpp' | \
-		grep -v 'filesystem/path.cpp' | grep -v 'filesystem/filesystem_error.cpp' | \
+		grep -v 'filesystem/path.cpp' | grep -v 'filesystem/filesystem_error.cpp' | grep -v 'filesystem/operations.cpp' | \
 		grep -v 'exception.cpp' | \
 		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/",/' | \
 		sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
