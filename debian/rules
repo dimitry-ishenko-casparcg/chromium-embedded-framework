@@ -137,8 +137,9 @@ override_dh_auto_build:
 
 	# Step 6.6.1: Reset depot_tools to pristine state (since it's preserved across builds)
 	# depot_tools is a git repository, so we can reset it to clean state before patching
-	@echo "==> Resetting depot_tools to pristine state"
-	cd $(CURDIR)/depot_tools && git reset --hard HEAD && git clean -fd
+	# Reset to HEAD~1 to undo the "Apply Debian patches" commit from previous build
+	@echo "==> Resetting depot_tools to pristine state (undoing previous Debian patches commit)"
+	cd $(CURDIR)/depot_tools && git reset --hard HEAD~1 && git clean -fd
 	@echo "==> depot_tools reset complete"
 
 	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
