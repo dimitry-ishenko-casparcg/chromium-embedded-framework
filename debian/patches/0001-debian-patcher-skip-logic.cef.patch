@@ -1,8 +1,8 @@
 diff --git a/tools/patcher.py b/tools/patcher.py
-index 9877ad7..b262da9 100644
+index 9877ad7..c8e333f 100644
 --- a/tools/patcher.py
 +++ b/tools/patcher.py
-@@ -47,6 +47,21 @@ def apply_patch_file(patch_file, patch_dir):
+@@ -47,6 +47,22 @@ def apply_patch_file(patch_file, patch_dir):
  
    result = git_apply_patch_file(patch_path, patch_dir)
    if result == 'fail':
@@ -18,31 +18,10 @@ index 9877ad7..b262da9 100644
 +    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser',
 +                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config', 'tarball_deps', 'tarball_gclient']
 +    patch_base = os.path.splitext(patch_file)[0]  # Remove .patch extension
-+    if 'DEBIAN_BUILD' in os.environ and patch_base in debian_skip_patches:
++    # Skip these patches unconditionally for Debian builds (incompatible with Debian chromium)
++    if patch_base in debian_skip_patches:
 +      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
 +      return 'skip'
      write_note('ERROR',
                 'This patch failed to apply. Your build will not be correct.')
    return result
-@@ -117,6 +132,21 @@ parser.add_option(
- if not options.patchfile is None:
-   result = apply_patch_file(options.patchfile, options.patchdir)
-   if result == 'fail':
-+    # Debian-specific: Some patches are unnecessary or conflict with Debian builds:
-+    # - gn_config: Debian strips Windows-specific files (chrome/installer/mini_installer/*)
-+    # - libxml_visibility: Debian unbundles libraries to use system versions (libxml)
-+    # - chrome_browser_browser: Conflicts with Debian's chromium UI patches
-+    # - chrome_browser_profile_menu: Same version mismatch issue as tarball_deps
-+    # - v8_build: V8 build configuration conflicts with Debian's V8 patches
-+    # - angle_commit_config: ANGLE graphics library config conflicts with Debian patches
-+    # These patches fail but are safe to skip for Debian builds.
-+    # Note: tarball_deps and tarball_gclient now have Debian-specific versions (patches 0007-0008)
-+    debian_skip_patches = ['gn_config', 'libxml_visibility', 'chrome_browser_browser',
-+                            'chrome_browser_profile_menu', 'v8_build', 'angle_commit_config', 'tarball_deps', 'tarball_gclient']
-+    patch_base = os.path.splitext(options.patchfile)[0]  # Remove .patch extension
-+    if 'DEBIAN_BUILD' in os.environ and patch_base in debian_skip_patches:
-+      sys.stdout.write('\n... Debian build: treating as skip (incompatible with Debian chromium).\n')
-+      sys.exit(0)
-     sys.exit(1)
- else:
-   apply_patch_config()
