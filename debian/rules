@@ -149,6 +149,12 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
+	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
+	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
+	# and refuses to checkout when update_depot_tools tries to switch commits
+	@echo "==> Committing depot_tools patches to avoid git conflicts"
+	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0008, 0015)" --allow-empty
+	@echo "==> depot_tools patches committed"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-fix-protoc-gen-js-libcxx-linking.chromium.patch
