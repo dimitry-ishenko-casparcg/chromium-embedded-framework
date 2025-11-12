@@ -463,6 +463,12 @@ override_dh_auto_build:
 	## This single command handles: depot_tools download, Chromium sync, GN config, and build
 	## The exec_script restriction is handled by patch 0004-patch-gn-for-exec-script.patch
 	## which modifies automate-git.py to patch .gn after sync but before running hooks
+	##
+	## CRITICAL: --no-depot-tools-update flag prevents update_depot_tools from running
+	## Without this flag, automate-git.py calls update_depot_tools which does 'git checkout'
+	## to upstream HEAD, overwriting our committed patches 0008 and 0015 in depot_tools.
+	## This causes gclient to lose the source_tarball check and attempt to clone 37+ dependencies,
+	## violating Debian's no-internet build policy.
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
 	export GN_DEFINES="use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_custom_libcxx=true" && \
@@ -473,6 +479,7 @@ override_dh_auto_build:
 		--branch=$(CEF_BRANCH) \
 		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.134.orig.tar.xz \
 		--no-cef-update \
+		--no-depot-tools-update \
 		--force-build \
 		--x64-build \
 		--no-distrib-archive \
