@@ -22,8 +22,8 @@ Last-Update: 2025-11-12
 
 diff --git a/DEPS b/DEPS
 index be9ca27..1897e62 100644
---- a/DEPS
-+++ b/DEPS
+--- a/chromium/src/DEPS
++++ b/chromium/src/DEPS
 @@ -1051,10 +1051,12 @@ deps = {
        },
      ],
