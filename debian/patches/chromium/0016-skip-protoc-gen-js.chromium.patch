@@ -29,7 +29,7 @@ Last-Update: 2025-11-14
 +
 +    # Debian: Add locale stub for linking (avoids locale.cpp compilation issues)
 +    sources += [
-+      "//debian/cef_locale_stub.cpp",
++      "//cef/debian/cef_locale_stub.cpp",
 +    ]
      include_dirs = [ "src" ]
      deps = [
