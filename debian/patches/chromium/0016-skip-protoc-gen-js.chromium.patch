@@ -1,33 +1,36 @@
-Description: Use system libc++ for protoc-gen-js (avoid bundled libc++ locale dependency)
- protoc-gen-js requires locale.cpp symbols which cannot be compiled with
- bundled libc++ setup (namespace errors with __newlocale/__freelocale).
+Description: Add locale stub for protoc-gen-js linking
+ protoc-gen-js is a build tool that generates JavaScript bindings from
+ Protocol Buffer files. It requires locale symbols from libc++ for iostream
+ initialization, but the bundled libc++'s locale.cpp cannot be compiled on
+ Debian due to type conflicts with glibc headers.
  .
- Missing symbols with bundled libc++: std::__Cr::locale::*, std::__Cr::num_put::id,
- std::__Cr::ctype::id, std::__Cr::codecvt::id, __cxa_guard_*, __cxa_pure_virtual
+ Missing symbols: std::__Cr::locale::*, std::__Cr::num_put::id,
+ std::__Cr::ctype::id, __cxa_guard_*, __cxa_pure_virtual
  .
- Solution: Use system libc++ for this build tool only. Since protoc-gen-js
- is a host build tool (not linked into CEF runtime), namespace differences
- between system std::__1 and bundled std::__Cr are acceptable.
+ This patch adds a minimal stub implementation (cef_locale_stub.cpp) that
+ provides the necessary locale symbols for linking. Since protoc-gen-js is
+ a build tool that runs with LC_ALL=C and only outputs generated code, it
+ doesn't need actual locale functionality.
  .
- Build 135: Proven locale.cpp compilation impossible
- Build 161: Failed with bundled libc++ (locale symbols missing)
- Build 162: Failed without explicit libc++ dep (same errors)
- Build 163: Use system libc++ (this patch)
+ Build 135: locale.cpp compilation proven impossible (__newlocale conflicts)
+ Build 163c-164: System libc++ failed (ABI namespace mismatch __Cr vs __1)
+ Build 165: Stub approach (isolated, minimal, safe)
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-13
+Last-Update: 2025-11-14
 
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
-@@ -20,6 +20,10 @@ if (current_toolchain == host_toolchain) {
+@@ -12,6 +12,11 @@ if (current_toolchain == host_toolchain
+       "src/generator/well_known_types_embed.cc",
+       "src/generator/well_known_types_embed.h",
      ]
-     configs -= [ "//build/config/compiler:chromium_code" ]
-     configs += [ "//build/config/compiler:no_chromium_code" ]
 +
-+    # Debian: Override -nostdlib++ and use system libc++ (provides locale symbols)
-+    ldflags = [ "-stdlib=libc++" ]
-+    libs = [ "c++", "c++abi" ]
-   }
- }
-
-+
++    # Debian: Add locale stub for linking (avoids locale.cpp compilation issues)
++    sources += [
++      "//debian/cef_locale_stub.cpp",
++    ]
+     include_dirs = [ "src" ]
+     deps = [
+       "//third_party/protobuf:protoc_lib",
