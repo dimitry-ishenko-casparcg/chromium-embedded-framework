@@ -1,0 +1,31 @@
+Description: Fix protoc-gen-js libc++ runtime linking
+ protoc-gen-js links with -nostdlib++ but doesn't explicitly depend on libc++,
+ causing undefined symbol errors for std::__Cr:: symbols at task 1635/76523.
+ .
+ This patch adds an explicit GN dependency on //buildtools/third_party/libc++
+ to link against the bundled libc++ library (which has __Cr namespace matching
+ the perfetto __config_site used during compilation).
+ .
+ Build 130 used deps (failed - stub BUILD.gn has sources=[]).
+ Build 131 used libs=["c++"] (progress +31 tasks, but namespace mismatch).
+ Build 132 uses deps with real bundled libc++ BUILD.gn.
+ .
+ Error: ld.lld: error: undefined symbol: std::__Cr::__libcpp_verbose_abort
+        ld.lld: error: undefined symbol: std::__Cr::basic_string...
+        ld.lld: error: undefined symbol: std::__Cr::ios_base::init
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-11
+
+--- a/third_party/protobuf-javascript/BUILD.gn
++++ b/third_party/protobuf-javascript/BUILD.gn
+@@ -16,6 +16,9 @@ if (current_toolchain == host_toolchain) {
+     deps = [
+       "//third_party/protobuf:protoc_lib",
+
++      # Debian: Explicitly link bundled libc++ when using -nostdlib++
++      "//buildtools/third_party/libc++",
++
+       # Default manifest on Windows (a no-op elsewhere).
+       "//build/win:default_exe_manifest",
+     ]
