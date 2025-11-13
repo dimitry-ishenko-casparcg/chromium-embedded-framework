@@ -1,0 +1,32 @@
+Description: Use system libc++ for protoc-gen-js (avoid bundled libc++ locale dependency)
+ protoc-gen-js requires locale.cpp symbols which cannot be compiled with
+ bundled libc++ setup (namespace errors with __newlocale/__freelocale).
+ .
+ Missing symbols with bundled libc++: std::__Cr::locale::*, std::__Cr::num_put::id,
+ std::__Cr::ctype::id, std::__Cr::codecvt::id, __cxa_guard_*, __cxa_pure_virtual
+ .
+ Solution: Use system libc++ for this build tool only. Since protoc-gen-js
+ is a host build tool (not linked into CEF runtime), namespace differences
+ between system std::__1 and bundled std::__Cr are acceptable.
+ .
+ Build 135: Proven locale.cpp compilation impossible
+ Build 161: Failed with bundled libc++ (locale symbols missing)
+ Build 162: Failed without explicit libc++ dep (same errors)
+ Build 163: Use system libc++ (this patch)
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-13
+
+--- a/third_party/protobuf-javascript/BUILD.gn
++++ b/third_party/protobuf-javascript/BUILD.gn
+@@ -20,6 +20,9 @@ if (current_toolchain == host_toolchain) {
+     ]
+     configs -= [ "//build/config/compiler:chromium_code" ]
+     configs += [ "//build/config/compiler:no_chromium_code" ]
++
++    # Debian: Link system libc++ (provides locale symbols unavailable in bundled libc++)
++    libs = [ "c++", "c++abi" ]
+   }
+ }
+
++
