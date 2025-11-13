@@ -12,7 +12,7 @@ Last-Update: 2025-11-14
 
 --- /dev/null
 +++ b/debian/cef_locale_stub.cpp
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,173 @@
 +// Debian: Minimal locale stub for protoc-gen-js linking
 +// protoc-gen-js is a build tool that only needs locale symbols for iostream
 +// initialization. It doesn't perform actual locale processing, so empty
@@ -36,25 +36,26 @@ Last-Update: 2025-11-14
 +    class facet;
 +    class id {
 +    public:
-+        id() noexcept {}
++        id() noexcept;
++        ~id() noexcept;
 +    };
 +
-+    // Constructors and destructor
-+    locale() noexcept {}
-+    locale(const locale&) noexcept {}
-+    locale& operator=(const locale&) noexcept { return *this; }
-+    ~locale() {}
++    // Constructors and destructor (declared, defined out-of-line)
++    locale() noexcept;
++    locale(const locale&) noexcept;
++    locale& operator=(const locale&) noexcept;
++    ~locale();
 +
 +    // use_facet - returns nullptr (not used by protoc-gen-js)
-+    const facet* use_facet(const id&) const { return nullptr; }
++    const facet* use_facet(const id&) const;
 +};
 +
 +// Base facet class
 +class locale::facet {
 +protected:
-+    explicit facet(size_t refs = 0) {}
++    explicit facet(size_t refs = 0);
 +public:
-+    virtual ~facet() {}
++    virtual ~facet();
 +
 +private:
 +    facet(const facet&) = delete;
@@ -72,8 +73,8 @@ Last-Update: 2025-11-14
 +public:
 +    static locale::id id;
 +
-+    explicit ctype(size_t = 0) : locale::facet(0) {}
-+    virtual ~ctype() {}
++    explicit ctype(size_t = 0);
++    virtual ~ctype();
 +};
 +
 +template<typename CharT, typename OutputIter = char*>
@@ -81,8 +82,8 @@ Last-Update: 2025-11-14
 +public:
 +    static locale::id id;
 +
-+    explicit num_put(size_t = 0) : locale::facet(0) {}
-+    virtual ~num_put() {}
++    explicit num_put(size_t = 0);
++    virtual ~num_put();
 +};
 +
 +template<typename InternT, typename ExternT, typename StateT>
@@ -90,9 +91,47 @@ Last-Update: 2025-11-14
 +public:
 +    static locale::id id;
 +
-+    explicit codecvt(size_t = 0) : locale::facet(0) {}
-+    virtual ~codecvt() {}
++    explicit codecvt(size_t = 0);
++    virtual ~codecvt();
 +};
++
++// ============================================================================
++// Out-of-line function definitions (required for non-inline linkage)
++// ============================================================================
++
++// locale::id implementations
++locale::id::id() noexcept {}
++locale::id::~id() noexcept {}
++
++// locale implementations
++locale::locale() noexcept {}
++locale::locale(const locale&) noexcept {}
++locale& locale::operator=(const locale&) noexcept { return *this; }
++locale::~locale() {}
++const locale::facet* locale::use_facet(const id&) const { return nullptr; }
++
++// facet implementations
++locale::facet::facet(size_t) {}
++locale::facet::~facet() {}
++
++// Template implementations (must be out-of-line for linkage)
++template<typename CharT>
++ctype<CharT>::ctype(size_t) : locale::facet(0) {}
++
++template<typename CharT>
++ctype<CharT>::~ctype() {}
++
++template<typename CharT, typename OutputIter>
++num_put<CharT, OutputIter>::num_put(size_t) : locale::facet(0) {}
++
++template<typename CharT, typename OutputIter>
++num_put<CharT, OutputIter>::~num_put() {}
++
++template<typename InternT, typename ExternT, typename StateT>
++codecvt<InternT, ExternT, StateT>::codecvt(size_t) : locale::facet(0) {}
++
++template<typename InternT, typename ExternT, typename StateT>
++codecvt<InternT, ExternT, StateT>::~codecvt() {}
 +
 +// Static member definitions for common instantiations
 +template<> locale::id ctype<char>::id;
@@ -111,6 +150,12 @@ Last-Update: 2025-11-14
 +template class codecvt<wchar_t, char, int>;
 +
 +} // namespace __Cr
++
++// std::uncaught_exceptions() - needed by iostream
++int uncaught_exceptions() noexcept {
++    return 0;  // Stub: assume no active exceptions
++}
++
 +} // namespace std
 +
 +// libc++abi symbols needed for static initialization
@@ -140,4 +185,4 @@ Last-Update: 2025-11-14
 +        // For stub, we just return (protoc-gen-js shouldn't call this)
 +    }
 +}
-+
++\ No newline at end of file
