@@ -158,7 +158,6 @@ override_dh_auto_build:
 	@echo "==> depot_tools patches committed"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-fix-protoc-gen-js-libcxx-linking.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
@@ -246,6 +245,7 @@ override_dh_auto_build:
 		grep -v 'filesystem/path.cpp' | grep -v 'filesystem/filesystem_error.cpp' | grep -v 'filesystem/operations.cpp' | \
 		grep -v 'exception.cpp' | \
 		grep -v 'charconv.cpp' | \
+		grep -v 'experimental/tzdb.cpp' | grep -v 'experimental/tzdb_list.cpp' | grep -v 'experimental/time_zone.cpp' | \
 		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/",/' | \
 		sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
@@ -313,8 +313,12 @@ override_dh_auto_build:
 		echo "Install: apt-get install rollup"; \
 		exit 1; \
 	fi
-	@echo "==> Creating symlink for @rollup/wasm-node → system rollup"
+	@echo "==> Creating symlink for @rollup/wasm-node → system rollup (devtools-frontend)"
 	cd $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src && \
+	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
+	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
+	@echo "==> Creating symlink for @rollup/wasm-node → system rollup (third_party/node)"
+	cd $(CURDIR)/chromium_src/chromium/src/third_party/node && \
 	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
 	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
