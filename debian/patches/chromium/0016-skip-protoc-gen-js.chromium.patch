@@ -1,37 +1,41 @@
-Description: Add locale stub and disable ThinLTO for protoc-gen-js
+Description: Add locale stub with explicit template instantiation for protoc-gen-js
  protoc-gen-js is a build tool that generates JavaScript bindings from
  Protocol Buffer files. It requires locale symbols from libc++ for iostream
  initialization, but the bundled libc++'s locale.cpp cannot be compiled on
  Debian due to type conflicts with glibc headers.
  .
- Missing symbols: std::__Cr::locale::*, std::__Cr::num_put::id,
- std::__Cr::ctype::id, __cxa_guard_*, __cxa_pure_virtual
+ Missing symbols: std::__Cr::num_put::id, std::__Cr::codecvt::id
  .
  This patch:
- 1. Adds a minimal stub implementation (cef_locale_stub.cpp) that provides
-    the necessary locale symbols for linking. Since protoc-gen-js is a build
-    tool that runs with LC_ALL=C and only outputs generated code, it doesn't
-    need actual locale functionality.
- 2. Disables ThinLTO for protoc-gen-js to prevent symbol stripping.
-    LTO removes the entire stub object file during optimization because no code
-    directly references the symbols (they're needed only at link time).
+ 1. Adds a minimal stub implementation (cef_locale_stub.cpp) that uses
+    explicit template instantiation to define the missing id static members.
+ 2. Links the stub into protoc-gen-js to provide the required symbols.
+ .
+ Since protoc-gen-js is a build tool that runs with LC_ALL=C and only outputs
+ generated code, it doesn't need actual locale functionality.
  .
  Build 135: locale.cpp compilation proven impossible (__newlocale conflicts)
  Build 163c-164: System libc++ failed (ABI namespace mismatch __Cr vs __1)
  Build 165-170: Stub approach successful, but LTO stripped all symbols
  Build 171: Config removal failed (thinlto_optimize_default only controls level)
- Build 172: Direct flag override with -fno-lto (overrides config("compiler"))
+ Build 172c: cflags += failed (undefined identifier in GN executable() scope)
+ Build 172d: Flags overridden by global config("compiler") which adds -flto=thin last
+ Build 173: --undefined flags failed (no stub file created)
+ Build 174: Explicit template instantiation to define id members (NEW APPROACH)
  .
- Investigation: build/config/compiler/BUILD.gn:828,876 adds -flto=thin in the
- main config("compiler") block. Later flags override earlier ones in GN/Clang.
+ Investigation: ThinLTO strips symbols that aren't referenced. Solution: Use
+ explicit template instantiation in a .cpp file to force the compiler to
+ generate and emit the id static member definitions.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-14
 
+diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
+index d6fa1d7..5e8f1c2 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
-@@ -12,6 +12,18 @@ if (current_toolchain == host_toolchain
+@@ -12,6 +12,11 @@ if (current_toolchain == host_toolchain) {
        "src/generator/well_known_types_embed.cc",
        "src/generator/well_known_types_embed.h",
      ]
@@ -40,15 +44,6 @@ Last-Update: 2025-11-14
 +    sources += [
 +      "//cef/debian/cef_locale_stub.cpp",
 +    ]
-+
-+    # Disable ThinLTO to prevent symbol stripping from stub
-+    # Stub provides locale symbols needed at link time but not referenced in code
-+    # config("compiler") adds -flto=thin globally, we override with -fno-lto
-+    # Investigation: build/config/compiler/BUILD.gn:828,876 adds -flto=thin in config("compiler")
-+    # Later flags override earlier ones in GN/Clang, so -fno-lto disables ThinLTO
-+    cflags += [ "-fno-lto" ]
-+    ldflags += [ "-fno-lto" ]
-+
      include_dirs = [ "src" ]
      deps = [
        "//third_party/protobuf:protoc_lib",
