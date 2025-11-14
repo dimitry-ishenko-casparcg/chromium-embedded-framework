@@ -19,25 +19,29 @@ Description: Link protoc-gen-js against pre-built locale stub library
  - Symbols preserved in .a file
  - Linked as external library (not processed by ThinLTO)
  - Success probability: 80%
+ .
+ Build 175c fix: Use absolute path //out/Debug_GN_x64/obj/debian for lib_dirs
+ to avoid GN interpreting path relative to BUILD.gn file location.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-14
 
 diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
-index d6fa1d7..f4b3332 100644
+index d6fa1d7..a5f7b18 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
-@@ -12,6 +12,13 @@ if (current_toolchain == host_toolchain) {
+@@ -12,6 +12,14 @@ if (current_toolchain == host_toolchain) {
        "src/generator/well_known_types_embed.cc",
        "src/generator/well_known_types_embed.h",
      ]
 +
 +    # Debian: Link against pre-built locale stub library
 +    # Library compiled in debian/rules before GN runs
-+    # Located at out/Debug_GN_x64/obj/debian/liblocale_stub.a
++    # Located at src/out/Debug_GN_x64/obj/debian/liblocale_stub.a
++    # Use absolute path from //root to avoid GN relative path issues
 +    libs = [ "locale_stub" ]
-+    lib_dirs = [ "obj/debian" ]
++    lib_dirs = [ "//out/Debug_GN_x64/obj/debian" ]
 +
      include_dirs = [ "src" ]
      deps = [
