@@ -514,7 +514,6 @@ override_dh_auto_build:
 		--force-build \
 		--x64-build \
 		--no-distrib-archive \
-		--build-log-file \
 		--minimal-distrib
 
 override_dh_auto_install:
