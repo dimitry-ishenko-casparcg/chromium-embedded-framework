@@ -1,20 +1,36 @@
 Description: Add source_tarball support to gclient for tarball builds
- This patch prevents gclient from performing git operations when building
- from tarball sources by checking the source_tarball flag in three locations.
+ This patch prevents gclient from performing git operations and CIPD downloads
+ when building from tarball sources by checking the source_tarball flag in
+ four locations.
  .
  Modified methods:
+ - Line 780: Skip CIPD package downloads when source_tarball=True (NEW in v3)
  - Line 1003: Skip git submodule operations when source_tarball=True
  - Line 1221: Skip SCM sync operations when source_tarball=True
- - Line 1838: Skip _CheckConfig validation when source_tarball=True (NEW in v2)
+ - Line 1838: Skip _CheckConfig validation when source_tarball=True
  .
- This is critical for no-internet builds in Debian CI.
+ CRITICAL for Debian Policy §4.9 compliance - NO network access during build.
+ CIPD packages (reclient, JDK, etc.) are not needed for local tarball builds.
 Author: Debian CEF Maintainers
 Forwarded: not-needed
-Last-Update: 2025-11-05
+Last-Update: 2025-11-14
 
 --- a/gclient.py
 +++ b/gclient.py
-@@ -1000,7 +1000,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
+@@ -777,6 +777,12 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
+             if dep_type in self._get_option('ignore_dep_type', []):
+                 continue
+
++            # Debian: Skip CIPD package downloads when building from tarball
++            # CIPD packages (reclient, JDK, etc.) require network access
++            # All tools must come from source tarball or system packages
++            if dep_type == 'cipd' and self.get_vars().get('source_tarball', False):
++                continue
++
+             if dep_type == 'cipd':
+                 # TODO(b/345321320): Remove when non_git_sources are properly supported.
+                 if gclient_utils.IsEnvCog() and (
+@@ -1000,7 +1006,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
          if self.git_dependencies_state == gclient_eval.SUBMODULES:
              deps.update(self.ParseGitSubmodules())
 
@@ -24,7 +40,7 @@ Last-Update: 2025-11-05
              # Git submodules are used - get their state.
              self._known_dependency_diff = self.CreateSCM().GetSubmoduleDiff()
              self._dependency_index_state = self.CreateSCM(
-@@ -1218,7 +1219,7 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
+@@ -1218,7 +1225,7 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
              self.FuzzyMatchUrl(revision_overrides), None)
          if not revision_override and not self.managed:
              revision_override = 'unmanaged'
@@ -33,7 +49,7 @@ Last-Update: 2025-11-05
              # Create a shallow copy to mutate revision.
              options = copy.copy(options)
              options.revision = revision_override
-@@ -1838,6 +1839,9 @@ solutions = %(solution_list)s
+@@ -1838,6 +1845,9 @@ solutions = %(solution_list)s
      def _CheckConfig(self):
          """Verify that the config matches the state of the existing checked-out
          solutions."""
