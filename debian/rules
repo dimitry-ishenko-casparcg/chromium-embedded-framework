@@ -96,6 +96,29 @@ override_dh_auto_build:
 		git commit -m "Initial chromium source from Debian tarball"
 	@echo "==> Git repository initialized"
 
+	# Step 6.3: Compile pre-built locale stub library (Build 175)
+	# protoc-gen-js needs locale symbols, but libc++'s locale.cpp can't compile on Debian
+	# We compile the stub HERE (outside GN/Chromium build) to bypass ThinLTO symbol stripping
+	@echo "========================================"
+	@echo "Debian: Compiling locale stub library"
+	@echo "========================================"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/out/Debug_GN_x64/obj/debian
+	clang++ -std=c++17 -c \
+		-isystem $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/include \
+		-isystem $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config \
+		$(CURDIR)/debian/cef_locale_stub.cpp \
+		-o $(CURDIR)/chromium_src/chromium/src/out/Debug_GN_x64/obj/debian/locale_stub.o
+	ar rcs $(CURDIR)/chromium_src/chromium/src/out/Debug_GN_x64/obj/debian/liblocale_stub.a \
+		$(CURDIR)/chromium_src/chromium/src/out/Debug_GN_x64/obj/debian/locale_stub.o
+	@if [ -f $(CURDIR)/chromium_src/chromium/src/out/Debug_GN_x64/obj/debian/liblocale_stub.a ]; then \
+		echo "✅ Pre-built locale stub library created successfully"; \
+		ls -lh $(CURDIR)/chromium_src/chromium/src/out/Debug_GN_x64/obj/debian/liblocale_stub.a; \
+	else \
+		echo "❌ ERROR: Failed to create locale stub library"; \
+		exit 1; \
+	fi
+	@echo "========================================"
+
 	# Step 6.5: Patch Chromium DEPS to disable git submodule checking
 	# gclient runhooks calls GetSubmoduleDiff() when git_dependencies != 'DEPS'
 	# Setting git_dependencies = 'DEPS' disables submodule checks (not needed for Debian builds)
@@ -158,7 +181,7 @@ override_dh_auto_build:
 	@echo "==> depot_tools patches committed"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-skip-protoc-gen-js.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-protoc-gen-js-prebuilt-stub.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook

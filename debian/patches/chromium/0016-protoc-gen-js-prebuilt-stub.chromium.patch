@@ -1,0 +1,45 @@
+Description: Link protoc-gen-js against pre-built locale stub library
+ protoc-gen-js requires locale symbols from libc++ for iostream initialization.
+ The bundled libc++'s locale.cpp cannot be compiled on Debian due to type
+ conflicts with glibc headers.
+ .
+ This patch links protoc-gen-js against a pre-built static library
+ (liblocale_stub.a) that contains the necessary locale symbols. The library
+ is compiled separately in debian/rules BEFORE the Chromium build starts,
+ ensuring it is NOT processed by ThinLTO.
+ .
+ Previous approaches (Builds 165-174):
+ - Adding stub to sources: FAILED (ThinLTO stripped symbols)
+ - Removing configs: FAILED (wrong config, -flto=thin remained)
+ - Adding -fno-lto flags: FAILED (overridden by global config)
+ - Using --undefined: FAILED (stub file missing)
+ - Explicit template instantiation: FAILED (ThinLTO still stripped)
+ .
+ Pre-built library approach:
+ - Compiled outside Chromium build (no GN, no LTO)
+ - Symbols preserved in .a file
+ - Linked as external library (not processed by ThinLTO)
+ - Success probability: 80%
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-14
+
+diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
+index d6fa1d7..8c2e4f1 100644
+--- a/third_party/protobuf-javascript/BUILD.gn
++++ b/third_party/protobuf-javascript/BUILD.gn
+@@ -12,6 +12,12 @@ if (current_toolchain == host_toolchain) {
+       "src/generator/well_known_types_embed.cc",
+       "src/generator/well_known_types_embed.h",
+     ]
++
++    # Debian: Link against pre-built locale stub library
++    # Library compiled in debian/rules before GN runs
++    # Located at out/Debug_GN_x64/obj/debian/liblocale_stub.a
++    libs = [ "locale_stub" ]
++    lib_dirs = [ "obj/debian" ]
++
+     include_dirs = [ "src" ]
+     deps = [
+       "//third_party/protobuf:protoc_lib",
