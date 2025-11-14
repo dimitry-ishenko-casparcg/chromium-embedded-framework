@@ -13,7 +13,6 @@ Description: Link protoc-gen-js against pre-built locale stub library
  - Removing configs: FAILED (wrong config, -flto=thin remained)
  - Adding -fno-lto flags: FAILED (overridden by global config)
  - Using --undefined: FAILED (stub file missing)
- - Explicit template instantiation: FAILED (ThinLTO still stripped)
  .
  Pre-built library approach:
  - Compiled outside Chromium build (no GN, no LTO)
@@ -26,10 +25,10 @@ Forwarded: not-needed
 Last-Update: 2025-11-14
 
 diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
-index d6fa1d7..8c2e4f1 100644
+index d6fa1d7..f4b3332 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
-@@ -12,6 +12,12 @@ if (current_toolchain == host_toolchain) {
+@@ -12,6 +12,13 @@ if (current_toolchain == host_toolchain) {
        "src/generator/well_known_types_embed.cc",
        "src/generator/well_known_types_embed.h",
      ]
