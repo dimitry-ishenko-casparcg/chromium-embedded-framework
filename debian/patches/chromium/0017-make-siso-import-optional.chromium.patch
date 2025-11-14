@@ -1,0 +1,39 @@
+Description: Make siso module import optional for Debian tarball builds
+ The siso module is distributed as a CIPD (Chrome Infrastructure Package
+ Deployment) package, which requires network access to download. Debian
+ Policy §4.9 prohibits network access during package builds. This patch
+ makes the siso import optional so that builds can proceed with ninja when
+ use_siso=false is set in GN args.
+ .
+ When siso is not available and use_siso is explicitly disabled, the build
+ will fall back to using ninja instead. If the build logic attempts to use
+ siso when it's not available, a clear error message is raised.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-14
+
+--- a/third_party/depot_tools/autoninja.py
++++ b/third_party/depot_tools/autoninja.py
+@@ -35,7 +35,11 @@ import gn_helper
+ import ninja
+ import ninjalog_uploader
+ import reclient_helper
+-import siso
++try:
++    import siso
++except ImportError:
++    # Debian: siso is a CIPD package, may not be available when building from tarball
++    siso = None
+
+
+ _SISO_SUGGESTION = """You're still using Ninja.
+@@ -468,6 +472,8 @@ def _main_inner(input_args, build_id):
+                     # Print the command-line to reassure the user that the right
+                     # settings are being used.
+                     _print_cmd(args)
++                if siso is None:
++                    raise RuntimeError("siso module not available (CIPD package not installed)")
+                 return siso.main(args)
+             if use_remoteexec:
+                 if use_reclient and not t_specified:

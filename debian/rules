@@ -173,6 +173,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-make-siso-import-optional.chromium.patch
 	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
 	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
 	# and refuses to checkout when update_depot_tools tries to switch commits
