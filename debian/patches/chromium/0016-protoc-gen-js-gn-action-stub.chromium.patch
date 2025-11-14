@@ -63,24 +63,16 @@ Last-Update: 2025-11-14
    executable("protoc-gen-js") {
      sources = [
        "src/generator/js_generator.cc",
-@@ -13,20 +39,20 @@ if (current_toolchain == host_toolchain) {
+@@ -13,12 +39,19 @@ if (current_toolchain == host_toolchain) {
        "src/generator/well_known_types_embed.h",
      ]
-
--    # Debian: Link against pre-built locale stub library
--    # Library compiled in debian/rules before GN runs
--    # Located at src/out/Debug_GN_x64/obj/debian/liblocale_stub.a
--    # Use absolute path from //root to avoid GN relative path issues
--    libs = [ "locale_stub" ]
--    lib_dirs = [ "//out/Debug_GN_x64/obj/debian" ]
--
      include_dirs = [ "src" ]
 +
      deps = [
 +      ":compile_locale_stub",  # Debian: Ensure stub compiles first
        "//third_party/protobuf:protoc_lib",
 
-       # Default manifest on Windows (a no-pop elsewhere).
+       # Default manifest on Windows (a no-op elsewhere).
        "//build/win:default_exe_manifest",
      ]
 +
