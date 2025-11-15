@@ -15,7 +15,7 @@ Forwarded: not-needed
 Last-Update: 2025-11-15
 
 diff --git a/patch/patches/chrome_browser_frame_mac.patch b/patch/patches/chrome_browser_frame_mac.patch
-index 9341f10..845e7c9 100644
+index 9341f10..d7af66f 100644
 --- a/patch/patches/chrome_browser_frame_mac.patch
 +++ b/patch/patches/chrome_browser_frame_mac.patch
 @@ -1,7 +1,7 @@
@@ -23,10 +23,10 @@ index 9341f10..845e7c9 100644
 -index 1423d061aa00c5e8c58bceb09f36d517821f8d06..dd7e20ed4850153fe5e1cc2d69acfd5299bc2693 100644
 ---- chrome/browser/ui/views/frame/browser_native_widget_mac.h
 -+++ chrome/browser/ui/views/frame/browser_native_widget_mac.h
-+diff --git a/browser_native_widget_mac.h b/browser_native_widget_mac.h
++diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.h b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
 +index 1423d06..dd7e20e 100644
-+--- a/browser_native_widget_mac.h
-++++ b/browser_native_widget_mac.h
++--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.h
+++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.h
  @@ -11,6 +11,7 @@
   #include "ui/base/mojom/window_show_state.mojom-forward.h"
   #include "ui/views/widget/native_widget_mac.h"
@@ -39,10 +39,10 @@ index 9341f10..845e7c9 100644
 ---- chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 -+++ chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 -@@ -194,7 +194,14 @@ void BrowserNativeWidgetMac::OnWidgetDestroyed(views::Widget* widget) {
-+diff --git a/browser_native_widget_mac.mm b/browser_native_widget_mac.mm
++diff --git a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +index 776d593..274cb8c 100644
-+--- a/browser_native_widget_mac.mm
-++++ b/browser_native_widget_mac.mm
++--- a/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
+++++ b/chrome/browser/ui/views/frame/browser_native_widget_mac.mm
 +@@ -207,7 +207,15 @@ void BrowserNativeWidgetMac::OnWidgetDestroyed(views::Widget* widget) {
   void BrowserNativeWidgetMac::ValidateUserInterfaceItem(
       int32_t tag,
