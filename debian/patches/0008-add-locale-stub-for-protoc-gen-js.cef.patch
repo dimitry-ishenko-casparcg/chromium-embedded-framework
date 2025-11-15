@@ -1,0 +1,119 @@
+Description: Add locale stub for protoc-gen-js linking (mangled symbol approach)
+ protoc-gen-js is a build tool that generates JavaScript bindings from
+ Protocol Buffer files. It requires locale symbols from libc++ for iostream
+ initialization, but the bundled libc++'s locale.cpp cannot be compiled on
+ Debian due to type conflicts with glibc headers.
+ .
+ Missing symbols: std::__Cr::locale::*, std::__Cr::num_put::id,
+ std::__Cr::ctype::id, __cxa_guard_*, __cxa_pure_virtual
+ .
+ This patch adds a minimal stub implementation (cef_locale_stub.cpp) that
+ provides the necessary locale symbols for linking. Since protoc-gen-js is
+ a build tool that runs with LC_ALL=C and only outputs generated code, it
+ doesn't need actual locale functionality.
+ .
+ Build 165h-165i: Inline namespace mismatch - symbols compiled but not exported
+ Build 166-168: LTO stripped symbols, undefined symbols at link time
+ Build 169: Template parameter mismatch - compilation failed
+ Build 170: Fixed use_facet signature to non-const reference (id&)
+ Build 175r: Fixed codecvt template parameter (mbstate_t instead of int)
+ Build 176: Added vtable stubs for RTTI type_info classes
+ Build 177: REVERTED to mangled symbol approach (Build 175h methodology)
+            Cannot use C++ templates without including headers (glibc conflicts)
+            Linker needs num_put<char, ostreambuf_iterator<...>>::id, not num_put<char, char*>::id
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-15
+
+diff --git a/debian/cef_locale_stub.cpp b/debian/cef_locale_stub.cpp
+new file mode 100644
+index 0000000..3bc971b
+--- /dev/null
++++ b/debian/cef_locale_stub.cpp
+@@ -0,0 +1,85 @@
++// Debian: Minimal locale stub for protoc-gen-js linking
++// Build 177: Mangled symbol approach (proven to work in Build 175h)
++//
++// protoc-gen-js requires locale symbols from libc++ for iostream initialization,
++// but the bundled libc++'s locale.cpp cannot be compiled on Debian due to
++// type conflicts with glibc headers.
++//
++// This stub provides empty/minimal implementations via mangled symbol names.
++// We CANNOT use C++ templates because:
++// - Cannot include libc++ headers (glibc conflicts)
++// - Without headers, template types are undefined
++// - MUST use mangled symbols via extern "C"
++
++extern "C" {
++  // Locale class symbols
++  __attribute__((weak)) void _ZNSt4__Cr6localeC1Ev() {}  // locale::locale()
++  __attribute__((weak)) void _ZNSt4__Cr6localeC2Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr6localeD1Ev() {}  // locale::~locale()
++  __attribute__((weak)) void _ZNSt4__Cr6localeD2Ev() {}
++  __attribute__((weak)) void* _ZNSt4__Cr6locale9use_facetERNS0_2idE() { return 0; }  // locale::use_facet(id&) const
++
++  // num_put<char, ostreambuf_iterator<char, char_traits<char>>> symbols
++  __attribute__((weak)) void _ZNSt4__Cr7num_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEED0Ev() {}  // ~num_put() deleting
++  __attribute__((weak)) void _ZNSt4__Cr7num_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEED1Ev() {}  // ~num_put() complete
++  __attribute__((weak)) void _ZNSt4__Cr7num_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEED2Ev() {}  // ~num_put() base
++  // Static member id for num_put<char, ostreambuf_iterator<char, char_traits<char>>>
++  __attribute__((weak)) char _ZNSt4__Cr7num_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE[16] = {0};  // num_put<...>::id
++
++  // num_put<wchar_t, ostreambuf_iterator<wchar_t, char_traits<wchar_t>>> symbols
++  __attribute__((weak)) void _ZNSt4__Cr7num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEED0Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr7num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEED1Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr7num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEED2Ev() {}
++  __attribute__((weak)) char _ZNSt4__Cr7num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE[16] = {0};  // num_put<...>::id
++
++  // ctype<char> symbols
++  __attribute__((weak)) void _ZNSt4__Cr5ctypeIcED0Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr5ctypeIcED1Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr5ctypeIcED2Ev() {}
++  __attribute__((weak)) char _ZNSt4__Cr5ctypeIcE2idE[16] = {0};  // ctype<char>::id
++
++  // ctype<wchar_t> symbols
++  __attribute__((weak)) void _ZNSt4__Cr5ctypeIwED0Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr5ctypeIwED1Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr5ctypeIwED2Ev() {}
++  __attribute__((weak)) char _ZNSt4__Cr5ctypeIwE2idE[16] = {0};  // ctype<wchar_t>::id
++
++  // codecvt<char, char, mbstate_t> symbols
++  __attribute__((weak)) void _ZNSt4__Cr7codecvtIcc11__mbstate_tED0Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr7codecvtIcc11__mbstate_tED1Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr7codecvtIcc11__mbstate_tED2Ev() {}
++  __attribute__((weak)) char _ZNSt4__Cr7codecvtIcc11__mbstate_tE2idE[16] = {0};  // codecvt<char, char, mbstate_t>::id
++
++  // codecvt<wchar_t, char, mbstate_t> symbols
++  __attribute__((weak)) void _ZNSt4__Cr7codecvtIwc11__mbstate_tED0Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr7codecvtIwc11__mbstate_tED1Ev() {}
++  __attribute__((weak)) void _ZNSt4__Cr7codecvtIwc11__mbstate_tED2Ev() {}
++  __attribute__((weak)) char _ZNSt4__Cr7codecvtIwc11__mbstate_tE2idE[16] = {0};  // codecvt<wchar_t, char, mbstate_t>::id
++
++  // C++ ABI guard functions
++  __attribute__((weak)) int __cxa_guard_acquire(void* guard) { return 1; }
++  __attribute__((weak)) void __cxa_guard_release(void* guard) {}
++  __attribute__((weak)) void __cxa_guard_abort(void* guard) {}
++  __attribute__((weak)) void __cxa_pure_virtual() {}
++
++  // std::uncaught_exceptions()
++  __attribute__((weak)) int _ZSt21uncaught_exceptionsv() { return 0; }
++
++  // Vtable symbols for C++ ABI type_info classes (RTTI support)
++  __attribute__((weak)) void _ZN10__cxxabiv117__class_type_infoD0Ev() {}  // __class_type_info::~__class_type_info() deleting
++  __attribute__((weak)) void _ZN10__cxxabiv117__class_type_infoD1Ev() {}  // __class_type_info::~__class_type_info() complete
++  __attribute__((weak)) void _ZN10__cxxabiv117__class_type_infoD2Ev() {}  // __class_type_info::~__class_type_info() base
++
++  __attribute__((weak)) void _ZN10__cxxabiv120__si_class_type_infoD0Ev() {}  // __si_class_type_info::~__si_class_type_info() deleting
++  __attribute__((weak)) void _ZN10__cxxabiv120__si_class_type_infoD1Ev() {}  // __si_class_type_info::~__si_class_type_info() complete
++  __attribute__((weak)) void _ZN10__cxxabiv120__si_class_type_infoD2Ev() {}  // __si_class_type_info::~__si_class_type_info() base
++
++  __attribute__((weak)) void _ZN10__cxxabiv121__vmi_class_type_infoD0Ev() {}  // __vmi_class_type_info::~__vmi_class_type_info() deleting
++  __attribute__((weak)) void _ZN10__cxxabiv121__vmi_class_type_infoD1Ev() {}  // __vmi_class_type_info::~__vmi_class_type_info() complete
++  __attribute__((weak)) void _ZN10__cxxabiv121__vmi_class_type_infoD2Ev() {}  // __vmi_class_type_info::~__vmi_class_type_info() base
++
++  // Vtable storage (8 bytes on x86_64)
++  __attribute__((weak)) long _ZTVN10__cxxabiv117__class_type_infoE[4] = {0};
++  __attribute__((weak)) long _ZTVN10__cxxabiv120__si_class_type_infoE[4] = {0};
++  __attribute__((weak)) long _ZTVN10__cxxabiv121__vmi_class_type_infoE[4] = {0};
++}
