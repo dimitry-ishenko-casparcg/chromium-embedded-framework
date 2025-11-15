@@ -3,7 +3,7 @@ Description: Add source_tarball conditions to chromium DEPS for tarball builds
  when building from Debian-provided chromium tarball sources.
  .
  Modified sections:
- - Six hooks (lastchange, gpu_lists_version, lastchange_skia, lastchange_dawn, lastchange_commit_position_cros, generate_location_tags)
+ - Five hooks (lastchange, gpu_lists_version, lastchange_skia, lastchange_dawn, lastchange_commit_position_cros)
  - EIGHT dependency entries:
    * webvr_info, crossbench, crossbench-web-tests, dom_distiller_js, crabbyavif (from Build 93)
    * clang-format/script, canvas_bench, content_analysis_sdk, crc32c (added Build 140 for chromium 142.0.7444.134)
@@ -15,15 +15,15 @@ Description: Add source_tarball conditions to chromium DEPS for tarball builds
  This eliminates all git fetch/clone operations during Phase 2a build,
  ensuring compliance with Debian's no-internet build policy.
  .
- Regenerated for Debian chromium 142.0.7444.134 with complete dependency coverage
+ Regenerated for Debian chromium 142.0.7444.162 with correct line numbers (Build 175k)
 Author: Debian CEF Maintainers
 Forwarded: not-needed
-Last-Update: 2025-11-12
+Last-Update: 2025-11-15
 
 diff --git a/DEPS b/DEPS
-index be9ca27..1897e62 100644
---- a/chromium/src/DEPS
-+++ b/chromium/src/DEPS
+index 2c9319b..ee813b8 100644
+--- a/DEPS
++++ b/DEPS
 @@ -1051,10 +1051,12 @@ deps = {
        },
      ],
@@ -147,3 +147,36 @@ index be9ca27..1897e62 100644
      'action': ['python3', 'src/build/util/lastchange.py',
                 '-o', 'src/build/util/LASTCHANGE'],
    },
+@@ -4205,7 +4224,7 @@ hooks = [
+     # Update lastchange_commit_position.h (only for CrOS).
+     'name': 'lastchange_commit_position_cros',
+     'pattern': '.',
+-    'condition': 'checkout_chromeos',
++    'condition': 'checkout_chromeos and not source_tarball',
+     'action': ['python3', 'src/build/util/lastchange.py',
+                '-m', 'CHROMIUM',
+                '--commit-position-header',
+@@ -4215,6 +4234,7 @@ hooks = [
+     # Update GPU lists version string (for gpu/config).
+     'name': 'gpu_lists_version',
+     'pattern': '.',
++    'condition': 'not source_tarball',
+     'action': ['python3', 'src/build/util/lastchange.py',
+                '-m', 'GPU_LISTS_VERSION',
+                '--revision-id-only',
+@@ -4224,6 +4244,7 @@ hooks = [
+     # Update skia_commit_hash.h.
+     'name': 'lastchange_skia',
+     'pattern': '.',
++    'condition': 'not source_tarball',
+     'action': ['python3', 'src/build/util/lastchange.py',
+                '-m', 'SKIA_COMMIT_HASH',
+                '-s', 'src/third_party/skia',
+@@ -4233,6 +4254,7 @@ hooks = [
+     # Update dawn_version.h.
+     'name': 'lastchange_dawn',
+     'pattern': '.',
++    'condition': 'not source_tarball',
+     'action': ['python3', 'src/build/util/lastchange.py',
+                '-m', 'DAWN_COMMIT_HASH',
+                '-s', 'src/third_party/dawn',
