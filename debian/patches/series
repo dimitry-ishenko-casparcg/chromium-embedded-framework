@@ -6,3 +6,4 @@
 0006-skip-chromium-checkout-debian.cef.patch
 0007-allow-optimize-webui-false-debian.cef.patch
 cef/0008-add-locale-stub-for-protoc-gen-js.cef.patch
+cef/0009-update-cef-mac-frame-patch.cef.patch
