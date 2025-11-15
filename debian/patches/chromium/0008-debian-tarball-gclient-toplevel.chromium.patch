@@ -31,7 +31,7 @@ Last-Update: 2025-11-14
 +                if source_tarball_val is True or (isinstance(source_tarball_val, str) and source_tarball_val.lower() == 'true'):
 +                    continue
 +
-+            if dep_type == 'cipd':
+             if dep_type == 'cipd':
                  # TODO(b/345321320): Remove when non_git_sources are properly supported.
                  if gclient_utils.IsEnvCog() and (
 @@ -1000,7 +1006,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
