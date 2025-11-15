@@ -24,10 +24,14 @@ Last-Update: 2025-11-14
 +            # Debian: Skip CIPD package downloads when building from tarball
 +            # CIPD packages (reclient, JDK, etc.) require network access
 +            # All tools must come from source tarball or system packages
-+            if dep_type == 'cipd' and self.get_vars().get('source_tarball', False):
-+                continue
++            # CRITICAL: Check source_tarball BEFORE processing CIPD dependencies
++            if dep_type == 'cipd':
++                source_tarball_val = self.get_vars().get('source_tarball', False)
++                # Check both boolean True and truthy values for robustness
++                if source_tarball_val is True or (isinstance(source_tarball_val, str) and source_tarball_val.lower() == 'true'):
++                    continue
 +
-             if dep_type == 'cipd':
++            if dep_type == 'cipd':
                  # TODO(b/345321320): Remove when non_git_sources are properly supported.
                  if gclient_utils.IsEnvCog() and (
 @@ -1000,7 +1006,8 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
