@@ -15,6 +15,9 @@ Author: Debian CEF Maintainers
 Forwarded: not-needed
 Last-Update: 2025-11-15
 
+
+diff --git a/gclient.py b/gclient.py
+index 1cc8fb8..9de5318 100755
 --- a/gclient.py
 +++ b/gclient.py
 @@ -777,6 +777,16 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
