@@ -4,7 +4,8 @@ Priority: optional
 Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Build-Depends: debhelper-compat (= 13),
                python3,
-               clang,
+               clang-22,
+               libclang-rt-22-dev,
                libc++-dev,
                libc++abi-dev,
 # Note: CEF uses bundled libc++ from Chromium due to ABI incompatibility.
@@ -85,7 +86,10 @@ Build-Depends: debhelper-compat (= 13),
                curl,
                wget,
                rollup,
-               node-rollup-plugin-node-resolve
+               node-rollup-plugin-node-resolve,
+               bindgen,
+               rust-src,
+               librust-libc-dev
 Standards-Version: 4.7.2
 Homepage: https://bitbucket.org/chromiumembedded/cef
 Vcs-Browser: https://salsa.debian.org/debian/chromium-embedded-framework

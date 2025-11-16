@@ -1,0 +1,33 @@
+Description: Skip GCS dependencies when source_tarball is True
+ gclient has multiple ways to download external dependencies. Patch 0015
+ disables download_from_google_storage.py, but that only affects hooks
+ that use that script.
+ .
+ Dependencies with 'dep_type': 'gcs' in DEPS are downloaded directly by
+ gclient using gsutil, bypassing download_from_google_storage.py. This
+ patch makes gclient skip these GCS dependencies when source_tarball is
+ True in custom_vars.
+ .
+ This ensures complete network isolation for Debian builds - all required
+ files must be present in the source tarball.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-16
+
+diff --git a/gclient.py b/gclient.py
+index 9de5318..813c817 100755
+--- a/gclient.py
++++ b/gclient.py
+@@ -804,6 +804,11 @@ class Dependency(gclient_utils.WorkItem, DependencySettings):
+                                        relative=use_relative_paths,
+                                        condition=condition))
+             elif dep_type == 'gcs':
++                # Debian: Skip GCS dependencies when building from source tarball
++                # All required files must be present in the tarball for offline builds
++                if self.custom_vars.get('source_tarball', False):
++                    continue
++
+                 if len(dep_value['objects']) == 0:
+                     continue
+

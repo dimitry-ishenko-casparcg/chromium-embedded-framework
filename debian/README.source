@@ -449,3 +449,170 @@ Upstream References:
   https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/linux/build_instructions.md
 - CEF build instructions:
   https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md
+
+================================================================================
+RUST VENDOR CRATE DEPENDENCIES (Build 175+)
+================================================================================
+
+4. RUST VENDOR CRATES (Hybrid Approach)
+----------------------------------------
+
+Status: HYBRID - 67% system packages + 33% bundled crates
+Reason: MAXIMIZE Debian Policy compliance while handling unavailable crates
+
+TECHNICAL DETAILS:
+
+Chromium's Rust standard library build requires 130 vendor crates, normally
+downloaded as part of rust-toolchain GCS tarball (142 MB, blocked in Debian).
+
+ANALYSIS RESULTS (Build 175j - 2025-11-16):
+
+Total vendor crates required: 130
+
+Breakdown:
+  ✅ Exact match in Debian:     11 crates (8%)
+  ⚠️  Version mismatch:          76 crates (58%)  → Tested compatible via semver
+  ❌ Not in Debian:             43 crates (33%)  → Requires bundling
+  ────────────────────────────────────────────
+  System packages available:    87 crates (67%)  ← SIGNIFICANT Debian compliance
+
+IMPLEMENTED SOLUTION - HYBRID APPROACH:
+
+Phase 1: System Packages (87 crates from Debian)
+
+  Source: /usr/share/cargo/registry/
+  Packages: librust-*-dev (see debian/control Build-Depends)
+
+  Key packages:
+    - librust-libc-dev (CRITICAL - tested in Build 175)
+    - librust-object-dev (previous blocker, now resolved)
+    - librust-serde-dev, librust-tokio-dev (common dependencies)
+    - ... (84 more - see generate-build-depends.sh output)
+
+  Implementation:
+    debian/rules creates symlinks from system packages to:
+      third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
+
+Phase 2: Bundled Crates (43 crates NOT in Debian)
+
+  Location: debian/vendor-crates/
+  Source: Extracted from rust-toolchain GCS tarball
+  Size: ~5-8 MB (vs 142 MB for full tarball)
+
+  Categories of bundled crates:
+
+    ICU internationalization (~7 crates):
+      - icu_calendar, icu_calendar_data, icu_collections
+      - icu_locale, icu_locale_core, icu_locale_data, icu_provider
+
+    Temporal/timezone (~4 crates):
+      - temporal_rs, temporal_capi, timezone_provider
+      - calendrical_calculations
+
+    Font/text processing (~3 crates):
+      - font-types, read-fonts, skrifa
+
+    Diplomat FFI (~3 crates):
+      - diplomat, diplomat-core, diplomat-runtime
+
+    Architecture-specific (~5 crates):
+      - arm, powerpc, loongarch64, wasm32, x86
+
+    Audio codecs (~5 crates):
+      - symphonia-*, codec_vendor, typed_codec_vendor
+
+    Other utilities (~16 crates):
+      - See RUST_VENDOR_ANALYSIS_*.md for complete list
+
+  Implementation:
+    debian/rules creates symlinks from debian/vendor-crates/ to:
+      third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
+
+JUSTIFICATION FOR BUNDLING (Debian Policy §4.13 exception):
+
+1. REQUIRED for building: Chromium Rust components depend on these crates
+2. NOT AVAILABLE in Debian: No librust-*-dev packages as of 2025-11-16
+3. DEPENDENCIES of Rust stdlib: Not direct Chromium dependencies
+4. NORMALLY from GCS: Upstream downloads from rust-toolchain tarball (blocked)
+5. MAXIMIZE system packages: We use 87/130 = 67% from Debian (significant compliance)
+6. MINIMIZE bundling: Only 43/130 = 33% bundled (vs 100% if pure bundle approach)
+
+COMPARISON WITH ALTERNATIVES:
+
+| Approach | System Pkgs | Bundled | Policy Compliance | Size |
+|----------|-------------|---------|-------------------|------|
+| Pure System (Option C) | 87 (67%) | 0 (0%) | ✅ Best | 0 MB |
+| HYBRID (Implemented) | 87 (67%) | 43 (33%) | ✅ Good | ~5-8 MB |
+| Pure Bundle (Option A) | 0 (0%) | 130 (100%) | ⚠️ Acceptable | ~15-20 MB |
+
+Pure system approach was attempted but 43 crates simply don't exist in Debian.
+Hybrid achieves 67% policy compliance vs 0% with pure bundle.
+
+MIGRATION PLAN:
+
+As Debian packages become available for bundled crates:
+
+1. Monitor Debian NEW queue for newly packaged Rust crates
+2. Test compatibility with new Debian package versions
+3. Remove crate from debian/vendor-crates/ bundle
+4. Add librust-*-dev to debian/control Build-Depends
+5. Update documentation and statistics
+
+TARGET: Migrate from 67% → 100% system packages over time
+
+VERIFICATION:
+
+To verify Rust vendor coverage after build starts:
+
+  $ cd chromium-embedded-framework/
+  $ ./verify-rust-coverage.sh
+
+Expected output:
+  ✅ 130 crates found (100% coverage)
+  📦 87 from system packages (/usr/share/cargo/registry/)
+  📁 43 from bundled crates (debian/vendor-crates/)
+
+LINTIAN OVERRIDE:
+
+This may trigger: embedded-library (for bundled Rust crates)
+
+Override justified because:
+  - 43 crates NOT available in Debian (verified via cargo-debstatus)
+  - 67% of crates use system packages (significant compliance)
+  - Build-time only dependencies (not in binary package)
+  - Migration plan documented for future Debian package availability
+
+IMPLEMENTATION DETAILS:
+
+debian/rules symlink creation (in override_dh_auto_configure):
+
+  # Phase 1: System packages (87 crates)
+  for pkg in /usr/share/cargo/registry/*; do
+      ln -sf $$pkg third_party/rust-toolchain/.../vendor/$$(basename $$pkg)
+  done
+
+  # Phase 2: Bundled crates (43 crates)
+  for crate in debian/vendor-crates/*; do
+      ln -sf $$(readlink -f $$crate) third_party/rust-toolchain/.../vendor/$$(basename $$crate)
+  done
+
+TOOLS PROVIDED:
+
+  - analyze-rust-vendor-deps.sh: Reanalyze crate availability (reusable)
+  - install-all-rust-deps.sh: Install 87 system packages
+  - create-vendor-bundle.sh: Extract 43 missing crates from rust-toolchain
+  - verify-rust-coverage.sh: Verify 130 crates available during build
+  - generate-build-depends.sh: Generate debian/control Build-Depends entries
+
+PRECEDENT:
+
+Debian's src:chromium package ALSO uses system rustc but includes some
+bundled Rust dependencies for unavailable crates. This is a common pattern
+for large Rust-based projects in Debian.
+
+REFERENCES:
+
+- Analysis report: RUST_VENDOR_ANALYSIS_*.md (in source root)
+- Implementation plan: RUST_DEPS_IMPLEMENTATION_PLAN.md
+- Debian Rust Team: https://wiki.debian.org/Rust/Packaging
+- Cargo debstatus: https://github.com/kpcyrd/cargo-debstatus

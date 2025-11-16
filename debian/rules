@@ -157,12 +157,13 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0018-skip-gcs-deps-when-source-tarball.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-make-siso-import-optional.chromium.patch
 	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
 	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
 	# and refuses to checkout when update_depot_tools tries to switch commits
 	@echo "==> Committing depot_tools patches to avoid git conflicts"
-	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0008, 0015)" --allow-empty
+	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0008, 0015, 0018)" --allow-empty
 	@echo "==> depot_tools patches committed"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
@@ -473,6 +474,77 @@ override_dh_auto_build:
 			sed -i '/"\/\/build_overrides\/build.gni",/a\      "//cef/BUILD.gn",' $(CURDIR)/chromium_src/chromium/src/.gn; \
 		fi; \
 	fi
+
+	## Step 7c: Create symlinks from system clang-22 to bundled LLVM location
+	## Why: Chromium expects compiler-rt libraries at third_party/llvm-build/Release+Asserts/
+	## But Debian clang-22 provides them at /usr/lib/llvm-22/lib/clang/22/lib/linux/
+	## Path mapping:
+	##   Chromium expects: third_party/llvm-build/Release+Asserts/lib/clang/22/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a
+	##   Debian provides: /usr/lib/llvm-22/lib/clang/22/lib/linux/libclang_rt.builtins-x86_64.a
+	@echo "==> Creating symlinks from system clang-22 to bundled LLVM location"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/22/lib/x86_64-unknown-linux-gnu
+	# Symlink compiler-rt builtins library (primary dependency for Rust builds)
+	ln -sf /usr/lib/llvm-22/lib/clang/22/lib/linux/libclang_rt.builtins-x86_64.a \
+		$(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/22/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a
+	# Symlink all other compiler-rt libraries (for completeness)
+	for lib in /usr/lib/llvm-22/lib/clang/22/lib/linux/libclang_rt.*-x86_64.a; do \
+		base=$$(basename $$lib); \
+		target=$$(echo $$base | sed 's/-x86_64\.a$$/.a/'); \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/22/lib/x86_64-unknown-linux-gnu/$$target; \
+	done
+	# Symlink i386 libraries (in case needed for 32-bit targets)
+	for lib in /usr/lib/llvm-22/lib/clang/22/lib/linux/libclang_rt.*-i386.a; do \
+		base=$$(basename $$lib); \
+		target=$$(echo $$base | sed 's/-i386\.a$$/.a/'); \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/22/lib/x86_64-unknown-linux-gnu/$$target; \
+	done
+	@echo "==> LLVM symlinks created successfully"
+
+	## Step 7d: Create Rust source structure and symlink standard library crates
+	## Why: Chromium expects Rust std library sources at third_party/rust-toolchain/lib/rustlib/src/rust/
+	## But we can't symlink the entire /usr/src/rustc-1.90.0 directory because we need to create
+	## a vendor/ subdirectory inside it (and /usr/src is read-only).
+	## Solution: Create directory structure, symlink individual std crates, keep vendor/ as real dir
+	@echo "==> Creating Rust source structure and symlinking standard library crates"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library
+	# Symlink all standard library crates from /usr/src/rustc-1.90.0/library/
+	for crate in /usr/src/rustc-1.90.0/library/*; do \
+		if [ -d "$$crate" ]; then \
+			cratename=$$(basename $$crate); \
+			ln -sf $$crate $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/$$cratename; \
+		fi; \
+	done
+	# Also symlink Cargo.toml and Cargo.lock from library root (may be needed)
+	ln -sf /usr/src/rustc-1.90.0/library/Cargo.toml \
+		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/Cargo.toml
+	ln -sf /usr/src/rustc-1.90.0/library/Cargo.lock \
+		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/Cargo.lock
+	@echo "==> Rust standard library crates symlinked successfully"
+
+	## Step 7e: Verify Rust vendor crates from Chromium tarball exist
+	## Why: Chromium tarball (extracted in Step 5) ALREADY contains all Rust dependencies:
+	##   - 145 application crates at third_party/rust/
+	##   - 153 vendor crates at third_party/rust/chromium_crates_io/vendor/
+	## NO downloads needed - everything from orig.tar.xz (Debian Policy compliant)
+	## See: CLAUDE.md Critical Lesson 9 for details
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🦀 Verifying Rust crates from Chromium tarball"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@app_crates=$$(ls -1d $(CURDIR)/chromium_src/chromium/src/third_party/rust/*/ 2>/dev/null | wc -l); \
+	vendor_crates=$$(ls -1 $(CURDIR)/chromium_src/chromium/src/third_party/rust/chromium_crates_io/vendor/ 2>/dev/null | wc -l); \
+	echo "📦 Application crates: $$app_crates (expected: 145)"; \
+	echo "📦 Vendor crates: $$vendor_crates (expected: 153)"; \
+	echo ""; \
+	if [ $$app_crates -ge 140 ] && [ $$vendor_crates -ge 150 ]; then \
+		echo "✅ All Rust dependencies available from Chromium tarball"; \
+		echo "✅ No downloads needed - Debian Policy compliant"; \
+	else \
+		echo "❌ ERROR: Missing Rust crates from Chromium tarball!"; \
+		echo "   App crates: $$app_crates (need 140+)"; \
+		echo "   Vendor crates: $$vendor_crates (need 150+)"; \
+		exit 1; \
+	fi
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 	## Step 8: Run automate-git.py build script
 	## This single command handles: depot_tools download, Chromium sync, GN config, and build

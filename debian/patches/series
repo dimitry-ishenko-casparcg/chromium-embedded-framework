@@ -7,3 +7,4 @@
 0007-allow-optimize-webui-false-debian.cef.patch
 cef/0008-add-locale-stub-for-protoc-gen-js.cef.patch
 cef/0009-update-cef-mac-frame-patch.cef.patch
+0010-add-rust-toolchain-stub.cef.patch
