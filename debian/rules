@@ -339,6 +339,7 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin
 	ln -sf /usr/bin/clang-22 $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin/clang++
 	ln -sf /usr/bin/clang-22 $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin/clang
+	ln -sf /usr/bin/llvm-ar-22 $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin/llvm-ar
 	@echo "==> Creating stub tools/rust/update_rust.py (Debian uses system rustc)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/tools/rust
 	echo "#!/usr/bin/env python3" > $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
