@@ -5,6 +5,7 @@ Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Build-Depends: debhelper-compat (= 13),
                python3,
                clang-22,
+               lld-22,
                libclang-rt-22-dev,
                libc++-dev,
                libc++abi-dev,
