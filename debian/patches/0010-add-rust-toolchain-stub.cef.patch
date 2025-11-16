@@ -1,27 +1,29 @@
-Description: Create stub third_party/rust-toolchain/VERSION for Debian builds
- rust-toolchain is downloaded from GCS in normal builds, but Debian uses system rustc.
- This stub must be created after gclient sync (which may remove the directory)
- but before gclient runhooks (which runs gn gen and reads rust.gni).
+Description: Create stub third_party/rust-toolchain/VERSION and bindgen symlink
+ rust-toolchain is downloaded from GCS in normal builds, but Debian uses system
+ Rust toolchain. This patch creates:
  .
- The stub provides the VERSION file that rust.gni expects, using the hash from DEPS
- and LLVM version from cr_build_revision.
+ 1. VERSION file that rust.gni expects (format: rustc VERSION HASH ...)
+ 2. Symlink bin/bindgen -> /usr/bin/bindgen (system bindgen from debian package)
+ .
+ The stub must be created after gclient sync (which may remove the directory)
+ but before gclient runhooks (which runs gn gen and reads rust.gni).
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-15
+Last-Update: 2025-11-16
 
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
-index fa96f28..2532f3f 100644
+index 3c55265..8a2a287 100644
 --- a/tools/automate/automate-git.py
 +++ b/tools/automate/automate-git.py
-@@ -1641,6 +1641,27 @@ if 'DEBIAN_BUILD' in os.environ:
-   run("gclient sync --nohooks", chromium_dir)
-   msg('Debian: gclient sync completed')
- 
+@@ -1651,6 +1651,36 @@ if 'DEBIAN_BUILD' in os.environ:
+ # Patch the Chromium runhooks scripts if necessary.
+ apply_runhooks_patch()
+
 +##
 +## Create stub third_party/rust-toolchain/VERSION (required by rust.gni)
 +## rust-toolchain is downloaded from GCS in normal builds, but Debian uses system rustc
-+## This stub must be created after gclient sync (which may remove the directory)
++## This stub must be created after apply_runhooks_patch (which may modify runhooks)
 +## but before gclient runhooks (which runs gn gen and reads rust.gni)
 +##
 +if 'DEBIAN_BUILD' in os.environ:
@@ -39,5 +41,15 @@ index fa96f28..2532f3f 100644
 +    raise Exception('rust-toolchain/VERSION stub is not readable at: ' + rust_toolchain_version)
 +  msg('Debian: Created stub third_party/rust-toolchain/VERSION at: ' + rust_toolchain_version)
 +
- # Patch the Chromium runhooks scripts if necessary.
- apply_runhooks_patch()
++  # Create symlink to system bindgen (required by build rules that use bindgen)
++  rust_bin_dir = os.path.join(chromium_src_dir, 'third_party', 'rust-toolchain', 'bin')
++  os.makedirs(rust_bin_dir, exist_ok=True)
++  bindgen_link = os.path.join(rust_bin_dir, 'bindgen')
++  if os.path.exists(bindgen_link) or os.path.islink(bindgen_link):
++    os.remove(bindgen_link)
++  os.symlink('/usr/bin/bindgen', bindgen_link)
++  msg('Debian: Created symlink third_party/rust-toolchain/bin/bindgen -> /usr/bin/bindgen')
++
+ # Runs hooks for files that have been modified in the local working copy.
+ run("gclient runhooks", chromium_dir)
+
