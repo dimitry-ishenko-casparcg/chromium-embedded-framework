@@ -153,12 +153,13 @@ override_dh_auto_build:
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
-	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, libc++, network isolation)"
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, libc++, network isolation, test_fonts)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0018-skip-gcs-deps-when-source-tarball.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-make-siso-import-optional.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-skip-test-fonts.chromium.patch
 	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
 	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
 	# and refuses to checkout when update_depot_tools tries to switch commits
