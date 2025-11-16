@@ -11,10 +11,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-16
 
-diff --git a/BUILD.gn b/BUILD.gn
+diff --git a/build/rust/BUILD.gn b/build/rust/BUILD.gn
 index 6362c0d..39d31c9 100644
---- a/BUILD.gn
-+++ b/BUILD.gn
+--- a/build/rust/BUILD.gn
++++ b/build/rust/BUILD.gn
 @@ -96,7 +96,9 @@ config("panic_immediate_abort") {
    if (is_official_build) {
      rustflags = [
