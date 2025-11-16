@@ -20,14 +20,17 @@ Description: Compile locale stub library using GN action to bypass ThinLTO
  .
  Technical details:
  - action() executes shell commands, not GN compilation
- - rebase_path() converts GN paths to filesystem paths
- - $root_out_dir expands to out/Debug_GN_x64
+ - rebase_path() converts GN paths to filesystem paths for shell commands
+ - GN variables like $root_out_dir must be converted with rebase_path()
+   before concatenation into shell command strings (fixed in build 196+)
  - deps = [ ":compile_locale_stub" ] ensures correct build order
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-14
+Last-Update: 2025-11-16
 
+diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
+index b453ada..762ab08 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
 @@ -4,6 +4,32 @@
@@ -50,13 +53,13 @@ Last-Update: 2025-11-14
 +    args = [
 +      "/bin/sh",
 +      "-c",
-+      "mkdir -p $root_out_dir/obj/debian && " +
++      "mkdir -p " + rebase_path(root_out_dir, root_build_dir) + "/obj/debian && " +
 +      "clang++ -std=c++17 -c " +
 +      "-isystem " + rebase_path("//third_party/libc++/src/include", root_build_dir) + " " +
 +      "-isystem " + rebase_path("//third_party/perfetto/buildtools/libcxx_config", root_build_dir) + " " +
 +      rebase_path("//debian/cef_locale_stub.cpp", root_build_dir) + " " +
-+      "-o $root_out_dir/obj/debian/locale_stub.o && " +
-+      "ar rcs $root_out_dir/obj/debian/liblocale_stub.a $root_out_dir/obj/debian/locale_stub.o"
++      "-o " + rebase_path(root_out_dir, root_build_dir) + "/obj/debian/locale_stub.o && " +
++      "ar rcs " + rebase_path(root_out_dir, root_build_dir) + "/obj/debian/liblocale_stub.a " + rebase_path(root_out_dir, root_build_dir) + "/obj/debian/locale_stub.o"
 +    ]
 +  }
 +
@@ -78,7 +81,7 @@ Last-Update: 2025-11-14
 +
 +    # Debian: Link against locale stub library
 +    libs = [ "locale_stub" ]
-+    lib_dirs = [ "$root_out_dir/obj/debian" ]
++    lib_dirs = [ rebase_path(root_out_dir + "/obj/debian", root_build_dir) ]
 +
      configs -= [ "//build/config/compiler:chromium_code" ]
      configs += [ "//build/config/compiler:no_chromium_code" ]
