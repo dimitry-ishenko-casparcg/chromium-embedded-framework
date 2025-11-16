@@ -1,55 +1,42 @@
-Description: Create stub third_party/rust-toolchain/VERSION and bindgen symlink
+Description: Create stub third_party/rust-toolchain/VERSION and Rust toolchain symlinks
  rust-toolchain is downloaded from GCS in normal builds, but Debian uses system
  Rust toolchain. This patch creates:
  .
  1. VERSION file that rust.gni expects (format: rustc VERSION HASH ...)
- 2. Symlink bin/bindgen -> /usr/bin/bindgen (system bindgen from debian package)
+ 2. Symlink bin/rustc -> /usr/bin/rustc (system rustc from debian package)
+ 3. Symlink bin/bindgen -> /usr/bin/bindgen (system bindgen from debian package)
  .
- The stub must be created after gclient sync (which may remove the directory)
+ The VERSION stub is created after gclient sync (which may remove the directory)
  but before gclient runhooks (which runs gn gen and reads rust.gni).
+ .
+ The symlinks allow Chromium's build system to find rustc and bindgen without
+ downloading the full rust-toolchain from GCS.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-16
 
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
-index 3c55265..8a2a287 100644
+index 8a2a287..39d81e4 100644
 --- a/tools/automate/automate-git.py
 +++ b/tools/automate/automate-git.py
-@@ -1651,6 +1651,36 @@ if 'DEBIAN_BUILD' in os.environ:
- # Patch the Chromium runhooks scripts if necessary.
- apply_runhooks_patch()
-
-+##
-+## Create stub third_party/rust-toolchain/VERSION (required by rust.gni)
-+## rust-toolchain is downloaded from GCS in normal builds, but Debian uses system rustc
-+## This stub must be created after apply_runhooks_patch (which may modify runhooks)
-+## but before gclient runhooks (which runs gn gen and reads rust.gni)
-+##
-+if 'DEBIAN_BUILD' in os.environ:
-+  rust_toolchain_version = os.path.join(chromium_src_dir, 'third_party', 'rust-toolchain', 'VERSION')
-+  os.makedirs(os.path.dirname(rust_toolchain_version), exist_ok=True)
-+  with open(rust_toolchain_version, 'w') as f:
-+    # Format: rustc VERSION HASH (HASH-SUBREV-llvmorg-LLVMVER-... chromium)
-+    # Based on rust-toolchain hash from DEPS: 15283f6fe95e5b604273d13a428bab5fc0788f5a
-+    # LLVM version from cr_build_revision: llvmorg-22-init-8940-g4d4cb757
-+    f.write('rustc 1.88.0 15283f6fe95e5b604273d13a428bab5fc0788f5a (15283f6fe95e5b604273d13a428bab5fc0788f5a-1-llvmorg-22-init-8940-g4d4cb757 chromium)\n')
-+  # Verify file was created and is readable
-+  if not os.path.exists(rust_toolchain_version):
-+    raise Exception('Failed to create rust-toolchain/VERSION stub at: ' + rust_toolchain_version)
-+  if not os.access(rust_toolchain_version, os.R_OK):
-+    raise Exception('rust-toolchain/VERSION stub is not readable at: ' + rust_toolchain_version)
-+  msg('Debian: Created stub third_party/rust-toolchain/VERSION at: ' + rust_toolchain_version)
+@@ -1672,9 +1672,18 @@ if 'DEBIAN_BUILD' in os.environ:
+     raise Exception('rust-toolchain/VERSION stub is not readable at: ' + rust_toolchain_version)
+   msg('Debian: Created stub third_party/rust-toolchain/VERSION at: ' + rust_toolchain_version)
+ 
+-  # Create symlink to system bindgen (required by build rules that use bindgen)
++  # Create symlinks to system Rust toolchain (required by build rules)
+   rust_bin_dir = os.path.join(chromium_src_dir, 'third_party', 'rust-toolchain', 'bin')
+   os.makedirs(rust_bin_dir, exist_ok=True)
 +
-+  # Create symlink to system bindgen (required by build rules that use bindgen)
-+  rust_bin_dir = os.path.join(chromium_src_dir, 'third_party', 'rust-toolchain', 'bin')
-+  os.makedirs(rust_bin_dir, exist_ok=True)
-+  bindgen_link = os.path.join(rust_bin_dir, 'bindgen')
-+  if os.path.exists(bindgen_link) or os.path.islink(bindgen_link):
-+    os.remove(bindgen_link)
-+  os.symlink('/usr/bin/bindgen', bindgen_link)
-+  msg('Debian: Created symlink third_party/rust-toolchain/bin/bindgen -> /usr/bin/bindgen')
++  # Symlink rustc (required for Rust compilation)
++  rustc_link = os.path.join(rust_bin_dir, 'rustc')
++  if os.path.exists(rustc_link) or os.path.islink(rustc_link):
++    os.remove(rustc_link)
++  os.symlink('/usr/bin/rustc', rustc_link)
++  msg('Debian: Created symlink third_party/rust-toolchain/bin/rustc -> /usr/bin/rustc')
 +
- # Runs hooks for files that have been modified in the local working copy.
- run("gclient runhooks", chromium_dir)
-
++  # Symlink bindgen (required by build rules that use bindgen)
+   bindgen_link = os.path.join(rust_bin_dir, 'bindgen')
+   if os.path.exists(bindgen_link) or os.path.islink(bindgen_link):
+     os.remove(bindgen_link)
