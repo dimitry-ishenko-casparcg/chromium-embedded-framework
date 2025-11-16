@@ -543,6 +543,9 @@ override_dh_auto_build:
 		echo "❌ ERROR: condvar.rs still missing after extraction"; \
 		exit 1; \
 	fi
+	@echo "==> Creating symlink to system rustc in third_party/rust-toolchain/bin/"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
+	ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
 
 	## Step 7f: Copy bundled Rust std library vendor crates
 	## Why: Rust std library needs vendor dependencies to compile (object, libc, gimli, etc.)
