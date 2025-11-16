@@ -3,6 +3,11 @@
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEBIAN_BUILD = 1
 
+# Enable unstable Rust features with stable rustc (copied from Debian chromium)
+# Chromium uses -Z flags (nightly-only) but Debian only provides stable rustc
+# RUSTC_BOOTSTRAP=1 tells rustc to allow nightly features on stable compiler
+export RUSTC_BOOTSTRAP = 1
+
 # CEF version/branch
 # Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.162)
 CEF_BRANCH = 7444
