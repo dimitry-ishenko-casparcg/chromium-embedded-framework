@@ -500,28 +500,90 @@ override_dh_auto_build:
 	done
 	@echo "==> LLVM symlinks created successfully"
 
-	## Step 7d: Create Rust source structure and symlink standard library crates
-	## Why: Chromium expects Rust std library sources at third_party/rust-toolchain/lib/rustlib/src/rust/
-	## But we can't symlink the entire /usr/src/rustc-1.90.0 directory because we need to create
-	## a vendor/ subdirectory inside it (and /usr/src is read-only).
-	## Solution: Create directory structure, symlink individual std crates, keep vendor/ as real dir
-	@echo "==> Creating Rust source structure and symlinking standard library crates"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library
-	# Symlink all standard library crates from /usr/src/rustc-1.90.0/library/
-	for crate in /usr/src/rustc-1.90.0/library/*; do \
-		if [ -d "$$crate" ]; then \
-			cratename=$$(basename $$crate); \
-			ln -sf $$crate $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/$$cratename; \
-		fi; \
-	done
-	# Also symlink Cargo.toml and Cargo.lock from library root (may be needed)
-	ln -sf /usr/src/rustc-1.90.0/library/Cargo.toml \
-		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/Cargo.toml
-	ln -sf /usr/src/rustc-1.90.0/library/Cargo.lock \
-		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/Cargo.lock
-	@echo "==> Rust standard library crates symlinked successfully"
+	## Step 7d: Symlink system Node.js to expected location
+	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node
+	## But Debian uses system Node.js from nodejs package (/usr/bin/node)
+	## Solution: Create directory structure and symlink system node binary
+	@echo "==> Symlinking system Node.js"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
+	@echo "==> Node.js symlink created successfully"
 
-	## Step 7e: Verify Rust vendor crates from Chromium tarball exist
+	## Step 7e: Extract complete Rust std library from rust-toolchain tarball
+	## Why: Chromium requires NEWER Rust std library than Debian 1.90.0 provides
+	## Debian's rust-src (1.90.0) is missing files like:
+	##   - sync/nonpoison/condvar.rs, rwlock.rs (newer std library features)
+	##   - cross-platform files (cygwin/net.rs, darwin/objc.rs - these we'll stub)
+	## Solution: Extract COMPLETE std library from rust-toolchain.tar.xz (bundled dependency)
+	## This tarball contains the exact Rust version Chromium expects (matches DEPS)
+	@echo "==> Extracting complete Rust std library from rust-toolchain tarball"
+	@if [ ! -f $(CURDIR)/../rust-toolchain.tar.xz ]; then \
+		echo "❌ ERROR: rust-toolchain.tar.xz not found"; \
+		echo "Expected location: $(CURDIR)/../rust-toolchain.tar.xz"; \
+		exit 1; \
+	fi
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/
+	# Extract ONLY the library/ directory from rust-toolchain tarball
+	# This contains ALL std library crates (alloc, core, std, etc.) at correct versions
+	tar -xf $(CURDIR)/../rust-toolchain.tar.xz \
+		-C $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/ \
+		--strip-components=4 \
+		lib/rustlib/src/rust/library
+	@echo "==> Complete Rust std library extracted from rust-toolchain tarball"
+	@# Verify critical files exist (condvar.rs was missing in Debian 1.90.0)
+	@if [ -f $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs ]; then \
+		echo "✅ Verified: condvar.rs exists (was missing in Debian rust-src 1.90.0)"; \
+	else \
+		echo "❌ ERROR: condvar.rs still missing after extraction"; \
+		exit 1; \
+	fi
+
+	## Step 7f: Copy bundled Rust std library vendor crates
+	## Why: Rust std library needs vendor dependencies to compile (object, libc, gimli, etc.)
+	## These ~36 vendor crates are bundled in debian/vendor-crates/vendor/
+	## They are NOT in Debian packages yet (RFP bugs filed - see bugs/ directory)
+	## Copy them to third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
+	@echo "==> Copying bundled Rust std library vendor crates"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor
+	cp -r $(CURDIR)/debian/vendor-crates/vendor/* \
+		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
+	@vendor_count=$$(ls -1 $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/ | wc -l); \
+	echo "📦 Copied $$vendor_count vendor crates for Rust std library compilation"; \
+	if [ $$vendor_count -ge 30 ]; then \
+		echo "✅ Vendor crates copied successfully"; \
+	else \
+		echo "❌ ERROR: Expected ~36 vendor crates, found $$vendor_count"; \
+		exit 1; \
+	fi
+
+	## Step 7f.1: Create stubs for missing platform-specific files
+	## Why: Debian's rust-src only contains Linux sources, but Rust std lib references
+	## cross-platform files (cygwin/net.rs, darwin/objc.rs, etc.) that don't exist in /usr/src/rustc-*/
+	## Solution: Create minimal stub files that re-export Unix functionality
+	## Note: These stubs are NEVER used (Debian only builds for Linux), but must exist
+	## for Rust compiler's module resolution during std lib compilation
+	@echo "==> Creating stubs for missing cross-platform os files (Windows, macOS, Cygwin)"
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin
+	@printf '%s\n' \
+		'//! Cygwin-specific networking functionality (stub for Debian builds).' \
+		'//! Cygwin is a POSIX compatibility layer for Windows.' \
+		'//! This file is NOT used in Debian builds (Linux-only), but must exist' \
+		'//! for Rust compiler module resolution during std library compilation.' \
+		'' \
+		'// Re-export Unix networking (Cygwin is POSIX-compatible)' \
+		'pub use crate::os::unix::net::*;' \
+		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin/net.rs
+	@printf '%s\n' \
+		'//! macOS-specific Objective-C functionality (stub for Debian builds).' \
+		'//! This file is NOT used in Debian builds (Linux-only), but must exist' \
+		'//! for Rust compiler module resolution during std library compilation.' \
+		'' \
+		'// Empty module - no Objective-C on Linux' \
+		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin/objc.rs
+	@echo "✅ Created stubs: cygwin/net.rs, darwin/objc.rs"
+
+	## Step 7f: Verify Rust vendor crates from Chromium tarball exist
 	## Why: Chromium tarball (extracted in Step 5) ALREADY contains all Rust dependencies:
 	##   - 145 application crates at third_party/rust/
 	##   - 153 vendor crates at third_party/rust/chromium_crates_io/vendor/
