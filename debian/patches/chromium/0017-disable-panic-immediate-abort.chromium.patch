@@ -1,0 +1,28 @@
+Description: Disable -Cpanic=immediate-abort flag for rustc 1.90.0 compatibility
+ The panic=immediate-abort flag was introduced in newer Rust versions and is
+ not supported by Debian's rustc 1.90.0. The build already uses -Cpanic=abort
+ which provides equivalent functionality for release builds.
+ .
+ This patch comments out the unsupported flag in build/rust/BUILD.gn to allow
+ compilation with system rustc while maintaining the panic behavior through
+ the existing -Cpanic=abort flag.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-16
+
+diff --git a/BUILD.gn b/BUILD.gn
+index 6362c0d..39d31c9 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -96,7 +96,9 @@ config("panic_immediate_abort") {
+   if (is_official_build) {
+     rustflags = [
+       "-Zunstable-options",
+-      "-Cpanic=immediate-abort",
++      # Debian: Comment out panic=immediate-abort (not supported by rustc 1.90.0)
++      # The build already uses -Cpanic=abort which is sufficient.
++      # "-Cpanic=immediate-abort",
+     ]
+   }
+ }
