@@ -1,12 +1,32 @@
 #!/usr/bin/make -f
 
+# Align with Debian Chromium configuration (chromium_142.0.7444.162-1.debian.tar.xz)
+# Reference: /tmp/chromium-debian-reference/debian/rules
+
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEBIAN_BUILD = 1
 
-# Enable unstable Rust features with stable rustc (copied from Debian chromium)
+# Enable unstable Rust features with stable rustc (from Debian chromium line 67)
 # Chromium uses -Z flags (nightly-only) but Debian only provides stable rustc
 # RUSTC_BOOTSTRAP=1 tells rustc to allow nightly features on stable compiler
 export RUSTC_BOOTSTRAP = 1
+
+# Compiler toolchain (from Debian chromium lines 34-37)
+# Debian chromium uses clang-19, we use clang-22 (system default in unstable)
+export AR = ar
+export NM = nm
+export CC = clang-22
+export CXX = clang++-22
+
+# Rust toolchain configuration (from Debian chromium lines 66-74)
+# Use system Rust instead of downloading from GCS
+CLANG_MVERS := $(shell $(CC) --version 2>/dev/null | sed -n 's/.* clang version //p' | cut -d. -f1)
+rust_sysroot = /usr
+export GN_DEFINES += rust_sysroot_absolute=\"$(rust_sysroot)\"
+export GN_DEFINES += rust_bindgen_root=\"/usr\"
+export GN_DEFINES += rustc_version=\"$(shell $(rust_sysroot)/bin/rustc --version 2>/dev/null)\"
+export GN_DEFINES += clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\"
+export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 
 # CEF version/branch
 # Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.162)
