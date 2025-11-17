@@ -100,6 +100,27 @@ override_dh_auto_build:
 	fi
 	@echo "==> Chromium extracted successfully"
 
+	# Step 5.5: Apply Debian Chromium patches to vanilla source
+	# Extract Debian Chromium packaging (includes patches and build configuration)
+	@echo "==> Applying Debian Chromium patches for system integration"
+	tar -xf $(CURDIR)/../chromium_142.0.7444.162-1.debian.tar.xz \
+		-C $(CURDIR)/chromium_src/chromium/
+	# Apply debianization patches (system libraries, build fixes, security patches)
+	@cd $(CURDIR)/chromium_src/chromium/src && \
+		for patch_dir in debianization fixes system; do \
+			if [ -d "../debian/patches/$$patch_dir" ]; then \
+				for patch in ../debian/patches/$$patch_dir/*.patch; do \
+					[ -f "$$patch" ] && { \
+						echo "Applying $$patch"; \
+						patch -p1 < "$$patch" || { \
+							echo "WARNING: Patch $$patch failed, continuing..."; \
+						}; \
+					}; \
+				done; \
+			fi; \
+		done
+	@echo "==> Debian Chromium patches applied successfully"
+
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
 	@echo "==> Initializing git repository in chromium source"
 	# Remove ALL .git directories from Debian chromium tarball to prevent conflicts

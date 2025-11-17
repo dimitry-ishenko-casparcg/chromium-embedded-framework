@@ -75,10 +75,61 @@ Security Updates
 
 See README.security for the security update policy.
 
+Debian Chromium Patch Integration
+----------------------------------
+
+This package applies Debian's Chromium patches to vanilla Chromium sources
+before CEF uses them. This is a fundamental architectural decision.
+
+**Why We Use Debian Chromium Patches:**
+
+1. **System Integration**: Debian applies 300+ patches for system library
+   integration (use_custom_libcxx=false, system LLVM, Node.js, etc.)
+
+2. **Build Compatibility**: Fixes build issues with Debian's toolchain
+   (GCC 14, LLVM 19, C++23 standard, SwiftShader compatibility)
+
+3. **Security and Stability**: Includes Debian's security fixes and stability
+   improvements
+
+4. **Maintenance**: Avoids recreating Debian's work and ensures compatibility
+   with Debian's Chromium package
+
+**Required Tarballs:**
+
+Both tarballs must be for the SAME Chromium version (e.g., 142.0.7444.162-1):
+
+  - chromium_VERSION.orig.tar.xz (vanilla upstream Chromium)
+  - chromium_VERSION-REVISION.debian.tar.xz (Debian packaging and patches)
+
+**Patch Application Order in debian/rules:**
+
+1. Extract vanilla Chromium tarball
+2. Extract Debian Chromium packaging tarball
+3. Apply Debian patches (debianization/, fixes/, system/)
+4. Apply CEF patches (debian/patches/*.cef.patch via quilt)
+5. Run CEF automate-git.py with pre-patched Chromium
+
+**Key Debian Chromium Patches Applied:**
+
+  - use_custom_libcxx=false (use system libc++ instead of bundled)
+  - swiftshader-use-llvm-16.patch (LLVM compatibility)
+  - System library integration (Node.js, LLVM, toolchain)
+  - C++23 standard compliance fixes
+
+**Version Synchronization:**
+
+CEF and Chromium versions must match. When updating Chromium:
+1. Update both .orig.tar.xz and .debian.tar.xz to same version
+2. Update debian/rules tarball extraction paths
+3. Test patch application (Debian patches may need updates)
+4. Test CEF build with new Chromium version
+
 For More Information
 --------------------
 
   - CEF Project: https://bitbucket.org/chromiumembedded/cef
+  - Debian Chromium: https://sources.debian.org/src/chromium/
   - Bug #915400: RFP for CEF
   - Bug #893448: RFP for chromium-source
   - Bug #817285: Per-package security ACLs (IMPLEMENTED)
