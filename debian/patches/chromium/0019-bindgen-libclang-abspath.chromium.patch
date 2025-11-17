@@ -1,0 +1,39 @@
+Description: Fix bindgen libclang path resolution for Debian builds
+ Converts relative --libclang-path and --ld-library-path arguments to absolute paths
+ before setting environment variables, ensuring bindgen can find libclang-22.so.22 from
+ system libraries. Also creates a copy of os.environ instead of using reference directly.
+ .
+ Fixes bindgen panic: "Unable to find libclang" when building with system clang/bindgen
+ instead of bundled tools. The GN build system passes relative paths which fail when
+ bindgen executes from a different working directory.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-17
+
+diff --git a/build/rust/gni_impl/run_bindgen.py b/build/rust/gni_impl/run_bindgen.py
+index e35f3ce..998052d 100755
+--- a/build/rust/gni_impl/run_bindgen.py
++++ b/build/rust/gni_impl/run_bindgen.py
+@@ -94,14 +94,17 @@ def main():
+     genargs.append(args.header)
+     genargs.append('--')
+     genargs.extend(filter_clang_args(args.clangargs))
+-    env = os.environ
++    env = os.environ.copy()
+     if args.ld_library_path:
++      # Convert relative path to absolute path before setting environment variable
++      ld_lib_path = os.path.abspath(args.ld_library_path)
+       if sys.platform == 'darwin':
+-        env["DYLD_LIBRARY_PATH"] = args.ld_library_path
++        env["DYLD_LIBRARY_PATH"] = ld_lib_path
+       else:
+-        env["LD_LIBRARY_PATH"] = args.ld_library_path
++        env["LD_LIBRARY_PATH"] = ld_lib_path
+     if args.libclang_path:
+-      env["LIBCLANG_PATH"] = args.libclang_path
++      # Convert relative path to absolute path before setting environment variable
++      env["LIBCLANG_PATH"] = os.path.abspath(args.libclang_path)
+     try:
+       subprocess.check_call([args.exe, *genargs], env=env)
+     except:
