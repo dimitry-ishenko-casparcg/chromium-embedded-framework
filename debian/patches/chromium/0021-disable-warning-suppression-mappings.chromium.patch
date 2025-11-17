@@ -1,0 +1,32 @@
+Description: Disable warning suppression mappings for system clang compatibility
+ Chromium's bundled clang supports the --warning-suppression-mappings flag,
+ but system clang (versions 19, 22, etc.) does not. This flag is added by
+ build/config/compiler/BUILD.gn when clang_warning_suppression_file is set
+ to a non-empty value.
+ .
+ By setting clang_warning_suppression_file to an empty string in Chromium's
+ .gn file, we disable this feature, preventing the unsupported flag from
+ being passed to system clang during compilation.
+ .
+ This is necessary for Debian builds which use system clang instead of
+ Chromium's bundled proprietary clang toolchain.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-17
+
+diff --git a/third_party/chromium/src/.gn b/third_party/chromium/src/.gn
+index af46abb..fd791c1 100644
+--- a/third_party/chromium/src/.gn
++++ b/third_party/chromium/src/.gn
+@@ -77,7 +77,9 @@ default_args = {
+   devtools_visibility = [ "*" ]
+
+   clang_unsafe_buffers_paths = "//build/config/unsafe_buffers_paths.txt"
+-  clang_warning_suppression_file = "//build/config/warning_suppression.txt"
++  # Disable warning suppression mappings when using system clang (Debian)
++  # System clang doesn't support the --warning-suppression-mappings flag
++  clang_warning_suppression_file = ""
+ }
+
+ # These are the targets to skip header checking by default. The files in targets
