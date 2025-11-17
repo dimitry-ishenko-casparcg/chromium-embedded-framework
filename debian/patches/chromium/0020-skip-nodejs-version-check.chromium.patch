@@ -1,20 +1,20 @@
 Description: Skip Node.js version check for Debian builds
- Debian builds use system Node.js (v20.19.5) instead of the bundled version
- (v22.11.0). The version check is not necessary as system node is compatible
- with the build requirements.
+ Replace node("check_version") target with a no-op action() that creates
+ an empty output file. This allows the build to use system Node.js (v20.19.5)
+ instead of the bundled version (v22.11.0) without failing the version check.
  .
- This patch comments out the check_version target in third_party/node/BUILD.gn
- to prevent the build from failing due to version mismatch.
+ The target is kept (not removed) to satisfy GN dependencies from hundreds
+ of WebUI and TypeScript build targets.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-17
+Last-Update: 2025-01-17
 
 diff --git a/third_party/node/BUILD.gn b/third_party/node/BUILD.gn
-index 1741e14..d4e1f8f 100644
+index 1741e14..2f2e29b 100644
 --- a/third_party/node/BUILD.gn
 +++ b/third_party/node/BUILD.gn
-@@ -4,22 +4,24 @@
+@@ -4,22 +4,18 @@
 
  import("//third_party/node/node.gni")
 
@@ -26,35 +26,21 @@ index 1741e14..d4e1f8f 100644
 -    expected_version_file,
 -    "check_version.js",
 -  ]
--
--  out_file = "${target_gen_dir}/check_version_result.txt"
--  outputs = [ out_file ]
--
--  args = [
++# Debian: Skip Node.js version check - system node (v20.19.5) is compatible
++# even though bundled version expects v22.11.0. Create no-op action that
++# satisfies dependencies without running the actual check.
++action("check_version") {
++  script = "//build/gn_run_binary.py"
+
+   out_file = "${target_gen_dir}/check_version_result.txt"
+   outputs = [ out_file ]
+
++  # Use touch to create empty output file
+   args = [
 -    "--expected_version_file",
 -    rebase_path(expected_version_file, root_build_dir),
 -    "--out_file",
--    rebase_path(out_file, root_build_dir),
--  ]
--}
-+# Debian: Skip Node.js version check - system node (v20.19.5) is compatible
-+# even though bundled version expects v22.11.0
-+# node("check_version") {
-+#   script = "check_version.py"
-+#
-+#   expected_version_file = "update_node_binaries"
-+#   inputs = [
-+#     expected_version_file,
-+#     "check_version.js",
-+#   ]
-+#
-+#   out_file = "${target_gen_dir}/check_version_result.txt"
-+#   outputs = [ out_file ]
-+#
-+#   args = [
-+#     "--expected_version_file",
-+#     rebase_path(expected_version_file, root_build_dir),
-+#     "--out_file",
-+#     rebase_path(out_file, root_build_dir),
-+#   ]
-+# }
++    "/usr/bin/touch",
+     rebase_path(out_file, root_build_dir),
+   ]
+ }
