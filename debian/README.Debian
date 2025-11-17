@@ -126,6 +126,201 @@ CEF and Chromium versions must match. When updating Chromium:
 3. Test patch application (Debian patches may need updates)
 4. Test CEF build with new Chromium version
 
+Patch Documentation
+-------------------
+
+This section documents all patches applied during the build process, grouped
+by category and application order.
+
+**Patch Application Order:**
+
+1. CEF Patches (applied via quilt to CEF source - debian/patches/*.cef.patch)
+2. Debian Chromium Patches (extracted from chromium_*.debian.tar.xz)
+3. CEF Chromium Patches (applied manually to Chromium source - debian/patches/chromium/*.chromium.patch)
+
+**CEF Patches (debian/patches/):**
+
+Applied via quilt to CEF source files before Chromium extraction:
+
+  0001-debian-patcher-skip-logic.cef.patch
+    Skips CEF's patch application logic when DEBIAN_BUILD=1 environment
+    variable is set. Allows Debian packaging to handle patch management.
+
+  0002-use-system-clang.cef.patch
+    Configures CEF to use Debian's system clang instead of downloading
+    bundled LLVM/Clang toolchain.
+
+  0003-create-reclient-stub.cef.patch
+    Creates empty stub for reclient (remote execution tool) since Debian
+    builds locally without Google's distributed build infrastructure.
+
+  0004-patch-gn-for-exec-script.cef.patch
+    Patches GN configuration to handle exec_script() calls correctly in
+    Debian build environment.
+
+  0005-skip-gclient-revert-debian.cef.patch
+    Prevents gclient from reverting local modifications made by Debian
+    patches during sync operations.
+
+  0006-skip-chromium-checkout-debian.cef.patch
+    Skips Chromium source checkout from Git (uses Debian tarball instead)
+    when DEBIAN_BUILD=1 is set.
+
+  0007-allow-optimize-webui-false-debian.cef.patch
+    Allows optimize_webui=false GN argument to work correctly (needed
+    because Debian's Node.js configuration differs from Chromium's bundled).
+
+  0008-add-locale-stub-for-protoc-gen-js.cef.patch
+    Creates minimal std::locale stub implementation to work around linking
+    issues with protoc-gen-js when using system libc++.
+
+  0009-update-cef-mac-frame-patch.cef.patch
+    Updates CEF's macOS frame handling patch to apply correctly against
+    Debian's pre-patched Chromium source.
+
+  0010-add-rust-toolchain-stub.cef.patch
+    Creates stub third_party/rust-toolchain/VERSION file after gclient sync
+    to satisfy rust.gni requirements when using Debian's system rustc.
+
+**CEF Chromium Patches (debian/patches/chromium/):**
+
+Applied manually to Chromium source after extraction:
+
+  0007-debian-tarball-deps.chromium.patch
+    Disables gclient hooks that query Git history (lastchange, gpu_lists_version,
+    etc.) by adding 'condition': 'not source_tarball' guards. Git metadata
+    doesn't exist in Debian tarballs.
+
+  0008-debian-tarball-gclient-toplevel.chromium.patch
+    Modifies gclient configuration to work with Debian tarball structure
+    (no top-level .gclient file).
+
+  0009-disable-optimize-images-when-optimize-webui-false.chromium.patch
+    Ensures optimize_images follows optimize_webui setting (both must be
+    false when using Debian's Node.js).
+
+  0010-fix-dri-pkg-config-debian.chromium.patch
+    Fixes pkg-config detection for DRI/Mesa libraries in Debian's multi-arch
+    environment.
+
+  0013-remove-rust-nightly-flags-debian.chromium.patch
+    Removes -Zallow-features flag and other nightly-only Rust compiler flags
+    that are incompatible with Debian's stable rustc.
+
+  0015-network-isolation-disable-google-storage-downloads.chromium.patch
+    Disables automatic downloads from Google Cloud Storage for network
+    isolation resources during Debian builds.
+
+  0016-skip-protoc-gen-js.chromium.patch
+    Modifies protoc-gen-js BUILD.gn to add --undefined linker flags for
+    missing std::locale symbols (works with stub from patch 0008).
+
+  0016-protoc-gen-js-gn-action-stub.chromium.patch
+    Alternative approach: stubs out protoc-gen-js GN action entirely
+    (not currently used).
+
+  0017-disable-panic-immediate-abort.chromium.patch
+    Disables panic=immediate-abort Rust flag that's incompatible with Debian's
+    rustc panic runtime configuration.
+
+  0017-make-siso-import-optional.chromium.patch
+    Makes siso (Google's build system) import optional to prevent errors when
+    not available in Debian environment.
+
+  0018-rust-clanglib.chromium.patch
+    Patches build/rust/rust_bindgen.gni to use system clang's resource directory
+    for bindgen operations. Fixes libclang detection issues.
+    NOTE: Also present in Debian Chromium's fixes/ (duplicate).
+
+  0018-skip-gcs-deps-when-source-tarball.chromium.patch
+    Skips dependency downloads from Google Cloud Storage when building from
+    source tarballs (identified by 'source_tarball' condition).
+
+  0019-bindgen-libclang-abspath.chromium.patch
+    Sets absolute path to system libclang for bindgen, ensuring correct
+    library detection in Debian's multi-arch environment.
+
+  0019-skip-test-fonts.chromium.patch
+    Skips test_fonts download hook (fonts would be downloaded from GCS,
+    not needed for Debian builds).
+
+  0020-skip-nodejs-version-check.chromium.patch
+    Disables strict Node.js version check to allow Debian's system Node.js
+    version (may differ from Chromium's pinned version).
+
+  0021-disable-warning-suppression-mappings.chromium.patch
+    Disables Chromium's warning suppression file mappings to prevent build
+    system from creating CLANG_MVERS symlinks (conflicts with Debian's
+    system clang setup).
+
+  0022-libcpp-headers.chromium.patch
+    Removes references to bundled libc++ headers from BUILDCONFIG.gn since
+    we use system libc++ (use_custom_libcxx=false).
+    NOTE: Similar to Debian Chromium's debianization/libcpp.patch (duplicate).
+
+**Debian Chromium Patches (from chromium_*.debian.tar.xz):**
+
+Extracted and applied automatically by debian/rules during build. These patches
+are maintained by the Debian Chromium team and grouped into three categories:
+
+  debianization/ (6 patches)
+    Patches to adapt Chromium build system for Debian packaging:
+    - master-preferences (default browser settings)
+    - manpage (manual page generation)
+    - optimization (build optimization flags)
+    - quic (QUIC protocol Debian-specific config)
+    - libcpp.patch (use system libc++ headers)
+    - etc.
+
+  fixes/ (20 patches)
+    Bug fixes and compatibility patches:
+    - C++23 standard compliance fixes
+    - GCC 14 compatibility
+    - absl-optional.patch (workaround Clang bug #50248 with system libstdc++)
+    - LLVM/Clang compatibility fixes
+    - rust-clanglib.patch (DUPLICATE of CEF's 0018-rust-clanglib.chromium.patch)
+    - Architecture-specific fixes (ppc64el, riscv64, etc.)
+    - etc.
+
+  system/ (6 patches)
+    System library integration patches:
+    - zlib, libpng, freetype, harfbuzz, lcms2, openjpeg2
+    - Replaces bundled libraries with Debian's system libraries
+
+  Total: ~32 patches maintained by Debian Chromium team
+
+**Duplicate Patch Handling:**
+
+Two patches exist in BOTH Debian Chromium and CEF:
+
+  1. rust-clanglib.patch (Debian Chromium fixes/) ==
+     0018-rust-clanglib.chromium.patch (CEF)
+
+     Both patch build/rust/rust_bindgen.gni to fix bindgen libclang detection.
+     CEF's version is applied AFTER Debian's, so CEF's version takes precedence
+     if they differ.
+
+  2. libcpp.patch (Debian Chromium debianization/) ~=
+     0022-libcpp-headers.chromium.patch (CEF)
+
+     Both remove bundled libc++ header references. Similar purpose but
+     different implementations. Both are applied (Debian first, then CEF).
+
+These duplicates are maintained to ensure CEF builds correctly even if Debian
+Chromium's patches change or are removed in future versions.
+
+**Patch File Organization:**
+
+  debian/patches/
+  ├── 0001-0010*.cef.patch       (CEF patches, applied via quilt)
+  ├── chromium/                  (CEF Chromium patches, applied manually)
+  │   └── 00XX-*.chromium.patch
+  └── series                     (lists CEF patches only, not chromium/)
+
+The series file controls quilt patch application order and contains ONLY CEF
+patches (0001-0010). Chromium patches in chromium/ subdirectory are applied
+manually by debian/rules and are NOT listed in the series file.
+
 For More Information
 --------------------
 
@@ -135,4 +330,4 @@ For More Information
   - Bug #893448: RFP for chromium-source
   - Bug #817285: Per-package security ACLs (IMPLEMENTED)
 
- -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 02 Nov 2025 06:00:00 -0400
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sun, 17 Nov 2025 23:40:00 -0400
