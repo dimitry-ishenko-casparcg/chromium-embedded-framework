@@ -1,21 +1,23 @@
 Description: Fix bindgen libclang path resolution for Debian builds
- Converts relative --libclang-path and --ld-library-path arguments to absolute paths
- before setting environment variables, ensuring bindgen can find libclang-22.so.22 from
- system libraries. Also creates a copy of os.environ instead of using reference directly.
+ Converts relative --libclang-path and --ld-library-path arguments to absolute
+ paths before setting environment variables. Also detects when GN passes /usr/lib
+ as libclang path and replaces it with /usr/lib/llvm-22/lib where libclang-22.so.22
+ actually exists. Creates a copy of os.environ instead of using reference directly.
  .
  Fixes bindgen panic: "Unable to find libclang" when building with system clang/bindgen
- instead of bundled tools. The GN build system passes relative paths which fail when
- bindgen executes from a different working directory.
+ instead of bundled tools. The GN build system passes relative paths which resolve to
+ wrong locations (e.g., /usr/lib instead of /usr/lib/llvm-22/lib) when bindgen executes
+ from a different working directory.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-17
 
 diff --git a/build/rust/gni_impl/run_bindgen.py b/build/rust/gni_impl/run_bindgen.py
-index e35f3ce..998052d 100755
+index e35f3ce..5ba9c6e 100755
 --- a/build/rust/gni_impl/run_bindgen.py
 +++ b/build/rust/gni_impl/run_bindgen.py
-@@ -94,14 +94,17 @@ def main():
+@@ -94,14 +94,23 @@ def main():
      genargs.append(args.header)
      genargs.append('--')
      genargs.extend(filter_clang_args(args.clangargs))
@@ -33,7 +35,13 @@ index e35f3ce..998052d 100755
      if args.libclang_path:
 -      env["LIBCLANG_PATH"] = args.libclang_path
 +      # Convert relative path to absolute path before setting environment variable
-+      env["LIBCLANG_PATH"] = os.path.abspath(args.libclang_path)
++      libclang_path = os.path.abspath(args.libclang_path)
++      # Debian build: If GN passes /usr/lib, replace with actual libclang location
++      # GN passes --libclang-path ../../../../../../../../../../../usr/lib
++      # but libclang-22.so.22 is actually in /usr/lib/llvm-22/lib
++      if libclang_path == '/usr/lib':
++        libclang_path = '/usr/lib/llvm-22/lib'
++      env["LIBCLANG_PATH"] = libclang_path
      try:
        subprocess.check_call([args.exe, *genargs], env=env)
      except:
