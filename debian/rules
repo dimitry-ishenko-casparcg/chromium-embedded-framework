@@ -197,6 +197,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-protoc-gen-js-gn-action-stub.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-disable-panic-immediate-abort.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0018-rust-clanglib.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-bindgen-libclang-abspath.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
@@ -533,14 +534,8 @@ override_dh_auto_build:
 		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/22/lib/x86_64-unknown-linux-gnu/$$target; \
 	done
 	@echo "==> LLVM symlinks created successfully"
-	# Symlink libclang for bindgen compatibility
-	# bindgen's rust_bindgen_generator.gni passes --libclang-path /usr/lib (via rebase_path)
-	# but libclang-22.so.22 is in /usr/lib/llvm-22/lib/
-	# Create libclang.so symlink in /usr/lib/llvm-22/lib/ where bindgen will find it
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/usr/lib
-	ln -sf /usr/lib/llvm-22/lib/libclang-22.so.22 \
-		$(CURDIR)/chromium_src/chromium/src/usr/lib/libclang.so
-	@echo "==> libclang symlink created for bindgen"
+	# libclang discovery is handled by patch 0019-bindgen-libclang-abspath.chromium.patch
+	# which converts relative paths to absolute paths in run_bindgen.py
 
 	## Step 7d: Symlink system Node.js to expected location
 	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node
