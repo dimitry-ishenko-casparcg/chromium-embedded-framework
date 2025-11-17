@@ -150,9 +150,10 @@ override_dh_auto_build:
 	@echo "==> Creating new git repository in chromium/src"
 	cd $(CURDIR)/chromium_src/chromium/src && \
 		git init && \
-		git add . && \
-		git commit -m "Initial chromium source from Debian tarball"
-	@echo "==> Git repository initialized"
+		git config user.name "Debian Builder" && \
+		git config user.email "builder@debian.org" && \
+		git commit --allow-empty -m "Initial chromium source from Debian tarball"
+	@echo "==> Git repository initialized (empty commit to avoid OOM)"
 
 	# Step 6.3: Copy locale stub source to Chromium source tree (Build 175i)
 	# GN action() will compile it after gn gen but before ninja compiles protoc-gen-js
