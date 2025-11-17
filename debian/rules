@@ -577,6 +577,9 @@ override_dh_auto_build:
 	@echo "==> Creating symlink to system rustc in third_party/rust-toolchain/bin/"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
 	ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
+	@echo "==> Creating symlink to system node in third_party/node/linux/node-linux-x64/bin/"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
 
 	## Step 7f: Copy bundled Rust std library vendor crates
 	## Why: Rust std library needs vendor dependencies to compile (object, libc, gimli, etc.)
