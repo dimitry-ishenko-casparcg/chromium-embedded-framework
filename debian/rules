@@ -198,6 +198,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-disable-panic-immediate-abort.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0018-rust-clanglib.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-bindgen-libclang-abspath.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-skip-nodejs-version-check.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
@@ -577,9 +578,8 @@ override_dh_auto_build:
 	@echo "==> Creating symlink to system rustc in third_party/rust-toolchain/bin/"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
 	ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
-	@echo "==> Creating symlink to system node in third_party/node/linux/node-linux-x64/bin/"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
-	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
+	# Node.js version check is disabled by patch 0020-skip-nodejs-version-check.chromium.patch
+	# System node (v20.19.5) is used directly without symlink
 
 	## Step 7f: Copy bundled Rust std library vendor crates
 	## Why: Rust std library needs vendor dependencies to compile (object, libc, gimli, etc.)
