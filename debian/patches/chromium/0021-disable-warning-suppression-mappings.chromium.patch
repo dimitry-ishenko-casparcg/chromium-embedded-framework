@@ -15,11 +15,11 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-17
 
-diff --git a/third_party/chromium/src/.gn b/third_party/chromium/src/.gn
-index af46abb..fd791c1 100644
---- a/third_party/chromium/src/.gn
-+++ b/third_party/chromium/src/.gn
-@@ -77,7 +77,9 @@ default_args = {
+diff --git a/.gn b/.gn
+index ae58a0b..22a25f8 100644
+--- a/.gn
++++ b/.gn
+@@ -74,7 +74,9 @@ default_args = {
    devtools_visibility = [ "*" ]
 
    clang_unsafe_buffers_paths = "//build/config/unsafe_buffers_paths.txt"
