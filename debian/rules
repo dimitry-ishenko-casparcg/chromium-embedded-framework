@@ -100,6 +100,18 @@ override_dh_auto_build:
 	fi
 	@echo "==> Chromium extracted successfully"
 
+	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
+	# Source: debian/rules lines 186-191 from Debian Chromium package
+	# This ensures devtools-frontend can use system rollup instead of bundled version
+	@echo "==> Setting up system Node.js and rollup"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	cp /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	# use system rollup
+	cp -ra /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/node/node_modules/
+	-test -L $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 || \
+		ln -s /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3
+	@echo "==> Node.js and rollup3 symlink created"
+
 	# Step 5.5: Apply Debian Chromium patches to vanilla source
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
@@ -748,6 +760,12 @@ override_dh_auto_test:
 	@echo "Skipping CEF tests (require X display)"
 
 override_dh_auto_clean:
+	# Clean Node.js and rollup symlinks (following Debian Chromium approach)
+	# These are inside chromium_src/ but we clean them explicitly for clarity
+	rm -rf chromium_src/chromium/src/third_party/node/linux/node-linux-x64 2>/dev/null || true
+	rm -rf chromium_src/chromium/src/third_party/node/node_modules/rollup 2>/dev/null || true
+	rm -f chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 2>/dev/null || true
+	# Clean entire build directory
 	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
 	# NOTE: depot_tools is treated as BUNDLED DEPENDENCY (not removed during clean)
 	# TEMPORARY APPROACH: For official Debian submission, depot_tools must be:
