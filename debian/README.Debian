@@ -114,6 +114,7 @@ Both tarballs must be for the SAME Chromium version (e.g., 142.0.7444.162-1):
 
   - use_custom_libcxx=false (use system libc++ instead of bundled)
   - swiftshader-use-llvm-16.patch (LLVM compatibility)
+  - absl-optional.patch (workaround for Clang bug #50248 with system libstdc++)
   - System library integration (Node.js, LLVM, toolchain)
   - C++23 standard compliance fixes
 
