@@ -20,7 +20,8 @@ export CXX = clang++-19
 
 # Rust toolchain configuration (from Debian chromium lines 66-74)
 # Use system Rust instead of downloading from GCS
-CLANG_MVERS := $(shell $(CC) --version 2>/dev/null | sed -n 's/.* clang version //p' | cut -d. -f1)
+# Force clang-22 (we set up symlinks for clang-22 at lines 536-558)
+CLANG_MVERS := 22
 rust_sysroot = /usr
 export GN_DEFINES += rust_sysroot_absolute=\"$(rust_sysroot)\"
 export GN_DEFINES += rust_bindgen_root=\"/usr\"
