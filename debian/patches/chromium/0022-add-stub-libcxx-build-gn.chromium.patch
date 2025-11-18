@@ -1,0 +1,32 @@
+Description: Add stub BUILD.gn for bundled libc++ when using system libc++
+ When use_custom_libcxx=false (system libc++), the bundled libc++ directory
+ buildtools/third_party/libc++ doesn't exist in the source tree. However,
+ //build/config/BUILD.gn unconditionally references this path.
+ .
+ This stub provides an empty group target so GN can load the BUILD.gn file
+ without errors. The actual libc++ headers and libraries come from the
+ system libc++-19-dev package via -stdlib=libc++ compiler flags.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-18
+
+diff --git a/buildtools/third_party/libc++/BUILD.gn b/buildtools/third_party/libc++/BUILD.gn
+index e69de29..e1cab9d 100644
+--- a/buildtools/third_party/libc++/BUILD.gn
++++ b/buildtools/third_party/libc++/BUILD.gn
+@@ -0,0 +1,14 @@
++# Copyright 2025 The Chromium Embedded Framework Authors. All rights reserved.
++# Stub BUILD.gn for bundled libc++ when use_custom_libcxx=false
++#
++# This file is required because //build/config/BUILD.gn references
++# //buildtools/third_party/libc++, but when using system libc++ (use_custom_libcxx=false),
++# this directory doesn't exist in the source tree.
++#
++# This stub provides an empty group target so GN can load the file without errors.
++# The actual libc++ headers/libraries come from the system (libc++-19-dev package).
++
++# Minimal valid GN file - provides empty target
++group("libc++") {
++  # No dependencies - system libc++ is used via -stdlib=libc++ compiler flags
++}

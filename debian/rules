@@ -289,6 +289,15 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-bindgen-libclang-abspath.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-skip-nodejs-version-check.chromium.patch
 	# Patch 0021-swiftshader-use-llvm-16 removed - patch file does not exist
+	# Patch 0022: Create stub BUILD.gn for bundled libc++ when using system libc++ (use_custom_libcxx=false)
+	# When using custom unbundle toolchain (patches 0011-0012), bundled libc++ directory doesn't exist
+	# but GN still tries to load buildtools/third_party/libc++/BUILD.gn during parse phase
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0022-add-stub-libcxx-build-gn.chromium.patch
+	# Patch 0023: Remove GCC libstdc++ optional header for system libc++ compatibility (Build 206l)
+	# The Chromium source tarball contains a file 'optional' at the root directory which is a GCC header
+	# This header includes <bits/version.h> (GCC-specific, doesn't exist in libc++)
+	# Must be removed AFTER gclient sync (which extracts tarball) but BEFORE compilation
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-remove-libstdcxx-optional-header.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
