@@ -10,10 +10,10 @@ Build-Depends: debhelper-compat (= 13),
                libclang-rt-19-dev,
                libc++-19-dev,
                libc++abi-19-dev,
-# Note: CEF uses bundled libc++ from Chromium due to ABI incompatibility.
-# libc++-19-dev/libc++abi-19-dev above are kept for other build dependencies only.
-# See debian/README.source section "BUNDLED DEPENDENCIES JUSTIFICATION" for
-# detailed technical explanation and failed system libc++ attempts (Builds 108-113).
+# Note: CEF uses system libc++ from libc++-19-dev, matching Debian Chromium's approach (Build 197+).
+# Previous bundled libc++ attempts (Builds 108-113) had configuration issues (missing -stdlib=libc++ flags).
+# System libc++ works with proper compiler flags: -stdlib=libc++ -static-libstdc++
+# See debian/README.source section "SYSTEM LIBC++ ALIGNMENT" for details.
                cmake,
                xvfb,
                gperf,

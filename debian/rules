@@ -18,6 +18,29 @@ export NM = nm
 export CC = clang-19
 export CXX = clang++-19
 
+# Debian hardening flags (from Debian Chromium lines 39-42)
+# Critical for system libc++ compatibility (Build 197+)
+export DEB_CXXFLAGS_MAINT_STRIP=-g
+export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++
+export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++ -static-libstdc++
+
+# Add libstdc++ include path for absl-optional.patch (Build 198+)
+# The absl-optional patch includes <bits/version.h> which is a libstdc++ header
+# With -stdlib=libc++, clang doesn't search libstdc++ paths by default
+# This enables the hybrid approach: libc++ runtime + selective libstdc++ header access
+export CXXFLAGS+=-isystem /usr/include/c++/14
+
+# Warning suppression (from Debian Chromium lines 44-51)
+export CXXFLAGS+=-Wno-conversion \
+                 -Wno-unused-function \
+                 -Wno-unused-variable \
+                 -Wno-unused-private-field \
+                 -Wno-deprecated-declarations \
+                 -Wno-unknown-pragmas
+
+# Safety flag (from Debian Chromium line 53)
+export CXXFLAGS+=-fno-delete-null-pointer-checks
+
 # Rust toolchain configuration (from Debian chromium lines 66-74)
 # Use system Rust instead of downloading from GCS
 # Align with Debian Chromium build environment (clang-19 + libc++-19)
@@ -29,6 +52,11 @@ export GN_DEFINES += rust_bindgen_root=\"/usr\"
 export GN_DEFINES += rustc_version=\"$(shell $(rust_sysroot)/bin/rustc --version 2>/dev/null)\"
 export GN_DEFINES += clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\"
 export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
+
+# Use system libc++ instead of bundled (Build 198+)
+# Aligns with Debian Chromium's system libc++ approach
+# Requires -stdlib=libc++ in CXXFLAGS and -isystem for libstdc++ headers
+export GN_DEFINES += use_custom_libcxx=false
 
 # CEF version/branch
 # Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.162)
@@ -305,86 +333,89 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
 	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
 	echo 'group("typ") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
-	# Create BUILD.gn stub for GN build system, AND copy __config_site + __assertion_handler from chromium tarball
-	# BUILD.gn is required by //build/config/BUILDCONFIG.gn:606 (:all_modules target)
-	# __config_site and __assertion_handler must be copied from chromium tarball (perfetto copy has full config)
-	@echo "==> Creating buildtools/third_party/libc++/ BUILD.gn, __config_site, and __assertion_handler"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
-	# Create REAL BUILD.gn that builds bundled libc++ library (not stub)
-	# Needed for patch 0014 v3 which links protoc-gen-js against bundled libc++
-	# Uses all .cpp files from third_party/libc++/src/src/ (69 files)
-	@echo "==> Building bundled libc++ static library (namespace __Cr from perfetto config)"
-	echo '# Real BUILD.gn for Debian builds - compiles bundled libc++ library' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'static_library("libc++") {' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  sources = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	find $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/src -name "*.cpp" | \
-		grep -v '/win32/' | grep -v '/ibm/' | grep -v 'pstl/libdispatch' | \
-		grep -v 'ryu/f2s.cpp' | grep -v 'ryu/d2s.cpp' | grep -v 'ryu/d2fixed.cpp' | \
-		grep -v 'random_shuffle.cpp' | grep -v 'random.cpp' | grep -v 'locale.cpp' | \
-		grep -v 'filesystem/path.cpp' | grep -v 'filesystem/filesystem_error.cpp' | grep -v 'filesystem/operations.cpp' | \
-		grep -v 'exception.cpp' | \
-		grep -v 'charconv.cpp' | \
-		grep -v 'experimental/tzdb.cpp' | grep -v 'experimental/tzdb_list.cpp' | grep -v 'experimental/time_zone.cpp' | \
-		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/",/' | \
-		sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  include_dirs = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '    "//buildtools/third_party/libc++",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '    "//third_party/libc++/src/include",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  configs -= [ "//build/config/compiler:chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  configs += [ "//build/config/compiler:no_chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '  cflags_cc = [ "-std=c++23" ]  # libc++ requires C++23 (from upstream chromium BUILD.gn)' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo '# Keep these groups for compatibility with GN configuration' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
-	# PERFETTO-BASED CONFIG with ASAN + TRANSITIVE INCLUDES fixes (Build 117)
-	# DATA: Build 116 (perfetto + ASAN fix) task 47, Build 115 (system) task 48
-	# ANALYSIS: Build 116 failed with "no type named 'ostream'" in abseil-cpp
-	#   - ROOT CAUSE: perfetto has #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
-	#   - Abseil expects transitive includes (doesn't explicitly #include <iostream>)
-	#   - Build 114 had ASAN error at task 51, Build 116 fixed that but hit transitive includes error at task 47
-	# HISTORICAL SOLUTION (CLAUDE.md:329): "Required multiple sed hacks to fix ASAN, REMOVE_TRANSITIVE_INCLUDES, etc."
-	# FIX: Use perfetto base (correct ABI v2, namespace __Cr, hardening=NONE) + disable BOTH problematic macros
-	@echo "==> Using perfetto libc++ config with ASAN + TRANSITIVE INCLUDES fixes (Build 117)"
-	# Step 1: Copy perfetto __config_site (ABI v2, namespace __Cr, hardening=NONE)
-	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Step 2: FIX ASAN - Comment out empty macro that breaks preprocessor
-	sed -i 's/^#define _LIBCPP_INSTRUMENTED_WITH_ASAN$$/\/* #define _LIBCPP_INSTRUMENTED_WITH_ASAN - disabled: empty macro causes preprocessor errors *\//' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Step 3: FIX TRANSITIVE INCLUDES - Comment out to enable transitive includes for abseil-cpp
-	sed -i 's/^#define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES$$/\/* #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES - disabled: abseil needs transitive includes *\//' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Step 4: DEFINE POSITIVE FEATURE MACROS - perfetto only undefines negatives, causing guards to fail
-	# Without these, code that checks "#if _LIBCPP_HAS_THREADS" evaluates to false (undefined = 0)
-	# This affects abseil-cpp, ICU, and other components using standard library features
-	@echo "==> Defining positive libc++ feature macros in __config_site"
-	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_LOCALIZATION \*\/$$/a #define _LIBCPP_HAS_LOCALIZATION 1' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK \*\/$$/a #define _LIBCPP_HAS_MONOTONIC_CLOCK 1' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_WIDE_CHARACTERS \*\/$$/a #define _LIBCPP_HAS_WIDE_CHARACTERS 1' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_FILESYSTEM \*\/$$/a #define _LIBCPP_HAS_FILESYSTEM 1' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_THREADS \*\/$$/a #define _LIBCPP_HAS_THREADS 1' \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
-	# Step 5: Copy __assertion_handler (safe, generic)
-	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
-		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
-	@echo "==> Perfetto config applied: ABI v2, namespace=__Cr, hardening=NONE, ASAN disabled, transitive includes enabled, feature macros defined"
-	# DO NOT symlink headers into buildtools/third_party/libc++/
-	# build/config/c++/*.gn hardcodes: include_dirs += [ "//buildtools/third_party/libc++" ]
-	# This creates -I../../buildtools/third_party/libc++ with HIGH priority
-	# If headers are in that directory, compiler finds them via -I instead of -isystem
-	# This breaks libc++ C wrapper headers (math.h, cstring) because #include_next fails
-	# Correct setup: buildtools/third_party/libc++/ contains ONLY __config_site and __assertion_handler
-	# Actual headers come from -isystem../../third_party/libc++/src/include (LOWER priority, correct)
+	## BUNDLED LIBC++ CONFIGURATION - COMMENTED OUT (Build 197+)
+	## Now using system libc++ with use_custom_libcxx=false (matching Debian Chromium)
+	## Previous bundled libc++ configuration (Builds 108-196):
+	# # Create BUILD.gn stub for GN build system, AND copy __config_site + __assertion_handler from chromium tarball
+	# # BUILD.gn is required by //build/config/BUILDCONFIG.gn:606 (:all_modules target)
+	# # __config_site and __assertion_handler must be copied from chromium tarball (perfetto copy has full config)
+	# @echo "==> Creating buildtools/third_party/libc++/ BUILD.gn, __config_site, and __assertion_handler"
+	# 	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
+	# 	# Create REAL BUILD.gn that builds bundled libc++ library (not stub)
+	# 	# Needed for patch 0014 v3 which links protoc-gen-js against bundled libc++
+	# 	# Uses all .cpp files from third_party/libc++/src/src/ (69 files)
+	# 	@echo "==> Building bundled libc++ static library (namespace __Cr from perfetto config)"
+	# 	echo '# Real BUILD.gn for Debian builds - compiles bundled libc++ library' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'static_library("libc++") {' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  sources = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	find $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/src -name "*.cpp" | \
+	# 		grep -v '/win32/' | grep -v '/ibm/' | grep -v 'pstl/libdispatch' | \
+	# 		grep -v 'ryu/f2s.cpp' | grep -v 'ryu/d2s.cpp' | grep -v 'ryu/d2fixed.cpp' | \
+	# 		grep -v 'random_shuffle.cpp' | grep -v 'random.cpp' | grep -v 'locale.cpp' | \
+	# 		grep -v 'filesystem/path.cpp' | grep -v 'filesystem/filesystem_error.cpp' | grep -v 'filesystem/operations.cpp' | \
+	# 		grep -v 'exception.cpp' | \
+	# 		grep -v 'charconv.cpp' | \
+	# 		grep -v 'experimental/tzdb.cpp' | grep -v 'experimental/tzdb_list.cpp' | grep -v 'experimental/time_zone.cpp' | \
+	# 		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/",/' | \
+	# 		sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  include_dirs = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '    "//buildtools/third_party/libc++",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '    "//third_party/libc++/src/include",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  configs -= [ "//build/config/compiler:chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  configs += [ "//build/config/compiler:no_chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  cflags_cc = [ "-std=c++23" ]  # libc++ requires C++23 (from upstream chromium BUILD.gn)' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '# Keep these groups for compatibility with GN configuration' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	# PERFETTO-BASED CONFIG with ASAN + TRANSITIVE INCLUDES fixes (Build 117)
+	# 	# DATA: Build 116 (perfetto + ASAN fix) task 47, Build 115 (system) task 48
+	# 	# ANALYSIS: Build 116 failed with "no type named 'ostream'" in abseil-cpp
+	# 	#   - ROOT CAUSE: perfetto has #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
+	# 	#   - Abseil expects transitive includes (doesn't explicitly #include <iostream>)
+	# 	#   - Build 114 had ASAN error at task 51, Build 116 fixed that but hit transitive includes error at task 47
+	# 	# HISTORICAL SOLUTION (CLAUDE.md:329): "Required multiple sed hacks to fix ASAN, REMOVE_TRANSITIVE_INCLUDES, etc."
+	# 	# FIX: Use perfetto base (correct ABI v2, namespace __Cr, hardening=NONE) + disable BOTH problematic macros
+	# 	@echo "==> Using perfetto libc++ config with ASAN + TRANSITIVE INCLUDES fixes (Build 117)"
+	# 	# Step 1: Copy perfetto __config_site (ABI v2, namespace __Cr, hardening=NONE)
+	# 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 2: FIX ASAN - Comment out empty macro that breaks preprocessor
+	# 	sed -i 's/^#define _LIBCPP_INSTRUMENTED_WITH_ASAN$$/\/* #define _LIBCPP_INSTRUMENTED_WITH_ASAN - disabled: empty macro causes preprocessor errors *\//' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 3: FIX TRANSITIVE INCLUDES - Comment out to enable transitive includes for abseil-cpp
+	# 	sed -i 's/^#define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES$$/\/* #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES - disabled: abseil needs transitive includes *\//' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 4: DEFINE POSITIVE FEATURE MACROS - perfetto only undefines negatives, causing guards to fail
+	# 	# Without these, code that checks "#if _LIBCPP_HAS_THREADS" evaluates to false (undefined = 0)
+	# 	# This affects abseil-cpp, ICU, and other components using standard library features
+	# 	@echo "==> Defining positive libc++ feature macros in __config_site"
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_LOCALIZATION \*\/$$/a #define _LIBCPP_HAS_LOCALIZATION 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK \*\/$$/a #define _LIBCPP_HAS_MONOTONIC_CLOCK 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_WIDE_CHARACTERS \*\/$$/a #define _LIBCPP_HAS_WIDE_CHARACTERS 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_FILESYSTEM \*\/$$/a #define _LIBCPP_HAS_FILESYSTEM 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_THREADS \*\/$$/a #define _LIBCPP_HAS_THREADS 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 5: Copy __assertion_handler (safe, generic)
+	# 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
+	# 	@echo "==> Perfetto config applied: ABI v2, namespace=__Cr, hardening=NONE, ASAN disabled, transitive includes enabled, feature macros defined"
+	# 	# DO NOT symlink headers into buildtools/third_party/libc++/
+	# 	# build/config/c++/*.gn hardcodes: include_dirs += [ "//buildtools/third_party/libc++" ]
+	# 	# This creates -I../../buildtools/third_party/libc++ with HIGH priority
+	# 	# If headers are in that directory, compiler finds them via -I instead of -isystem
+	# 	# This breaks libc++ C wrapper headers (math.h, cstring) because #include_next fails
+	# 	# Correct setup: buildtools/third_party/libc++/ contains ONLY __config_site and __assertion_handler
+	# 	# Actual headers come from -isystem../../third_party/libc++/src/include (LOWER priority, correct)
 	# Use system rollup instead of bundled @rollup/wasm-node (avoids WASM binary dependency)
 	# CREATE SYMLINK at exact path BUILD.gn files expect: node_modules/@rollup/wasm-node/dist/bin/rollup
 	@echo "==> Using system rollup (from rollup package)"
@@ -703,7 +734,7 @@ override_dh_auto_build:
 	## violating Debian's no-internet build policy.
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_custom_libcxx=false use_cxx23=true use_remoteexec=false use_siso=false" && \
+	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_cxx23=true use_remoteexec=false use_siso=false" && \
 	export PATH=$(CURDIR)/depot_tools:$$PATH && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
