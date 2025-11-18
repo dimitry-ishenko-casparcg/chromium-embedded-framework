@@ -1,0 +1,810 @@
+#!/usr/bin/make -f
+
+# Align with Debian Chromium configuration (chromium_142.0.7444.162-1.debian.tar.xz)
+# Reference: /tmp/chromium-debian-reference/debian/rules
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEBIAN_BUILD = 1
+
+# Enable unstable Rust features with stable rustc (from Debian chromium line 67)
+# Chromium uses -Z flags (nightly-only) but Debian only provides stable rustc
+# RUSTC_BOOTSTRAP=1 tells rustc to allow nightly features on stable compiler
+export RUSTC_BOOTSTRAP = 1
+
+# Compiler toolchain (from Debian chromium lines 34-37)
+# Align with Debian Chromium configuration (uses clang-19)
+export AR = ar
+export NM = nm
+export CC = clang-19
+export CXX = clang++-19
+
+# Debian hardening flags (from Debian Chromium lines 39-42)
+# Critical for system libc++ compatibility (Build 197+)
+export DEB_CXXFLAGS_MAINT_STRIP=-g
+# Force GCC 14 libstdc++ headers: Debian Chromium's absl-optional.patch creates
+# a custom optional header based on GCC 14's /usr/include/c++/14/optional.
+# Using GCC 15's headers causes __poison_hash template errors (Build 199).
+# This aligns with Debian Chromium's approach: system libc++ + GCC 14 libstdc++.
+export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++ --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14
+export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++ -static-libstdc++
+
+# Warning suppression (from Debian Chromium lines 44-51)
+export CXXFLAGS+=-Wno-conversion \
+                 -Wno-unused-function \
+                 -Wno-unused-variable \
+                 -Wno-unused-private-field \
+                 -Wno-deprecated-declarations \
+                 -Wno-unknown-pragmas
+
+# Safety flag (from Debian Chromium line 53)
+export CXXFLAGS+=-fno-delete-null-pointer-checks
+
+# Rust toolchain configuration (from Debian chromium lines 66-74)
+# Use system Rust instead of downloading from GCS
+# Align with Debian Chromium build environment (clang-19 + libc++-19)
+# Symlinks for clang-19 are set up at lines 406-576
+CLANG_MVERS := 19
+rust_sysroot = /usr
+export GN_DEFINES += rust_sysroot_absolute=\"$(rust_sysroot)\"
+export GN_DEFINES += rust_bindgen_root=\"/usr\"
+export GN_DEFINES += rustc_version=\"$(shell $(rust_sysroot)/bin/rustc --version 2>/dev/null)\"
+export GN_DEFINES += clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\"
+export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
+
+# Use system libc++ instead of bundled (Build 199+)
+# Aligns with Debian Chromium's system libc++ approach
+# Requires -stdlib=libc++ in CXXFLAGS/LDFLAGS
+export GN_DEFINES += use_custom_libcxx=false
+
+# CEF version/branch
+# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.162)
+CEF_BRANCH = 7444
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# automate-git.py handles configuration
+	@echo "CEF build will be configured by automate-git.py"
+
+## ============================================================================
+## BUILD PROCESS DOCUMENTATION
+## ============================================================================
+## This build has 3 main challenges requiring the complex steps below:
+##
+## 1. EXEC_SCRIPT RESTRICTION FIX
+##    - Problem: CEF uses exec_script in BUILD.gn (security-restricted by GN)
+##    - Challenge: .gn config file doesn't exist until automate-git.py syncs Chromium
+##    - Solution: Patch automate-git.py (0004-patch-gn-for-exec-script.patch)
+##      to insert .gn patching logic after gclient sync but before gclient runhooks
+##    - This is the professional approach: uses upstream tooling, single patch file,
+##      no complex multi-phase shell logic, easy to maintain
+##
+## 2. STUB BUILD.GN FILES (34+ stubs currently)
+##    - Problem: GN requires BUILD.gn files for all dependencies during configuration
+##    - Challenge: Debian strips bundled third-party sources per policy
+##    - Solution: Create empty stub BUILD.gN files with group() or source_set() targets
+##    - Simplification: If Debian policy allows bundled sources, remove all stubs
+##
+## 3. GIT REPOSITORY REQUIREMENTS
+##    - Problem: automate-git.py expects git repositories for CEF and Chromium
+##    - Challenge: Debian source packages aren't git repositories
+##    - Solution: Initialize temporary git repos in Steps 3.5 and 6
+##    - Simplification: Could patch automate-git.py to skip git checks
+## ============================================================================
+
+override_dh_auto_build:
+	## Step 1: Copy CEF source to build directory
+	mkdir -p $(CURDIR)/chromium_src
+	cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/
+
+	# Step 2: Remove old quilt state that would confuse patch application
+	rm -rf $(CURDIR)/chromium_src/cef/.pc
+
+	# Step 3: Apply Debian patches to CEF source
+	cd $(CURDIR)/chromium_src/cef && \
+		QUILT_PATCHES=$(CURDIR)/debian/patches quilt push -a || \
+		(echo "ERROR: Failed to apply Debian patches"; exit 1)
+
+	# Step 3.5: Initialize CEF directory as git repository (required by automate-git.py)
+	@echo "==> Initializing git repository in CEF source"
+	cd $(CURDIR)/chromium_src/cef && \
+		git init && \
+		git add . && \
+		git commit -m "CEF source with Debian patches applied"
+	@echo "==> CEF git repository initialized"
+
+	# Step 4: Fix version mismatch (CEF expects .53, Debian has .162)
+	sed -i "s/142\.0\.7444\.53/142.0.7444.162/" \
+		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
+
+	# Step 5: Extract Debian chromium source tarball
+	@echo "==> Extracting Debian chromium source"
+	tar -xf $(CURDIR)/../chromium_142.0.7444.162.orig.tar.xz \
+		-C $(CURDIR)/chromium_src
+	mkdir -p $(CURDIR)/chromium_src/chromium
+	@if [ -d $(CURDIR)/chromium_src/chromium-* ]; then \
+		mv $(CURDIR)/chromium_src/chromium-* $(CURDIR)/chromium_src/chromium/src 2>/dev/null || true; \
+	fi
+	@echo "==> Chromium extracted successfully"
+
+	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
+	# Source: debian/rules lines 186-191 from Debian Chromium package
+	# This ensures devtools-frontend can use system rollup instead of bundled version
+	@echo "==> Setting up system Node.js and rollup"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	cp /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	# use system rollup
+	cp -ra /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/node/node_modules/
+	-test -L $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 || \
+		ln -s /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3
+	@echo "==> Node.js and rollup3 symlink created"
+
+	# Step 5.5: Apply Debian Chromium patches to vanilla source
+	# Extract Debian Chromium packaging (includes patches and build configuration)
+	@echo "==> Applying Debian Chromium patches for system integration"
+	tar -xf $(CURDIR)/../chromium_142.0.7444.162-1.debian.tar.xz \
+		-C $(CURDIR)/chromium_src/chromium/
+	# Apply debianization patches (system libraries, build fixes, security patches)
+	@cd $(CURDIR)/chromium_src/chromium/src && \
+		for patch_dir in debianization fixes system; do \
+			if [ -d "../debian/patches/$$patch_dir" ]; then \
+				for patch in ../debian/patches/$$patch_dir/*.patch; do \
+					[ -f "$$patch" ] && { \
+						echo "Applying $$patch"; \
+						patch -p1 < "$$patch" || { \
+							echo "WARNING: Patch $$patch failed, continuing..."; \
+						}; \
+					}; \
+				done; \
+			fi; \
+		done
+	@echo "==> Debian Chromium patches applied successfully"
+
+	# Step 6: Initialize git repository in chromium (required by automate-git.py)
+	@echo "==> Initializing git repository in chromium source"
+	# Remove ALL .git directories from Debian chromium tarball to prevent conflicts
+	# gclient sync will move any existing .git directories to _bad_scm, which breaks the build
+	# Note: We intentionally do NOT add 'origin' remote or tags here because:
+	#   1. We're using Debian tarball sources, not upstream chromium
+	#   2. Patch 0005 skips gclient revert which would need 'origin'
+	#   3. Patch 0006 skips chromium checkout which would need tags
+	#   4. Patches 0007-0008 handle tarball mode (source_tarball=True in .gclient)
+	#   5. No git/network operations needed - all sources are local (Debian CI compatible)
+	#   6. Forward compatible: when chromium-source package exists, patch 0006
+	#      will skip checkout and preserve the real git repo with real tags
+	@echo "==> Removing all .git directories from chromium tree (prevents gclient sync conflicts)"
+	find $(CURDIR)/chromium_src/chromium/src -type d -name '.git' -exec rm -rf {} + 2>/dev/null || true
+	@echo "==> Creating new git repository in chromium/src"
+	cd $(CURDIR)/chromium_src/chromium/src && \
+		git init && \
+		git config user.name "Debian Builder" && \
+		git config user.email "builder@debian.org" && \
+		git commit --allow-empty -m "Initial chromium source from Debian tarball"
+	@echo "==> Git repository initialized (empty commit to avoid OOM)"
+
+	# Step 6.3: Copy locale stub source to Chromium source tree (Build 175i)
+	# GN action() will compile it after gn gen but before ninja compiles protoc-gen-js
+	# Note: Patch 0008 creates this file in chromium_src/cef/debian/cef_locale_stub.cpp
+	@echo "==> Copying locale stub source to chromium/src/debian/"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/debian
+	cp $(CURDIR)/chromium_src/cef/debian/cef_locale_stub.cpp $(CURDIR)/chromium_src/chromium/src/debian/
+	@echo "==> Locale stub source copied"
+
+	# Step 6.5: Patch Chromium DEPS to disable git submodule checking
+	# gclient runhooks calls GetSubmoduleDiff() when git_dependencies != 'DEPS'
+	# Setting git_dependencies = 'DEPS' disables submodule checks (not needed for Debian builds)
+	# Note: DEPS file uses SINGLE quotes around 'SYNC', not double quotes
+	@echo "==> Patching chromium/src/DEPS to disable git submodule checks"
+	@if [ -f $(CURDIR)/chromium_src/chromium/src/DEPS ]; then \
+		sed -i "s/git_dependencies = 'SYNC'/git_dependencies = 'DEPS'/" \
+			$(CURDIR)/chromium_src/chromium/src/DEPS && \
+		echo "==> DEPS patched: git_dependencies set to 'DEPS'"; \
+	else \
+		echo "WARNING: DEPS file not found at $(CURDIR)/chromium_src/chromium/src/DEPS, skipping patch (may be handled by automate-git.py)"; \
+	fi
+	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
+	# after depot_tools is cloned but before gclient runhooks
+	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
+	# Since we extract chromium BEFORE running automate-git.py, we must apply patches ourselves
+
+	# Step 6.6: Verify depot_tools is present (BUNDLED DEPENDENCY - Phase 1)
+	# CURRENT APPROACH (Phase 1): depot_tools treated as bundled dependency
+	#   - User clones depot_tools once: git clone https://...depot_tools.git
+	#   - debian/rules clean PRESERVES depot_tools/ (not removed)
+	#   - Works for local development and testing
+	# FUTURE (Phase 2 - see debian/TODO-DEPOT-TOOLS.txt):
+	#   - Option A: Include depot_tools in orig.tar.xz
+	#   - Option B: Package depot_tools separately as Debian package
+	# Network isolation: NO downloads during build - depot_tools must pre-exist
+	@echo "==> Verifying depot_tools is present (bundled dependency)"
+	@if [ ! -d $(CURDIR)/depot_tools ]; then \
+		echo "ERROR: depot_tools directory not found at $(CURDIR)/depot_tools"; \
+		echo "ERROR:"; \
+		echo "ERROR: FIRST-TIME SETUP REQUIRED:"; \
+		echo "ERROR:   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools"; \
+		echo "ERROR:"; \
+		echo "ERROR: After setup, depot_tools will be preserved across builds (not removed by 'clean')."; \
+		echo "ERROR: See debian/TODO-DEPOT-TOOLS.txt for packaging plans."; \
+		exit 1; \
+	fi
+	@echo "==> depot_tools found (bundled dependency - Phase 1 approach)"
+
+	# Step 6.6.1: Reset depot_tools to pristine state (since it's preserved across builds)
+	# depot_tools is a git repository, so we can reset it to clean state before patching
+	# Reset to HEAD~1 to undo the "Apply Debian patches" commit from previous build
+	@echo "==> Resetting depot_tools to pristine state (undoing previous Debian patches commit)"
+	cd $(CURDIR)/depot_tools && git reset --hard HEAD~1 && git clean -fd
+	@echo "==> depot_tools reset complete"
+
+	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
+	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
+	# and use .chromium.patch suffix to distinguish them from CEF patches
+	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
+	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0018-skip-gcs-deps-when-source-tarball.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-make-siso-import-optional.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-skip-test-fonts.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0021-disable-warning-suppression-mappings.chromium.patch
+	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
+	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
+	# and refuses to checkout when update_depot_tools tries to switch commits
+	@echo "==> Committing depot_tools patches to avoid git conflicts"
+	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0008, 0015, 0018)" --allow-empty
+	@echo "==> depot_tools patches committed"
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-protoc-gen-js-gn-action-stub.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-disable-panic-immediate-abort.chromium.patch
+	# Patch 0018-rust-clanglib removed - now obsolete with clang-19 symlinks at lines 536-558
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-bindgen-libclang-abspath.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-skip-nodejs-version-check.chromium.patch
+	# Patch 0021-swiftshader-use-llvm-16 removed - patch file does not exist
+	@echo "==> Debian Chromium patches applied"
+
+	# Step 6.8: Additional DEPS fix for generate_location_tags hook
+	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
+	@echo "==> Fixing generate_location_tags condition in DEPS"
+	sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
+		$(CURDIR)/chromium_src/chromium/src/DEPS
+	@echo "==> generate_location_tags condition fixed"
+
+	# Step 7: Create symlink to system GN executable
+	@echo "==> Configuring to use system GN executable"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
+	ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
+	@echo "==> GN symlink created"
+
+	# Step 7.5: Create stub files for Debian-stripped directories
+	@echo "==> Creating stub BUILD.gn for third_party/opus (Debian uses system libopus)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/opus
+	echo '# Stub BUILD.gn for Debian builds' > $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '# Debian uses system libopus instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '# These are test/demo targets not needed for CEF' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'source_set("opus") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'config("opus_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("opus_compare") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("opus_demo") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_api") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_decode") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_encode") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_padding") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	@echo "==> Creating stub chrome/android/modules/buildflags.gni (Debian strips Android files)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/chrome/android/modules
+	echo '# Stub buildflags.gni for Debian builds' > $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	echo '# Debian strips Android files since we'"'"'re building for Linux only' >> $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	echo 'declare_args() {' >> $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	echo '  # Android-specific flag for symbol partitioning (not used on Linux)' >> $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	echo '  use_native_partitions = false' >> $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
+	@echo "==> Creating stub build/config/freetype/freetype.gni (Debian uses system freetype)"
+	echo '# Stub freetype.gni for Debian builds' > $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '# Debian uses system freetype instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo 'declare_args() {' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '  # Use system freetype (overridden by GN_DEFINES)' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '  use_system_freetype = true' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '  # Enable freetype rendering' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '  enable_freetype = true' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/build/config/freetype/freetype.gni
+	@echo "==> Creating stub third_party/catapult/telemetry/BUILD.gn (Debian strips testing tools)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry
+	echo '# Stub BUILD.gn for Debian builds' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
+	echo '# Debian strips catapult testing tools' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
+	echo '# This is a test/benchmark tool not needed for CEF' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
+	echo 'executable("bitmaptools") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
+	@echo "==> Creating stub third_party/libjpeg_turbo/BUILD.gn (Debian uses system libjpeg)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo
+	echo '# Stub BUILD.gn for Debian builds' > $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '# Debian uses system libjpeg instead of bundled libjpeg-turbo' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'source_set("simd") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'source_set("simd_asm") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	@echo "==> Creating stub third_party/catapult/third_party/typ/BUILD.gn"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
+	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
+	echo 'group("typ") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
+	## BUNDLED LIBC++ CONFIGURATION - COMMENTED OUT (Build 197+)
+	## Now using system libc++ with use_custom_libcxx=false (matching Debian Chromium)
+	## Previous bundled libc++ configuration (Builds 108-196):
+	# # Create BUILD.gn stub for GN build system, AND copy __config_site + __assertion_handler from chromium tarball
+	# # BUILD.gn is required by //build/config/BUILDCONFIG.gn:606 (:all_modules target)
+	# # __config_site and __assertion_handler must be copied from chromium tarball (perfetto copy has full config)
+	# @echo "==> Creating buildtools/third_party/libc++/ BUILD.gn, __config_site, and __assertion_handler"
+	# 	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++
+	# 	# Create REAL BUILD.gn that builds bundled libc++ library (not stub)
+	# 	# Needed for patch 0014 v3 which links protoc-gen-js against bundled libc++
+	# 	# Uses all .cpp files from third_party/libc++/src/src/ (69 files)
+	# 	@echo "==> Building bundled libc++ static library (namespace __Cr from perfetto config)"
+	# 	echo '# Real BUILD.gn for Debian builds - compiles bundled libc++ library' > $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'static_library("libc++") {' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  sources = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	find $(CURDIR)/chromium_src/chromium/src/third_party/libc++/src/src -name "*.cpp" | \
+	# 		grep -v '/win32/' | grep -v '/ibm/' | grep -v 'pstl/libdispatch' | \
+	# 		grep -v 'ryu/f2s.cpp' | grep -v 'ryu/d2s.cpp' | grep -v 'ryu/d2fixed.cpp' | \
+	# 		grep -v 'random_shuffle.cpp' | grep -v 'random.cpp' | grep -v 'locale.cpp' | \
+	# 		grep -v 'filesystem/path.cpp' | grep -v 'filesystem/filesystem_error.cpp' | grep -v 'filesystem/operations.cpp' | \
+	# 		grep -v 'exception.cpp' | \
+	# 		grep -v 'charconv.cpp' | \
+	# 		grep -v 'experimental/tzdb.cpp' | grep -v 'experimental/tzdb_list.cpp' | grep -v 'experimental/time_zone.cpp' | \
+	# 		sed 's|$(CURDIR)/chromium_src/chromium/src/|    "//|' | sed 's/$$/",/' | \
+	# 		sort >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  include_dirs = [' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '    "//buildtools/third_party/libc++",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '    "//third_party/libc++/src/include",' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  configs -= [ "//build/config/compiler:chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  configs += [ "//build/config/compiler:no_chromium_code" ]' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '  cflags_cc = [ "-std=c++23" ]  # libc++ requires C++23 (from upstream chromium BUILD.gn)' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo '# Keep these groups for compatibility with GN configuration' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'group("custom_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'group("libcxx_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	echo 'group("all_modules") {}' >> $(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/BUILD.gn
+	# 	# PERFETTO-BASED CONFIG with ASAN + TRANSITIVE INCLUDES fixes (Build 117)
+	# 	# DATA: Build 116 (perfetto + ASAN fix) task 47, Build 115 (system) task 48
+	# 	# ANALYSIS: Build 116 failed with "no type named 'ostream'" in abseil-cpp
+	# 	#   - ROOT CAUSE: perfetto has #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES
+	# 	#   - Abseil expects transitive includes (doesn't explicitly #include <iostream>)
+	# 	#   - Build 114 had ASAN error at task 51, Build 116 fixed that but hit transitive includes error at task 47
+	# 	# HISTORICAL SOLUTION (CLAUDE.md:329): "Required multiple sed hacks to fix ASAN, REMOVE_TRANSITIVE_INCLUDES, etc."
+	# 	# FIX: Use perfetto base (correct ABI v2, namespace __Cr, hardening=NONE) + disable BOTH problematic macros
+	# 	@echo "==> Using perfetto libc++ config with ASAN + TRANSITIVE INCLUDES fixes (Build 117)"
+	# 	# Step 1: Copy perfetto __config_site (ABI v2, namespace __Cr, hardening=NONE)
+	# 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__config_site \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 2: FIX ASAN - Comment out empty macro that breaks preprocessor
+	# 	sed -i 's/^#define _LIBCPP_INSTRUMENTED_WITH_ASAN$$/\/* #define _LIBCPP_INSTRUMENTED_WITH_ASAN - disabled: empty macro causes preprocessor errors *\//' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 3: FIX TRANSITIVE INCLUDES - Comment out to enable transitive includes for abseil-cpp
+	# 	sed -i 's/^#define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES$$/\/* #define _LIBCPP_REMOVE_TRANSITIVE_INCLUDES - disabled: abseil needs transitive includes *\//' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 4: DEFINE POSITIVE FEATURE MACROS - perfetto only undefines negatives, causing guards to fail
+	# 	# Without these, code that checks "#if _LIBCPP_HAS_THREADS" evaluates to false (undefined = 0)
+	# 	# This affects abseil-cpp, ICU, and other components using standard library features
+	# 	@echo "==> Defining positive libc++ feature macros in __config_site"
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_LOCALIZATION \*\/$$/a #define _LIBCPP_HAS_LOCALIZATION 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_MONOTONIC_CLOCK \*\/$$/a #define _LIBCPP_HAS_MONOTONIC_CLOCK 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_WIDE_CHARACTERS \*\/$$/a #define _LIBCPP_HAS_WIDE_CHARACTERS 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_FILESYSTEM \*\/$$/a #define _LIBCPP_HAS_FILESYSTEM 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	sed -i '/^\/\* #undef _LIBCPP_HAS_NO_THREADS \*\/$$/a #define _LIBCPP_HAS_THREADS 1' \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__config_site
+	# 	# Step 5: Copy __assertion_handler (safe, generic)
+	# 	cp $(CURDIR)/chromium_src/chromium/src/third_party/perfetto/buildtools/libcxx_config/__assertion_handler \
+	# 		$(CURDIR)/chromium_src/chromium/src/buildtools/third_party/libc++/__assertion_handler
+	# 	@echo "==> Perfetto config applied: ABI v2, namespace=__Cr, hardening=NONE, ASAN disabled, transitive includes enabled, feature macros defined"
+	# 	# DO NOT symlink headers into buildtools/third_party/libc++/
+	# 	# build/config/c++/*.gn hardcodes: include_dirs += [ "//buildtools/third_party/libc++" ]
+	# 	# This creates -I../../buildtools/third_party/libc++ with HIGH priority
+	# 	# If headers are in that directory, compiler finds them via -I instead of -isystem
+	# 	# This breaks libc++ C wrapper headers (math.h, cstring) because #include_next fails
+	# 	# Correct setup: buildtools/third_party/libc++/ contains ONLY __config_site and __assertion_handler
+	# 	# Actual headers come from -isystem../../third_party/libc++/src/include (LOWER priority, correct)
+	# Use system rollup instead of bundled @rollup/wasm-node (avoids WASM binary dependency)
+	# CREATE SYMLINK at exact path BUILD.gn files expect: node_modules/@rollup/wasm-node/dist/bin/rollup
+	@echo "==> Using system rollup (from rollup package)"
+	if [ ! -f /usr/share/nodejs/rollup/dist/bin/rollup ]; then \
+		echo "ERROR: System rollup binary not found at /usr/share/nodejs/rollup/dist/bin/rollup"; \
+		echo "Install: apt-get install rollup"; \
+		exit 1; \
+	fi
+	@echo "==> Creating symlink for @rollup/wasm-node → system rollup (devtools-frontend)"
+	cd $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src && \
+	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
+	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
+	@echo "==> Creating symlink for @rollup/wasm-node → system rollup (third_party/node)"
+	cd $(CURDIR)/chromium_src/chromium/src/third_party/node && \
+	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
+	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
+	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
+	echo 'llvmorg-19-init-19711-g6cecc0c9-1' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
+	@echo "==> Creating symlinks for system clang-19 to third_party/llvm-build/Release+Asserts/bin/"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin
+	ln -sf /usr/bin/clang-19 $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin/clang++
+	ln -sf /usr/bin/clang-19 $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin/clang
+	ln -sf /usr/bin/llvm-ar-19 $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/bin/llvm-ar
+	@echo "==> Creating stub tools/rust/update_rust.py (Debian uses system rustc)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/tools/rust
+	echo "#!/usr/bin/env python3" > $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
+	echo "# Stub update_rust.py for Debian builds - uses system rustc" >> $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
+	echo "RUST_REVISION = '15283f6fe95e5b604273d13a428bab5fc0788f5a'" >> $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
+	echo "RUST_SUB_REVISION = 1" >> $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
+	@echo "==> Creating stub third_party/fontconfig/BUILD.gn (Debian uses system fontconfig)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig
+	echo '# Stub BUILD.gn for Debian builds - uses system fontconfig' > $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	echo 'source_set("fontconfig") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	@echo "==> Creating stub third_party/zlib/BUILD.gn (Debian uses system zlib)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zlib
+	echo '# Stub BUILD.gn for Debian builds - uses system zlib' > $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'source_set("zlib") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'source_set("minizip") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'config("zlib_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	@echo "==> Creating stub third_party/harfbuzz-ng/harfbuzz.gni (Debian uses system harfbuzz)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng
+	echo '# Stub harfbuzz.gni for Debian builds - uses system harfbuzz' > $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng/harfbuzz.gni
+	echo 'declare_args() { use_system_harfbuzz = true }' >> $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng/harfbuzz.gni
+	@echo "==> Creating stub third_party/libjpeg.gni (Debian uses system libjpeg)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party
+	echo '# Stub libjpeg.gni for Debian builds - uses system libjpeg' > $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg.gni
+	echo 'declare_args() { use_system_libjpeg = true }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg.gni
+	@echo "==> Creating stub third_party/angle/src/third_party/libXNVCtrl/BUILD.gn (Debian strips ANGLE third-party)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl
+	echo '# Stub BUILD.gn for Debian builds - ANGLE third-party stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	echo 'source_set("libXNVCtrl") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	@echo "==> Creating stub third_party/libpng/BUILD.gn (Debian uses system libpng)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libpng
+	echo '# Stub BUILD.gn for Debian builds - uses system libpng' > $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo 'source_set("libpng") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	@echo "==> Creating stub third_party/zstd/BUILD.gn (Debian uses system zstd)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zstd
+	echo '# Stub BUILD.gn for Debian builds - uses system zstd' > $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	echo 'source_set("decompress") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	echo 'source_set("compress") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	@echo "==> Creating stub third_party/catapult/tracing/tracing/BUILD.gn (Debian strips catapult)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing
+	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
+	echo 'group("reserved_infos") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
+	echo 'group("histogram") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
+	@echo "==> Creating stub base/third_party/double_conversion/BUILD.gn (Debian uses system double-conversion)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion
+	echo '# Stub BUILD.gn for Debian builds - uses system double-conversion' > $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
+	echo 'source_set("double_conversion") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
+	@echo "==> Creating stub third_party/catapult/tracing/BUILD.gn (Debian strips catapult)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing
+	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
+	echo 'group("convert_chart_json") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
+	echo 'executable("generate_about_tracing") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
+	@echo "==> Creating stub third_party/enterprise_companion/BUILD.gn (Debian strips enterprise_companion)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion
+	echo '# Stub BUILD.gn for Debian builds - enterprise_companion stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion/BUILD.gn
+	echo 'group("old_enterprise_companion") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion/BUILD.gn
+	@echo "==> Creating stub third_party/catapult/BUILD.gn (Debian strips catapult)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult
+	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/BUILD.gn
+	echo 'group("telemetry_chrome_test_support") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/BUILD.gn
+	@echo "==> Creating stub buildtools/deps_revisions.gni (Debian buildtools stripped)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools
+	echo '# Stub deps_revisions.gni for Debian builds - buildtools stripped' > $(CURDIR)/chromium_src/chromium/src/buildtools/deps_revisions.gni
+	echo '# Define variables required by build system' >> $(CURDIR)/chromium_src/chromium/src/buildtools/deps_revisions.gni
+	echo 'libcxx_revision = "unknown"' >> $(CURDIR)/chromium_src/chromium/src/buildtools/deps_revisions.gni
+	@echo "==> Creating stub third_party/libxml/BUILD.gn (Debian uses system libxml2)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxml
+	echo '# Stub BUILD.gn for Debian builds - uses system libxml2' > $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("xml_reader") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("xml_writer") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("libxml") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	echo 'source_set("libxml_utils") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	@echo "==> Creating stub third_party/flac/BUILD.gn (Debian uses system flac)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/flac
+	echo '# Stub BUILD.gn for Debian builds - uses system flac' > $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo 'source_set("flac") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	@echo "==> Creating stub third_party/dav1d/BUILD.gn (Debian uses system dav1d)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/dav1d
+	echo '# Stub BUILD.gn for Debian builds - uses system dav1d' > $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'source_set("dav1d") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'config("dav1d_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'group("dav1d_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	@echo "==> Creating stub third_party/libxslt/BUILD.gn (Debian uses system libxslt)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxslt
+	echo '# Stub BUILD.gn for Debian builds - uses system libxslt' > $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
+	echo 'source_set("libxslt") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
+	@echo "==> Creating stub third_party/libsecret/BUILD.gn (Debian uses system libsecret)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libsecret
+	echo '# Stub BUILD.gn for Debian builds - uses system libsecret' > $(CURDIR)/chromium_src/chromium/src/third_party/libsecret/BUILD.gn
+	echo 'source_set("libsecret") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libsecret/BUILD.gn
+	@echo "==> Creating stub components/test/data/update_client/puffin_patch_test/BUILD.gn (test data stub)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test
+	echo '# Stub BUILD.gn for Debian builds - test data directory' > $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test/BUILD.gn
+	echo 'group("puffin_patch_test") {}' >> $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test/BUILD.gn
+	echo 'group("puffin_patch_test_files") {}' >> $(CURDIR)/chromium_src/chromium/src/components/test/data/update_client/puffin_patch_test/BUILD.gn
+	@echo "==> Creating stub third_party/fontconfig/fontconfig.gni (Debian uses system fontconfig)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig
+	echo '# Stub fontconfig.gni for Debian builds - uses system fontconfig' > $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/fontconfig.gni
+	echo 'use_bundled_fontconfig = false' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/fontconfig.gni
+	@echo "==> Creating stub third_party/swiftshader/tests/SystemUnitTests/BUILD.gn (test directory)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests
+	echo '# Stub BUILD.gn for Debian builds - test directory' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+	echo 'group("SystemUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+	echo 'executable("swiftshader_system_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+	@echo "==> Creating stub third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn (test directory)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests
+	echo '# Stub BUILD.gn for Debian builds - test directory' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'group("ReactorUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'executable("swiftshader_reactor_llvm_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'executable("swiftshader_reactor_subzero_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	@echo "==> Creating stub third_party/swiftshader/third_party/llvm-10.0/BUILD.gn (bundled library)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0
+	echo '# Stub BUILD.gn for Debian builds - bundled library' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
+	echo 'source_set("llvm-10.0") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
+	echo 'source_set("swiftshader_llvm") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
+	@echo "==> Creating stub third_party/catapult/third_party/gsutil/BUILD.gn (bundled tool)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil
+	echo '# Stub BUILD.gn for Debian builds - bundled tool' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
+	echo 'source_set("gsutil") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
+	@echo "==> Creating stub third_party/updater/BUILD.gn (test dependency)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/updater
+	echo '# Stub BUILD.gn for Debian builds - updater test dependency' > $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
+	echo 'group("old_updater") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
+	@echo "==> Creating stub third_party/openh264/BUILD.gn (Debian uses system openh264)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/openh264
+	echo '# Stub BUILD.gn for Debian builds - uses system openh264' > $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'source_set("decoder") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'source_set("encoder") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	@echo "==> Stub files created"
+	@echo "==> Note: optimize_webui=false in GN_DEFINES avoids need for WASM file (Build 119)"
+
+	## Step 7b: Pre-patch .gn if it exists from a previous build
+	## Why: In incremental builds, .gn may already exist and need patching
+	## Fix: Add //cef/BUILD.gn to exec_script_allowlist (not exec_script_whitelist)
+	## This matches CEF's gn_config.patch
+	@echo "==> Pre-patching .gn file if it exists"
+	if [ -f $(CURDIR)/chromium_src/chromium/src/.gn ]; then \
+		if ! grep -q '"//cef/BUILD.gn"' $(CURDIR)/chromium_src/chromium/src/.gn; then \
+			sed -i '/"\/\/build_overrides\/build.gni",/a\      "//cef/BUILD.gn",' $(CURDIR)/chromium_src/chromium/src/.gn; \
+		fi; \
+	fi
+
+	## Step 7c: Create symlinks from system clang-19 to bundled LLVM location
+	## Why: Chromium expects compiler-rt libraries at third_party/llvm-build/Release+Asserts/
+	## But Debian clang-19 provides them at /usr/lib/llvm-19/lib/clang/19/lib/linux/
+	## Path mapping:
+	##   Chromium expects: third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a
+	##   Debian provides: /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a
+	@echo "==> Creating symlinks from system clang-19 to bundled LLVM location"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu
+	# Symlink compiler-rt builtins library (primary dependency for Rust builds)
+	ln -sf /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a \
+		$(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a
+	# Symlink all other compiler-rt libraries (for completeness)
+	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-x86_64.a; do \
+		base=$$(basename $$lib); \
+		target=$$(echo $$base | sed 's/-x86_64\.a$$/.a/'); \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/$$target; \
+	done
+	# Symlink i386 libraries (in case needed for 32-bit targets)
+	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-i386.a; do \
+		base=$$(basename $$lib); \
+		target=$$(echo $$base | sed 's/-i386\.a$$/.a/'); \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/$$target; \
+	done
+	@echo "==> LLVM symlinks created successfully"
+	# libclang discovery is handled by patch 0019-bindgen-libclang-abspath.chromium.patch
+	# which converts relative paths to absolute paths in run_bindgen.py
+
+	## Step 7d: Symlink system Node.js to expected location
+	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node
+	## But Debian uses system Node.js from nodejs package (/usr/bin/node)
+	## Solution: Create directory structure and symlink system node binary
+	@echo "==> Symlinking system Node.js"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
+	@echo "==> Node.js symlink created successfully"
+
+	## Step 7e: Extract complete Rust std library from rust-toolchain tarball
+	## Why: Chromium requires NEWER Rust std library than Debian 1.90.0 provides
+	## Debian's rust-src (1.90.0) is missing files like:
+	##   - sync/nonpoison/condvar.rs, rwlock.rs (newer std library features)
+	##   - cross-platform files (cygwin/net.rs, darwin/objc.rs - these we'll stub)
+	## Solution: Extract COMPLETE std library from rust-toolchain.tar.xz (bundled dependency)
+	## This tarball contains the exact Rust version Chromium expects (matches DEPS)
+	@echo "==> Extracting complete Rust std library from rust-toolchain tarball"
+	@if [ ! -f $(CURDIR)/../rust-toolchain.tar.xz ]; then \
+		echo "❌ ERROR: rust-toolchain.tar.xz not found"; \
+		echo "Expected location: $(CURDIR)/../rust-toolchain.tar.xz"; \
+		exit 1; \
+	fi
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/
+	# Extract ONLY the library/ directory from rust-toolchain tarball
+	# This contains ALL std library crates (alloc, core, std, etc.) at correct versions
+	tar -xf $(CURDIR)/../rust-toolchain.tar.xz \
+		-C $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/ \
+		--strip-components=4 \
+		lib/rustlib/src/rust/library
+	@echo "==> Complete Rust std library extracted from rust-toolchain tarball"
+	@# Verify critical files exist (condvar.rs was missing in Debian 1.90.0)
+	@if [ -f $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs ]; then \
+		echo "✅ Verified: condvar.rs exists (was missing in Debian rust-src 1.90.0)"; \
+	else \
+		echo "❌ ERROR: condvar.rs still missing after extraction"; \
+		exit 1; \
+	fi
+	@echo "==> Creating symlink to system rustc in third_party/rust-toolchain/bin/"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
+	ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
+	# Node.js version check is disabled by patch 0020-skip-nodejs-version-check.chromium.patch
+	# System node (v20.19.5) is used directly without symlink
+
+	## Step 7f: Copy bundled Rust std library vendor crates
+	## Why: Rust std library needs vendor dependencies to compile (object, libc, gimli, etc.)
+	## These ~36 vendor crates are bundled in debian/vendor-crates/vendor/
+	## They are NOT in Debian packages yet (RFP bugs filed - see bugs/ directory)
+	## Copy them to third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
+	## DISABLED: vendor-crates directory doesn't exist in current source tree
+	@echo "==> Skipping bundled Rust std library vendor crates (not present in source)"
+	# mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor
+	# cp -r $(CURDIR)/debian/vendor-crates/vendor/* \
+	# 	$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
+	# @vendor_count=$$(ls -1 $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/ | wc -l); \
+	# echo "📦 Copied $$vendor_count vendor crates for Rust std library compilation"; \
+	# if [ $$vendor_count -ge 30 ]; then \
+	# 	echo "✅ Vendor crates copied successfully"; \
+	# else \
+	# 	echo "❌ ERROR: Expected ~36 vendor crates, found $$vendor_count"; \
+	# 	exit 1; \
+	# fi
+
+	## Step 7f.1: Create stubs for missing platform-specific files
+	## Why: Debian's rust-src only contains Linux sources, but Rust std lib references
+	## cross-platform files (cygwin/net.rs, darwin/objc.rs, etc.) that don't exist in /usr/src/rustc-*/
+	## Solution: Create minimal stub files that re-export Unix functionality
+	## Note: These stubs are NEVER used (Debian only builds for Linux), but must exist
+	## for Rust compiler's module resolution during std lib compilation
+	@echo "==> Creating stubs for missing cross-platform os files (Windows, macOS, Cygwin)"
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin
+	@printf '%s\n' \
+		'//! Cygwin-specific networking functionality (stub for Debian builds).' \
+		'//! Cygwin is a POSIX compatibility layer for Windows.' \
+		'//! This file is NOT used in Debian builds (Linux-only), but must exist' \
+		'//! for Rust compiler module resolution during std library compilation.' \
+		'' \
+		'// Re-export Unix networking (Cygwin is POSIX-compatible)' \
+		'pub use crate::os::unix::net::*;' \
+		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin/net.rs
+	@printf '%s\n' \
+		'//! macOS-specific Objective-C functionality (stub for Debian builds).' \
+		'//! This file is NOT used in Debian builds (Linux-only), but must exist' \
+		'//! for Rust compiler module resolution during std library compilation.' \
+		'' \
+		'// Empty module - no Objective-C on Linux' \
+		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin/objc.rs
+	@echo "✅ Created stubs: cygwin/net.rs, darwin/objc.rs"
+
+	## Step 7f: Verify Rust vendor crates from Chromium tarball exist
+	## Why: Chromium tarball (extracted in Step 5) ALREADY contains all Rust dependencies:
+	##   - 145 application crates at third_party/rust/
+	##   - 153 vendor crates at third_party/rust/chromium_crates_io/vendor/
+	## NO downloads needed - everything from orig.tar.xz (Debian Policy compliant)
+	## See: CLAUDE.md Critical Lesson 9 for details
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🦀 Verifying Rust crates from Chromium tarball"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@app_crates=$$(ls -1d $(CURDIR)/chromium_src/chromium/src/third_party/rust/*/ 2>/dev/null | wc -l); \
+	vendor_crates=$$(ls -1 $(CURDIR)/chromium_src/chromium/src/third_party/rust/chromium_crates_io/vendor/ 2>/dev/null | wc -l); \
+	echo "📦 Application crates: $$app_crates (expected: 145)"; \
+	echo "📦 Vendor crates: $$vendor_crates (expected: 153)"; \
+	echo ""; \
+	if [ $$app_crates -ge 140 ] && [ $$vendor_crates -ge 150 ]; then \
+		echo "✅ All Rust dependencies available from Chromium tarball"; \
+		echo "✅ No downloads needed - Debian Policy compliant"; \
+	else \
+		echo "❌ ERROR: Missing Rust crates from Chromium tarball!"; \
+		echo "   App crates: $$app_crates (need 140+)"; \
+		echo "   Vendor crates: $$vendor_crates (need 150+)"; \
+		exit 1; \
+	fi
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+	## Step 8: Run automate-git.py build script
+	## This single command handles: depot_tools download, Chromium sync, GN config, and build
+	## The exec_script restriction is handled by patch 0004-patch-gn-for-exec-script.patch
+	## which modifies automate-git.py to patch .gn after sync but before running hooks
+	##
+	## CRITICAL: --no-depot-tools-update flag prevents update_depot_tools from running
+	## Without this flag, automate-git.py calls update_depot_tools which does 'git checkout'
+	## to upstream HEAD, overwriting our committed patches 0008 and 0015 in depot_tools.
+	## This causes gclient to lose the source_tarball check and attempt to clone 37+ dependencies,
+	## violating Debian's no-internet build policy.
+	cd $(CURDIR)/chromium_src/cef && \
+	export DEBIAN_BUILD=1 && \
+	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_cxx23=true use_remoteexec=false use_siso=false" && \
+	export PATH=$(CURDIR)/depot_tools:$$PATH && \
+	python3 tools/automate/automate-git.py \
+		--download-dir=$(CURDIR)/chromium_src \
+		--depot-tools-dir=$(CURDIR)/depot_tools \
+		--branch=$(CEF_BRANCH) \
+		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.162.orig.tar.xz \
+		--no-cef-update \
+		--no-depot-tools-update \
+		--force-build \
+		--x64-build \
+		--no-distrib-archive \
+		--minimal-distrib
+
+override_dh_auto_install:
+	# Install libcef.so
+	install -D -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/libcef.so \
+		$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/libcef.so.137.0.1
+
+	# Create soname symlink
+	ln -s libcef.so.137.0.1 \
+		$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/libcef.so.137
+
+	# Install headers
+	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
+	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/include \
+		$(CURDIR)/debian/libcef-dev/usr/include/cef
+
+	# Install cmake config files if they exist
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/cmake ]; then \
+		mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
+		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/cmake/* \
+			$(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
+	fi
+
+	# Install resources (PAK files, locales)
+	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.pak \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Resources/*.pak \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
+
+	# Install locales
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales ]; then \
+		mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
+		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales/*.pak \
+			$(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
+	fi
+
+	# Install other required libraries from Release directory
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.so*; do \
+		if [ -f "$$lib" ] && [ "$$(basename $$lib)" != "libcef.so" ]; then \
+			install -D -m644 "$$lib" \
+				"$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/$$(basename $$lib)"; \
+		fi \
+	done
+
+override_dh_auto_test:
+	# Skip tests for now - CEF tests require X display
+	@echo "Skipping CEF tests (require X display)"
+
+override_dh_auto_clean:
+	# Clean Node.js and rollup symlinks (following Debian Chromium approach)
+	# These are inside chromium_src/ but we clean them explicitly for clarity
+	rm -rf chromium_src/chromium/src/third_party/node/linux/node-linux-x64 2>/dev/null || true
+	rm -rf chromium_src/chromium/src/third_party/node/node_modules/rollup 2>/dev/null || true
+	rm -f chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 2>/dev/null || true
+	# Clean entire build directory
+	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
+	# NOTE: depot_tools is treated as BUNDLED DEPENDENCY (not removed during clean)
+	# TEMPORARY APPROACH: For official Debian submission, depot_tools must be:
+	#   - Included in orig.tar.xz, OR
+	#   - Packaged separately as debian package
+	# See: debian/TODO-DEPOT-TOOLS.txt for Phase 2 plan
+	# DO NOT remove depot_tools/ here - it's part of the source package
+	dh_auto_clean
