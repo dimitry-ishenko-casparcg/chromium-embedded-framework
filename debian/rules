@@ -19,30 +19,15 @@ export CC = clang-19
 export CXX = clang++-19
 
 # Debian hardening flags (from Debian Chromium lines 39-42)
-# Critical for system libc++ compatibility (Build 197+)
 export DEB_CXXFLAGS_MAINT_STRIP=-g
-# CRITICAL: Environment variable CXXFLAGS/LDFLAGS don't propagate to ninja without
-# Debian Chromium's unbundle-toolchain patch (which CEF doesn't have).
-# SOLUTION: Use GN_DEFINES extra_cxxflags/extra_ldflags which DO propagate correctly.
 
-# Standard build flags
+# Standard build flags (for non-Chromium parts of the build)
 export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS)
 export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 
-# Compiler flags passed through GN (Build 200-201: CXXFLAGS didn't work)
-# - Force GCC 14 libstdc++ headers: Debian Chromium's absl-optional.patch creates
-#   a custom optional header based on GCC 14's /usr/include/c++/14/optional.
-#   Using GCC 15's headers causes __poison_hash template errors (Build 199-201).
-# - Use system libc++ (libc++-19-dev) instead of bundled libc++
-# - Warning suppression (from Debian Chromium lines 44-51)
-# - Safety flag: -fno-delete-null-pointer-checks (from Debian Chromium line 53)
-export GN_DEFINES += extra_cxxflags=\"-stdlib=libc++ --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14 -Wno-conversion -Wno-unused-function -Wno-unused-variable -Wno-unused-private-field -Wno-deprecated-declarations -Wno-unknown-pragmas -fno-delete-null-pointer-checks\"
-export GN_DEFINES += extra_ldflags=\"-stdlib=libc++ --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14\"
-
 # Rust toolchain configuration (from Debian chromium lines 66-74)
 # Use system Rust instead of downloading from GCS
-# Align with Debian Chromium build environment (clang-19 + libc++-19)
-# Symlinks for clang-19 are set up at lines 406-576
+# Symlinks for clang-19 are set up at lines 380+
 CLANG_MVERS := 19
 rust_sysroot = /usr
 export GN_DEFINES += rust_sysroot_absolute=\"$(rust_sysroot)\"
@@ -51,10 +36,60 @@ export GN_DEFINES += rustc_version=\"$(shell $(rust_sysroot)/bin/rustc --version
 export GN_DEFINES += clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\"
 export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 
-# Use system libc++ instead of bundled (Build 199+)
-# Aligns with Debian Chromium's system libc++ approach
-# Requires -stdlib=libc++ in CXXFLAGS/LDFLAGS
-export GN_DEFINES += use_custom_libcxx=false
+## ============================================================================
+## LIBC++ CONFIGURATION: Why We Use Bundled Instead of System libc++
+## ============================================================================
+## DECISION (Build 203): Use BUNDLED libc++ (use_custom_libcxx=true)
+##
+## Background:
+## - Debian Chromium uses SYSTEM libc++ (libc++-19-dev) with use_custom_libcxx=false
+## - CEF upstream uses BUNDLED libc++ (Chromium's third_party/libc++)
+##
+## Why We Can't Use System libc++ (Builds 199-202 Failed):
+##
+## 1. MISSING UNBUNDLE PATCHES
+##    - Debian Chromium has ~50 unbundling patches we don't have
+##    - Critical: unbundle-toolchain.patch makes GN respect CXXFLAGS/LDFLAGS env vars
+##    - Without it, compiler flags don't propagate from debian/rules to ninja
+##    - CEF uses automate-git.py which doesn't include these patches
+##
+## 2. GCC VERSION CONFLICT (absl-optional.patch)
+##    - Debian Chromium's absl-optional.patch creates custom optional header
+##    - Based on GCC 14's /usr/include/c++/14/optional (uses __poison_hash template)
+##    - System default is GCC 15, which has incompatible headers
+##    - Clang needs --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14 flag
+##    - But we can't pass this flag without unbundle-toolchain.patch
+##
+## 3. ATTEMPTED SOLUTIONS (ALL FAILED):
+##    Build 200: Added --gcc-toolchain to CXXFLAGS → didn't propagate to ninja
+##    Build 201: Removed flag entirely → same __poison_hash error
+##    Build 202: Used GN extra_cxxflags/extra_ldflags → variables not applied
+##    Result: All 3 builds failed with identical error (GCC 15 headers used)
+##
+## 4. NO DEBIAN-NATIVE SOLUTION AVAILABLE
+##    - update-alternatives: Requires root, modifies system-wide (not for packages)
+##    - CC/CXX env vars: Overridden by GN's clang_base_path logic
+##    - Compiler wrappers: GN doesn't use CC/CXX, finds clang directly
+##
+## Why Bundled libc++ Works:
+## ✅ Designed for this exact Chromium version (142.0.7444.162)
+## ✅ No GCC version dependencies (self-contained)
+## ✅ No need for unbundle patches
+## ✅ Aligns with CEF upstream (how CEF is meant to be built)
+## ✅ Proven to work (Build 196 succeeded with bundled libc++)
+##
+## Trade-offs:
+## ❌ Uses bundled library instead of system package
+## ❌ Doesn't align with Debian Chromium's unbundling approach
+## ✅ But: Debian Chromium has infrastructure we don't (patches, build system)
+## ✅ Goal is working package, not perfect Debian alignment
+##
+## Future Improvement:
+## - To use system libc++, CEF would need Debian Chromium's unbundle patches
+## - This is a significant upstream change (100+ patches to port)
+## - Not feasible for initial Debian submission
+## ============================================================================
+export GN_DEFINES += use_custom_libcxx=true
 
 # CEF version/branch
 # Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.162)
