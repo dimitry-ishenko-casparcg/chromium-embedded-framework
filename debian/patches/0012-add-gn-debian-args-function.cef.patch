@@ -1,0 +1,63 @@
+Description: Add GetDebianArgs() function to gn_args.py for Debian build mode
+ Creates GetDebianArgs() function that detects DEBIAN_BUILD=1 environment
+ variable and injects custom_toolchain selection to use the unbundle toolchain
+ created in patch 0011.
+ .
+ When DEBIAN_BUILD=1 is set, the function returns:
+   custom_toolchain="//cef/toolchain/linux/debian:default"
+ .
+ This enables CEF to use system libc++ instead of bundled libc++ by selecting
+ the Debian unbundle toolchain that reads CXXFLAGS/LDFLAGS from environment
+ variables at GN parse time.
+ .
+ The function is integrated into GetMergedArgs() to ensure the custom toolchain
+ is applied during GN configuration generation.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-18
+
+diff --git a/tools/gn_args.py b/tools/gn_args.py
+index 5cec1ab..2155e1b 100644
+--- a/tools/gn_args.py
++++ b/tools/gn_args.py
+@@ -348,6 +348,30 @@ def GetGNEnvArgs():
+   return ParseNameValueList(ShlexEnv('GN_DEFINES'))
+
+
++def GetDebianArgs():
++  """
++  Return GN args for Debian builds that use system libc++.
++  Only applies when DEBIAN_BUILD environment variable is set.
++
++  Debian builds use a custom unbundle toolchain that reads compiler flags
++  from environment variables (CXXFLAGS, LDFLAGS) at GN parse time. This
++  enables CEF to use system libc++ instead of bundled libc++.
++  """
++  result = {}
++
++  # Only apply Debian-specific args when DEBIAN_BUILD is set
++  if os.environ.get('DEBIAN_BUILD', '') == '1':
++    if platform == 'linux':
++      # Use Debian unbundle toolchain for system libc++ support
++      # This toolchain reads CXXFLAGS/LDFLAGS from environment and sets
++      # use_custom_libcxx=false in toolchain_args
++      result['custom_toolchain'] = '//cef/toolchain/linux/debian:default'
++
++      msg('Debian: Using custom unbundle toolchain for system libc++')
++
++  return result
++
++
+ def GetRequiredArgs():
+   """
+   Return required GN args. Also enforced by assert() in //cef/BUILD.gn.
+@@ -385,7 +409,7 @@ def GetMergedArgs(build_args):
+   """
+   Return merged GN args.
+   """
+-  dict = MergeDicts(GetRecommendedDefaultArgs(), GetGNEnvArgs(), build_args)
++  dict = MergeDicts(GetRecommendedDefaultArgs(), GetGNEnvArgs(), GetDebianArgs(), build_args)
+
+   # Verify that the user is not trying to override required args.
+   required = GetRequiredArgs()
