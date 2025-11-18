@@ -1,0 +1,7 @@
+#!/bin/sh
+# Stub unbundle script for chromium-embedded-framework
+# CEF uses bundled dependencies from Chromium source tree
+# Unlike Debian Chromium, we don't replace system libraries here
+# because CEF's build process (automate-git.py) handles dependency management
+echo "chromium-embedded-framework: using bundled dependencies (stub unbundle script)"
+exit 0

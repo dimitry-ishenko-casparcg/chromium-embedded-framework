@@ -21,22 +21,23 @@ export CXX = clang++-19
 # Debian hardening flags (from Debian Chromium lines 39-42)
 # Critical for system libc++ compatibility (Build 197+)
 export DEB_CXXFLAGS_MAINT_STRIP=-g
-# Use system libc++ (libc++-19-dev) instead of bundled libc++
-# Aligns with Debian Chromium: export CXXFLAGS with -stdlib=libc++
-# Note: Don't use --gcc-toolchain here - it won't be passed to GN/ninja without unbundle patch
-export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++
-export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++
+# CRITICAL: Environment variable CXXFLAGS/LDFLAGS don't propagate to ninja without
+# Debian Chromium's unbundle-toolchain patch (which CEF doesn't have).
+# SOLUTION: Use GN_DEFINES extra_cxxflags/extra_ldflags which DO propagate correctly.
 
-# Warning suppression (from Debian Chromium lines 44-51)
-export CXXFLAGS+=-Wno-conversion \
-                 -Wno-unused-function \
-                 -Wno-unused-variable \
-                 -Wno-unused-private-field \
-                 -Wno-deprecated-declarations \
-                 -Wno-unknown-pragmas
+# Standard build flags
+export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS)
+export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS)
 
-# Safety flag (from Debian Chromium line 53)
-export CXXFLAGS+=-fno-delete-null-pointer-checks
+# Compiler flags passed through GN (Build 200-201: CXXFLAGS didn't work)
+# - Force GCC 14 libstdc++ headers: Debian Chromium's absl-optional.patch creates
+#   a custom optional header based on GCC 14's /usr/include/c++/14/optional.
+#   Using GCC 15's headers causes __poison_hash template errors (Build 199-201).
+# - Use system libc++ (libc++-19-dev) instead of bundled libc++
+# - Warning suppression (from Debian Chromium lines 44-51)
+# - Safety flag: -fno-delete-null-pointer-checks (from Debian Chromium line 53)
+export GN_DEFINES += extra_cxxflags=\"-stdlib=libc++ --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14 -Wno-conversion -Wno-unused-function -Wno-unused-variable -Wno-unused-private-field -Wno-deprecated-declarations -Wno-unknown-pragmas -fno-delete-null-pointer-checks\"
+export GN_DEFINES += extra_ldflags=\"-stdlib=libc++ --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14\"
 
 # Rust toolchain configuration (from Debian chromium lines 66-74)
 # Use system Rust instead of downloading from GCS
