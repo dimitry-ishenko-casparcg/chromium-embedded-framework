@@ -21,7 +21,11 @@ export CXX = clang++-19
 # Debian hardening flags (from Debian Chromium lines 39-42)
 # Critical for system libc++ compatibility (Build 197+)
 export DEB_CXXFLAGS_MAINT_STRIP=-g
-export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++
+# Force GCC 14 libstdc++ headers: Debian Chromium's absl-optional.patch creates
+# a custom optional header based on GCC 14's /usr/include/c++/14/optional.
+# Using GCC 15's headers causes __poison_hash template errors (Build 199).
+# This aligns with Debian Chromium's approach: system libc++ + GCC 14 libstdc++.
+export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++ --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/14
 export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++ -static-libstdc++
 
 # Warning suppression (from Debian Chromium lines 44-51)
