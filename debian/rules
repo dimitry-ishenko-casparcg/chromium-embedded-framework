@@ -24,12 +24,6 @@ export DEB_CXXFLAGS_MAINT_STRIP=-g
 export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++
 export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++ -static-libstdc++
 
-# Add libstdc++ include path for absl-optional.patch (Build 198+)
-# The absl-optional patch includes <bits/version.h> which is a libstdc++ header
-# With -stdlib=libc++, clang doesn't search libstdc++ paths by default
-# This enables the hybrid approach: libc++ runtime + selective libstdc++ header access
-export CXXFLAGS+=-isystem /usr/include/c++/14
-
 # Warning suppression (from Debian Chromium lines 44-51)
 export CXXFLAGS+=-Wno-conversion \
                  -Wno-unused-function \
@@ -53,9 +47,9 @@ export GN_DEFINES += rustc_version=\"$(shell $(rust_sysroot)/bin/rustc --version
 export GN_DEFINES += clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\"
 export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 
-# Use system libc++ instead of bundled (Build 198+)
+# Use system libc++ instead of bundled (Build 199+)
 # Aligns with Debian Chromium's system libc++ approach
-# Requires -stdlib=libc++ in CXXFLAGS and -isystem for libstdc++ headers
+# Requires -stdlib=libc++ in CXXFLAGS/LDFLAGS
 export GN_DEFINES += use_custom_libcxx=false
 
 # CEF version/branch
