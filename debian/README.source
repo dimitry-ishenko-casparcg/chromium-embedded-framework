@@ -69,10 +69,18 @@ justification.
 1. LIBC++ (C++ Standard Library)
 ---------------------------------
 
-Status: BUNDLED from Chromium's third_party/libc++
-Reason: ABI INCOMPATIBILITY with system libc++
+Status: SYSTEM (libc++-19-dev) - Build 197+
+Reason: Aligned with Debian Chromium (use_custom_libcxx=false)
 
-TECHNICAL DETAILS:
+CRITICAL DISCOVERY (2025-11-18):
+
+Previous documentation incorrectly stated Debian Chromium uses bundled libc++.
+Reality: Debian Chromium uses SYSTEM libc++ with use_custom_libcxx=false.
+
+Builds 108-113 failed with system libc++ due to missing compiler flags, NOT fundamental incompatibility.
+Build 197+ successfully uses system libc++ with proper configuration.
+
+TECHNICAL DETAILS (Historical - Builds 108-196):
 
 Chromium/CEF uses a custom libc++ build with Chromium-specific ABI settings:
   - ABI Namespace: std::__Cr:: (Chromium-specific)
@@ -122,9 +130,7 @@ are fundamentally incompatible with Chromium's expectations.
 
 PRECEDENT:
 
-Debian's src:chromium package ALSO uses bundled libc++ for identical ABI
-compatibility reasons. This is not a CEF-specific issue, but a fundamental
-Chromium build requirement.
+Debian's src:chromium package uses system libc++ (use_custom_libcxx=false). CEF now follows the same approach (Build 197+).
 
 IMPLEMENTATION:
 
