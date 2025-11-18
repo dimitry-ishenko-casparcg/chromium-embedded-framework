@@ -20,8 +20,9 @@ export CXX = clang++-19
 
 # Rust toolchain configuration (from Debian chromium lines 66-74)
 # Use system Rust instead of downloading from GCS
-# Force clang-22 (we set up symlinks for clang-22 at lines 536-558)
-CLANG_MVERS := 22
+# Align with Debian Chromium build environment (clang-19 + libc++-19)
+# Symlinks for clang-19 are set up at lines 406-576
+CLANG_MVERS := 19
 rust_sysroot = /usr
 export GN_DEFINES += rust_sysroot_absolute=\"$(rust_sysroot)\"
 export GN_DEFINES += rust_bindgen_root=\"/usr\"
@@ -214,7 +215,8 @@ override_dh_auto_build:
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
-	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, libc++, network isolation, test_fonts, warning-suppression, panic-abort)"
+	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
+	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
@@ -701,7 +703,7 @@ override_dh_auto_build:
 	## violating Debian's no-internet build policy.
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_custom_libcxx=true use_cxx23=true use_remoteexec=false use_siso=false" && \
+	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_custom_libcxx=false use_cxx23=true use_remoteexec=false use_siso=false" && \
 	export PATH=$(CURDIR)/depot_tools:$$PATH && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
