@@ -1,6 +1,6 @@
 Description: Fix opus stub BUILD.gn after gclient runhooks for Debian builds
  Modifies automate-git.py to inject include_dirs into the empty opus_config
- created by Debian Chromium patches. The Debian Chromium opus stub has an
+ created by debian/rules. The debian/rules creates an opus stub with an
  empty config("opus_config") {} with no include_dirs, preventing FFmpeg from
  finding opus headers like opus_defines.h. This patch adds include_dirs to
  the config so dependent targets (FFmpeg) can access system libopus headers.
@@ -13,27 +13,30 @@ Forwarded: not-needed
 Last-Update: 2025-11-19
 
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
-index c267e45..d4be314 100644
+index b6c0b3f..99c4f88 100644
 --- a/tools/automate/automate-git.py
 +++ b/tools/automate/automate-git.py
-@@ -1695,15 +1695,15 @@ if os.environ.get('DEBIAN_BUILD') == '1':
-   if os.path.exists(opus_build_file):
-     with open(opus_build_file, 'r') as f:
-       content = f.read()
--    # Add public_configs to export opus_config (include_dirs already set by Debian Chromium patch)
--    if 'public_configs = [ ":opus_config" ]' not in content:
+@@ -1689,6 +1689,23 @@ apply_runhooks_patch()
+ # Runs hooks for files that have been modified in the local working copy.
+ run("gclient runhooks", chromium_dir)
+
++# Debian: Fix opus stub BUILD.gn after gclient runhooks
++if os.environ.get('DEBIAN_BUILD') == '1':
++  msg('Debian: Fixing opus stub BUILD.gn to add include_dirs for system libopus headers')
++  opus_build_file = os.path.join(chromium_src_dir, 'third_party', 'opus', 'BUILD.gn')
++  if os.path.exists(opus_build_file):
++    with open(opus_build_file, 'r') as f:
++      content = f.read()
 +    # Add include_dirs to opus_config so FFmpeg can find opus headers
 +    if 'include_dirs = [ "/usr/include/opus" ]' not in content:
-       content = content.replace(
--        'source_set("opus") { sources = [] }',
--        'source_set("opus") {\n  sources = []\n  public_configs = [ ":opus_config" ]\n}'
++      content = content.replace(
 +        'config("opus_config") {}',
 +        'config("opus_config") {\n  include_dirs = [ "/usr/include/opus" ]\n}'
-       )
-       with open(opus_build_file, 'w') as f:
-         f.write(content)
--      msg('Debian: Fixed opus stub BUILD.gn to export system headers via public_configs')
++      )
++      with open(opus_build_file, 'w') as f:
++        f.write(content)
 +      msg('Debian: Fixed opus stub BUILD.gn to add include_dirs for system libopus headers')
-
++
  if cef_dir == cef_src_dir:
    # Running in fast update mode.
+   if cef_checkout_changed or chromium_checkout_changed:
