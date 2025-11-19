@@ -1,0 +1,32 @@
+Description: Handle SwiftShader Reactor with no backends available
+ When both SwiftShader backends (subzero and LLVM) are disabled, the reactor
+ target still needs to exist to satisfy GN dependencies from Vulkan backend.
+ This creates an empty target when neither backend is available.
+ .
+ Both SwiftShader backends fail with system libc++ due to incomplete type usage
+ in std::unique_ptr<llvm::APFloat[]>. libc++ requires complete types while
+ libstdc++ does not. Rather than fixing incompatible bundled code, we disable
+ SwiftShader entirely for Debian builds.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-19
+
+diff --git a/third_party/swiftshader/src/Reactor/BUILD.gn b/third_party/swiftshader/src/Reactor/BUILD.gn
+index dcb1361..ca7d389 100644
+--- a/third_party/swiftshader/src/Reactor/BUILD.gn
++++ b/third_party/swiftshader/src/Reactor/BUILD.gn
+@@ -344,7 +344,12 @@ if (supports_llvm) {
+ }
+
+ swiftshader_source_set("swiftshader_reactor") {
+-  if (use_swiftshader_with_subzero) {
++  # Debian: When both backends are disabled (libc++ incompatibility),
++  # create empty target to prevent GN dependency resolution errors
++  if (!supports_subzero && !supports_llvm) {
++    # Empty target - no backend available
++    sources = []
++  } else if (use_swiftshader_with_subzero) {
+     deps = [
+       ":swiftshader_subzero_reactor",
+     ]
