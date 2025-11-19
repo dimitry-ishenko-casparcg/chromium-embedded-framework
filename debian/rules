@@ -300,6 +300,9 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-remove-libstdcxx-optional-header.chromium.patch
 	# Patch 0024: Fix Clang 19 warning flag names to eliminate warning spam
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-fix-clang-19-warning-flags.chromium.patch
+	# Patch 0001: Handle SwiftShader reactor with no backends (both subzero and LLVM disabled)
+	# Both backends fail with libc++ due to incomplete APFloat type in std::unique_ptr
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
