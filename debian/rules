@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Align with Debian Chromium configuration (chromium_142.0.7444.162-1.debian.tar.xz)
+# Align with Debian Chromium configuration (chromium_142.0.7444.175-1.debian.tar.xz)
 # Reference: /tmp/chromium-debian-reference/debian/rules
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
@@ -82,7 +82,7 @@ export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 export GN_DEFINES += use_custom_libcxx=false
 
 # CEF version/branch
-# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.162)
+# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.175)
 CEF_BRANCH = 7444
 
 %:
@@ -140,12 +140,12 @@ override_dh_auto_build:
 	@echo "==> CEF git repository initialized"
 
 	# Step 4: Fix version mismatch (CEF expects .53, Debian has .162)
-	sed -i "s/142\.0\.7444\.53/142.0.7444.162/" \
+	sed -i "s/142\.0\.7444\.53/142.0.7444.175/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Extract Debian chromium source tarball
 	@echo "==> Extracting Debian chromium source"
-	tar -xf $(CURDIR)/../chromium_142.0.7444.162.orig.tar.xz \
+	tar -xf $(CURDIR)/../chromium_142.0.7444.175.orig.tar.xz \
 		-C $(CURDIR)/chromium_src
 	mkdir -p $(CURDIR)/chromium_src/chromium
 	@if [ -d $(CURDIR)/chromium_src/chromium-* ]; then \
@@ -168,7 +168,7 @@ override_dh_auto_build:
 	# Step 5.5: Apply Debian Chromium patches to vanilla source
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../chromium_142.0.7444.162-1.debian.tar.xz \
+	tar -xf $(CURDIR)/../chromium_142.0.7444.175-1.debian.tar.xz \
 		-C $(CURDIR)/chromium_src/chromium/
 	# Apply debianization patches (system libraries, build fixes, security patches)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
@@ -305,31 +305,6 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
-	# Step 6.7: Create opus stub BUILD.gn for system libopus
-	# Debian Chromium removes bundled opus, but ffmpeg needs opus headers
-	# This creates a minimal BUILD.gn that exports system opus include paths
-	@echo "==> Creating opus stub BUILD.gn for system libopus"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/opus
-	printf '%s\n' \
-		'# Stub BUILD.gn for Debian builds' \
-		'# Debian uses system libopus instead of bundled version' \
-		'' \
-		'config("opus_config") {' \
-		'  include_dirs = [ "/usr/include/opus" ]' \
-		'}' \
-		'' \
-		'source_set("opus") {' \
-		'  sources = []' \
-		'  public_configs = [ ":opus_config" ]' \
-		'}' \
-		'executable("opus_compare") { sources = [] }' \
-		'executable("opus_demo") { sources = [] }' \
-		'executable("test_opus_api") { sources = [] }' \
-		'executable("test_opus_decode") { sources = [] }' \
-		'executable("test_opus_encode") { sources = [] }' \
-		'executable("test_opus_padding") { sources = [] }' \
-		> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
 	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
 	@echo "==> Fixing generate_location_tags condition in DEPS"
@@ -350,7 +325,10 @@ override_dh_auto_build:
 	echo '# Debian uses system libopus instead of bundled version' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '# These are test/demo targets not needed for CEF' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'source_set("opus") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'source_set("opus") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '  public_configs = [ ":opus_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'config("opus_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("opus_compare") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("opus_demo") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
@@ -802,7 +780,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.162.orig.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.175.orig.tar.xz \
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \

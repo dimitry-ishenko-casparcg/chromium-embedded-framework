@@ -9,3 +9,4 @@
 0009-update-cef-mac-frame-patch.cef.patch
 0010-add-rust-toolchain-stub.cef.patch
 0012-add-gn-debian-args-function.cef.patch
+0013-fix-opus-stub-after-gclient-runhooks.cef.patch
