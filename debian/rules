@@ -298,6 +298,8 @@ override_dh_auto_build:
 	# This header includes <bits/version.h> (GCC-specific, doesn't exist in libc++)
 	# Must be removed AFTER gclient sync (which extracts tarball) but BEFORE compilation
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-remove-libstdcxx-optional-header.chromium.patch
+	# Patch 0024: Fix Clang 19 warning flag names to eliminate warning spam
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-fix-clang-19-warning-flags.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
