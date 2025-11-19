@@ -20,7 +20,7 @@ diff --git a/tools/gn_args.py b/tools/gn_args.py
 index 5cec1ab..9b84916 100644
 --- a/tools/gn_args.py
 +++ b/tools/gn_args.py
-@@ -348,6 +348,34 @@ def GetGNEnvArgs():
+@@ -348,6 +348,35 @@ def GetGNEnvArgs():
    return ParseNameValueList(ShlexEnv('GN_DEFINES'))
 
 
@@ -56,7 +56,7 @@ index 5cec1ab..9b84916 100644
  def GetRequiredArgs():
    """
    Return required GN args. Also enforced by assert() in //cef/BUILD.gn.
-@@ -385,7 +413,7 @@ def GetMergedArgs(build_args):
+@@ -385,7 +414,7 @@ def GetMergedArgs(build_args):
    """
    Return merged GN args.
    """
