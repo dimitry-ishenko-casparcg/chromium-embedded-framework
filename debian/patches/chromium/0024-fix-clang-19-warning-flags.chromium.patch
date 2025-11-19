@@ -1,0 +1,34 @@
+Description: Fix Clang 19 warning flag names
+ Chromium's BUILD.gn uses warning flag names that don't exist in Clang 19.
+ This patch updates them to the correct names to avoid warning spam.
+ .
+ Changes:
+ - Replace -Wno-nontrivial-memcall with -Wno-nontrivial-memaccess
+ - Replace -Wno-uninitialized-const-pointer with -Wno-uninitialized-const-reference
+ .
+ These are cosmetic changes that eliminate hundreds of "unknown warning option"
+ warnings during compilation without affecting build correctness.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-19
+
+diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
+index 9a7c0d6..1e94faf 100644
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -2179,10 +2179,12 @@ config("default_warnings") {
+       "-Wno-thread-safety-reference-return",
+
+       # TODO(crbug.com/376641662): Fix and re-enable.
+-      "-Wno-nontrivial-memcall",
++      # Debian: Use correct flag name for Clang 19
++      "-Wno-nontrivial-memaccess",
+
+       # TODO(crbug.com/432275627): Fix and re-enable.
+-      "-Wno-uninitialized-const-pointer",
++      # Debian: Use correct flag name for Clang 19
++      "-Wno-uninitialized-const-reference",
+     ]
+
+     cflags_cc += [

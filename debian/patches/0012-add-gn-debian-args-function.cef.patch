@@ -1,42 +1,41 @@
-Description: Add GetDebianArgs() function for system libc++ support
- Adds GetDebianArgs() function to gn_args.py which injects unbundle toolchain
- selection for Debian builds. This enables the use of system libc++ by allowing
- CXXFLAGS and LDFLAGS from debian/rules to reach the compiler.
+Description: Add GetDebianArgs() function for Debian build configuration
+ Adds GetDebianArgs() function to gn_args.py which configures GN args for
+ Debian builds. This enables system libc++ support and disables incompatible
+ SwiftShader subzero backend.
  .
- The unbundle toolchain at //build/toolchain/linux/unbundle:default reads
- environment variables via getenv(), making -stdlib=libc++ flags from
- debian/rules effective during compilation.
+ System libc++ support: Uses unbundle toolchain which reads CXXFLAGS/LDFLAGS
+ from environment via getenv(), making -stdlib=libc++ flags from debian/rules
+ effective during compilation.
  .
- This completes Debian Chromium's three-component strategy for system libc++:
-  1. Stub BUILD.gn for bundled libc++ (patch 0022)
-  2. use_custom_libcxx=false (set in tarball_args.gn)
-  3. Unbundle toolchain selection (this patch)
+ SwiftShader disabled: Both subzero and LLVM backends incompatible with libc++.
+ They use std::unique_ptr<llvm::APFloat[]> without complete type definition,
+ causing compilation failures (libc++ requires complete types in unique_ptr).
+ System Mesa/llvmpipe used for software rendering instead
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-18
 
 diff --git a/tools/gn_args.py b/tools/gn_args.py
-index 5cec1ab..4f02bb9 100644
+index 5cec1ab..9b84916 100644
 --- a/tools/gn_args.py
 +++ b/tools/gn_args.py
-@@ -348,6 +348,31 @@ def GetGNEnvArgs():
+@@ -348,6 +348,34 @@ def GetGNEnvArgs():
    return ParseNameValueList(ShlexEnv('GN_DEFINES'))
 
 
 +def GetDebianArgs():
 +  """
-+  Return GN args for Debian builds with system libc++.
++  Return GN args for Debian builds with system libc++ and compatible backends.
 +
-+  Debian builds use the unbundle toolchain which reads CXXFLAGS and LDFLAGS
-+  from environment variables via getenv(). This enables -stdlib=libc++ flags
-+  (set in debian/rules) to reach the compiler, allowing system libc++ to be
-+  used instead of Chromium's bundled libc++.
++  System libc++ support:
++  - Uses unbundle toolchain which reads CXXFLAGS/LDFLAGS from environment
++  - Enables -stdlib=libc++ flags (set in debian/rules) to reach compiler
 +
-+  This approach follows Debian Chromium's strategy:
-+  1. Stub BUILD.gn for bundled libc++ (patch 0022)
-+  2. use_custom_libcxx=false (already set in tarball_args.gn)
-+  3. Unbundle toolchain selection (this function)
++  SwiftShader disabled:
++  - Both subzero and LLVM backends use incomplete llvm::APFloat type
++  - libc++ requires complete types in unique_ptr (stricter than libstdc++)
++  - System Mesa/llvmpipe used for software rendering instead
 +  """
 +  result = {}
 +
@@ -46,13 +45,17 @@ index 5cec1ab..4f02bb9 100644
 +    result['custom_toolchain'] = '//build/toolchain/linux/unbundle:default'
 +    result['host_toolchain'] = '//build/toolchain/linux/unbundle:default'
 +
++    # Disable SwiftShader entirely (incompatible with libc++)
++    # Uses system Mesa/llvmpipe for software rendering instead
++    result['enable_swiftshader'] = False
++
 +  return result
 +
 +
  def GetRequiredArgs():
    """
    Return required GN args. Also enforced by assert() in //cef/BUILD.gn.
-@@ -385,7 +410,7 @@ def GetMergedArgs(build_args):
+@@ -385,7 +413,7 @@ def GetMergedArgs(build_args):
    """
    Return merged GN args.
    """
