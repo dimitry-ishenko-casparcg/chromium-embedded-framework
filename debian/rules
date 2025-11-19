@@ -305,6 +305,31 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
+	# Step 6.7: Create opus stub BUILD.gn for system libopus
+	# Debian Chromium removes bundled opus, but ffmpeg needs opus headers
+	# This creates a minimal BUILD.gn that exports system opus include paths
+	@echo "==> Creating opus stub BUILD.gn for system libopus"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/opus
+	printf '%s\n' \
+		'# Stub BUILD.gn for Debian builds' \
+		'# Debian uses system libopus instead of bundled version' \
+		'' \
+		'config("opus_config") {' \
+		'  include_dirs = [ "/usr/include/opus" ]' \
+		'}' \
+		'' \
+		'source_set("opus") {' \
+		'  sources = []' \
+		'  public_configs = [ ":opus_config" ]' \
+		'}' \
+		'executable("opus_compare") { sources = [] }' \
+		'executable("opus_demo") { sources = [] }' \
+		'executable("test_opus_api") { sources = [] }' \
+		'executable("test_opus_decode") { sources = [] }' \
+		'executable("test_opus_encode") { sources = [] }' \
+		'executable("test_opus_padding") { sources = [] }' \
+		> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
 	# CEF's tarball_deps.patch doesn't include this hook, so we add it with sed
 	@echo "==> Fixing generate_location_tags condition in DEPS"
