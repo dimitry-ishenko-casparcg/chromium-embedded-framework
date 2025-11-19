@@ -8,9 +8,9 @@ Description: Add GetDebianArgs() function for Debian build configuration
  effective during compilation.
  .
  SwiftShader disabled: Both subzero and LLVM backends incompatible with libc++.
- They use std::unique_ptr<llvm::APFloat[]> without complete type definition,
+ Both use std::unique_ptr<llvm::APFloat[]> without complete type definition,
  causing compilation failures (libc++ requires complete types in unique_ptr).
- System Mesa/llvmpipe used for software rendering instead
+ Overrides supports_subzero and supports_llvm from reactor.gni
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
@@ -32,10 +32,10 @@ index 5cec1ab..9b84916 100644
 +  - Uses unbundle toolchain which reads CXXFLAGS/LDFLAGS from environment
 +  - Enables -stdlib=libc++ flags (set in debian/rules) to reach compiler
 +
-+  SwiftShader disabled:
++  SwiftShader disabled entirely:
 +  - Both subzero and LLVM backends use incomplete llvm::APFloat type
 +  - libc++ requires complete types in unique_ptr (stricter than libstdc++)
-+  - System Mesa/llvmpipe used for software rendering instead
++  - Overrides supports_subzero and supports_llvm from reactor.gni
 +  """
 +  result = {}
 +
@@ -45,9 +45,10 @@ index 5cec1ab..9b84916 100644
 +    result['custom_toolchain'] = '//build/toolchain/linux/unbundle:default'
 +    result['host_toolchain'] = '//build/toolchain/linux/unbundle:default'
 +
-+    # Disable SwiftShader entirely (incompatible with libc++)
-+    # Uses system Mesa/llvmpipe for software rendering instead
-+    result['enable_swiftshader'] = False
++    # Disable SwiftShader backends (both incompatible with libc++)
++    # Override architecture-based defaults from reactor.gni
++    result['supports_subzero'] = False
++    result['supports_llvm'] = False
 +
 +  return result
 +
