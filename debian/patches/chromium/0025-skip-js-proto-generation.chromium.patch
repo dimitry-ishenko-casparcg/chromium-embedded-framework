@@ -1,0 +1,42 @@
+Description: Skip JS proto generation and create empty placeholder files
+ protoc-gen-js crashes due to protobuf version mismatch when built with
+ system libc++ (use_custom_libcxx=false). The crash occurs because
+ protoc-gen-js links against system libprotobuf at runtime, which has
+ different descriptor metadata than expected.
+ .
+ This patch modifies protoc_wrapper.py to skip running protoc-gen-js
+ and instead create empty placeholder JS files. JS protos are not
+ needed for CEF builds.
+ .
+ Error: Check failed: file != nullptr (in generated_message_reflection.cc:3860)
+ Signal: SIGABRT (signal 6)
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-20
+
+diff --git a/tools/protoc_wrapper/protoc_wrapper.py b/tools/protoc_wrapper/protoc_wrapper.py
+index 68261a7..a7f1017 100755
+--- a/tools/protoc_wrapper/protoc_wrapper.py
++++ b/tools/protoc_wrapper/protoc_wrapper.py
+@@ -167,12 +167,16 @@ def main(argv):
+   if options.py_out_dir:
+     protoc_cmd += ["--python_out", options.py_out_dir]
+
++  # Debian: Skip JS proto generation and create empty placeholder files
++  # protoc-gen-js crashes due to protobuf version mismatch when built with
++  # system libc++ (use_custom_libcxx=false). JS protos are not needed for CEF.
+   if options.js_out_dir:
+-    protoc_cmd += [
+-        "--js_out",
+-        "one_output_file_per_input_file,binary:" + options.js_out_dir,
+-        "--plugin=protoc-gen-js=" + os.path.realpath(options.protoc_gen_js),
+-    ]
++    os.makedirs(options.js_out_dir, exist_ok=True)
++    for filename in protos:
++      stripped_name = StripProtoExtension(filename)
++      js_file = os.path.join(options.js_out_dir, stripped_name + ".js")
++      with open(js_file, 'w') as f:
++        f.write("// Placeholder - JS proto generation skipped (Debian)\n")
+   if options.ts_out_dir:
+     protoc_cmd += [
+         "--ts_proto_out=" + options.ts_out_dir,
