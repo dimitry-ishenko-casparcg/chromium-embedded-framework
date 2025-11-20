@@ -81,7 +81,7 @@ index b453ada..762ab08 100644
 +
 +    # Debian: Link against locale stub library
 +    libs = [ "locale_stub" ]
-+    lib_dirs = [ rebase_path(root_out_dir + "/obj/debian", root_build_dir) ]
++    lib_dirs = [ "$root_out_dir/obj/debian" ]
 +
      configs -= [ "//build/config/compiler:chromium_code" ]
      configs += [ "//build/config/compiler:no_chromium_code" ]
