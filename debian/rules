@@ -289,7 +289,6 @@ override_dh_auto_build:
 	# Patch 0018-rust-clanglib removed - now obsolete with clang-19 symlinks at lines 536-558
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-bindgen-libclang-abspath.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-skip-nodejs-version-check.chromium.patch
-	# Patch 0021-swiftshader-use-llvm-16 removed - patch file does not exist
 	# Patch 0022: Create stub BUILD.gn for bundled libc++ when using system libc++ (use_custom_libcxx=false)
 	# When using custom unbundle toolchain (patches 0011-0012), bundled libc++ directory doesn't exist
 	# but GN still tries to load buildtools/third_party/libc++/BUILD.gn during parse phase
@@ -301,8 +300,8 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-remove-libstdcxx-optional-header.chromium.patch
 	# Patch 0024: Fix Clang 19 warning flag names to eliminate warning spam
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-fix-clang-19-warning-flags.chromium.patch
-	# Patch 0001: Handle SwiftShader reactor with no backends (both subzero and LLVM disabled)
-	# Both backends fail with libc++ due to incomplete APFloat type in std::unique_ptr
+	# Patch 0001: Handle SwiftShader reactor conditional target (for subzero-disabled builds)
+	# With subzero disabled and LLVM enabled, this patch ensures proper GN target resolution
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
 	# Patch 0025: Skip JS proto generation due to protobuf version mismatch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-skip-js-proto-generation.chromium.patch
@@ -616,11 +615,7 @@ override_dh_auto_build:
 	echo 'group("ReactorUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
 	echo 'executable("swiftshader_reactor_llvm_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
 	echo 'executable("swiftshader_reactor_subzero_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
-	@echo "==> Creating stub third_party/swiftshader/third_party/llvm-10.0/BUILD.gn (bundled library)"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0
-	echo '# Stub BUILD.gn for Debian builds - bundled library' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
-	echo 'source_set("llvm-10.0") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
-	echo 'source_set("swiftshader_llvm") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
+	# llvm-10.0 stub removed - now using bundled LLVM-16.0 with patch 0026
 	@echo "==> Creating stub third_party/catapult/third_party/gsutil/BUILD.gn (bundled tool)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil
 	echo '# Stub BUILD.gn for Debian builds - bundled tool' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/gsutil/BUILD.gn
