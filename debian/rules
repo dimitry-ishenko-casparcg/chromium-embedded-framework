@@ -79,7 +79,8 @@ export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 ## - Now: Created CEF unbundle toolchain inspired by Debian Chromium
 ## - Critical: Toolchain reads flags via getenv() at GN PARSE time (not build time)
 ## ============================================================================
-export GN_DEFINES += use_custom_libcxx=false
+# Note: GN_DEFINES is set in the automate-git.py invocation (line ~797)
+# Individual settings like use_custom_libcxx=false and use_thin_lto=false are there
 
 # CEF version/branch
 # Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.175)
@@ -499,9 +500,26 @@ override_dh_auto_build:
 	@echo "==> Creating stub third_party/zlib/BUILD.gn (Debian uses system zlib)"
 	# Do NOT mkdir - directory already exists with zlib.h and other headers
 	echo '# Stub BUILD.gn for Debian builds - uses system zlib' > $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
-	echo 'source_set("zlib") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
-	echo 'source_set("minizip") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
-	echo 'config("zlib_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'config("zlib_config") { libs = [ "z" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'source_set("zlib") { sources = [] public_configs = [ ":zlib_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'source_set("minizip") { sources = [] public_configs = [ ":zlib_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	# Symlink system zlib headers to bundled paths (tarball strips zlib.h but code expects it)
+	@echo "==> Creating symlinks for zlib headers (code includes third_party/zlib/zlib.h)"
+	ln -sf /usr/include/zlib.h $(CURDIR)/chromium_src/chromium/src/third_party/zlib/zlib.h
+	ln -sf /usr/include/zconf.h $(CURDIR)/chromium_src/chromium/src/third_party/zlib/zconf.h
+	# Symlink system double-conversion headers (tarball strips headers but code expects them)
+	@echo "==> Creating symlink for double-conversion headers"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion
+	ln -sf /usr/include/double-conversion $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/double-conversion
+	# Symlink system zstd headers (tarball strips headers but code expects them)
+	@echo "==> Creating symlink for zstd headers"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zstd/src/lib
+	ln -sf /usr/include/zstd.h $(CURDIR)/chromium_src/chromium/src/third_party/zstd/src/lib/zstd.h
+	ln -sf /usr/include/zstd_errors.h $(CURDIR)/chromium_src/chromium/src/third_party/zstd/src/lib/zstd_errors.h
+	# Symlink system protobuf src (tarball strips protobuf source but protoc needs it for imports)
+	@echo "==> Creating symlink for protobuf src directory"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/protobuf
+	ln -sf /usr/include $(CURDIR)/chromium_src/chromium/src/third_party/protobuf/src
 	@echo "==> Creating stub third_party/harfbuzz-ng/harfbuzz.gni (Debian uses system harfbuzz)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng
 	echo '# Stub harfbuzz.gni for Debian builds - uses system harfbuzz' > $(CURDIR)/chromium_src/chromium/src/third_party/harfbuzz-ng/harfbuzz.gni
@@ -531,7 +549,8 @@ override_dh_auto_build:
 	@echo "==> Creating stub base/third_party/double_conversion/BUILD.gn (Debian uses system double-conversion)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion
 	echo '# Stub BUILD.gn for Debian builds - uses system double-conversion' > $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
-	echo 'source_set("double_conversion") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
+	echo 'config("double_conversion_config") { libs = [ "double-conversion" ] }' >> $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
+	echo 'source_set("double_conversion") { sources = [] public_configs = [ ":double_conversion_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/base/third_party/double_conversion/BUILD.gn
 	@echo "==> Creating stub third_party/catapult/tracing/BUILD.gn (Debian strips catapult)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing
 	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
@@ -780,7 +799,7 @@ override_dh_auto_build:
 	## violating Debian's no-internet build policy.
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_cxx23=true use_remoteexec=false use_siso=false" && \
+	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_cxx23=true use_remoteexec=false use_siso=false use_thin_lto=false" && \
 	export PATH=$(CURDIR)/depot_tools:$$PATH && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
