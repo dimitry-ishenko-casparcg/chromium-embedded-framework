@@ -1,16 +1,15 @@
 Description: Add GetDebianArgs() function for Debian build configuration
  Adds GetDebianArgs() function to gn_args.py which configures GN args for
  Debian builds. This enables system libc++ support and disables incompatible
- SwiftShader subzero backend.
+ SwiftShader subzero backend while using LLVM backend.
  .
  System libc++ support: Uses unbundle toolchain which reads CXXFLAGS/LDFLAGS
  from environment via getenv(), making -stdlib=libc++ flags from debian/rules
  effective during compilation.
  .
- SwiftShader disabled: Both subzero and LLVM backends incompatible with libc++.
- Both use std::unique_ptr<llvm::APFloat[]> without complete type definition,
- causing compilation failures (libc++ requires complete types in unique_ptr).
- Overrides supports_subzero and supports_llvm from reactor.gni
+ SwiftShader: Disable subzero backend, enable LLVM backend like Debian Chromium.
+ The LLVM-16 bundled with Chromium handles C++23 APFloat correctly.
+ Overrides supports_subzero from reactor.gni
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
@@ -32,10 +31,10 @@ index 5cec1ab..9b84916 100644
 +  - Uses unbundle toolchain which reads CXXFLAGS/LDFLAGS from environment
 +  - Enables -stdlib=libc++ flags (set in debian/rules) to reach compiler
 +
-+  SwiftShader disabled entirely:
-+  - Both subzero and LLVM backends use incomplete llvm::APFloat type
-+  - libc++ requires complete types in unique_ptr (stricter than libstdc++)
-+  - Overrides supports_subzero and supports_llvm from reactor.gni
++  SwiftShader LLVM backend:
++  - Disable subzero backend, use LLVM backend like Debian Chromium
++  - The bundled LLVM-16.0 handles C++23 APFloat correctly
++  - Overrides supports_subzero from reactor.gni
 +  """
 +  result = {}
 +
@@ -45,10 +44,10 @@ index 5cec1ab..9b84916 100644
 +    result['custom_toolchain'] = '//build/toolchain/linux/unbundle:default'
 +    result['host_toolchain'] = '//build/toolchain/linux/unbundle:default'
 +
-+    # Disable SwiftShader backends (both incompatible with libc++)
++    # Disable subzero backend, use LLVM backend (like Debian Chromium)
 +    # Override architecture-based defaults from reactor.gni
 +    result['supports_subzero'] = False
-+    result['supports_llvm'] = False
++    # supports_llvm defaults to True for Linux, use bundled LLVM-16.0
 +
 +  return result
 +

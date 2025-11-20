@@ -89,6 +89,27 @@ before CEF uses them. This is a fundamental architectural decision.
 2. **Build Compatibility**: Fixes build issues with Debian's toolchain
    (GCC 14, LLVM 19, C++23 standard, SwiftShader compatibility)
 
+**LLVM Usage Clarification - Two Different LLVM Purposes:**
+
+This package uses LLVM in two completely separate contexts:
+
+  1. **Compiler Toolchain (System LLVM-19)**
+     - Used for *compiling* all Chromium/CEF C++ code
+     - Provided by Debian's clang-19 package
+     - Set via: clang_base_path="/usr/lib/llvm-19" in args.gn
+     - This is the unbundled system LLVM
+
+  2. **SwiftShader JIT (Bundled LLVM-16.0)**
+     - Used by SwiftShader's Reactor library for *runtime JIT compilation*
+     - Located at: third_party/swiftshader/third_party/llvm-16.0
+     - This is a separate LLVM copy bundled inside Chromium's tarball
+     - NOT related to system LLVM-19
+     - The swiftshader-use-llvm-16.patch simply changes the path from
+       the older bundled llvm-10.0 to the newer bundled llvm-16.0
+
+  These are independent - system LLVM-19 compiles the code, while bundled
+  LLVM-16.0 provides the JIT backend for SwiftShader's GPU emulation
+
 3. **Security and Stability**: Includes Debian's security fixes and stability
    improvements
 
