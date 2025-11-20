@@ -319,6 +319,10 @@ override_dh_auto_build:
 	@echo "==> GN symlink created"
 
 	# Step 7.5: Create stub files for Debian-stripped directories
+	@echo "==> Creating Debian stub main.cc for empty executables"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/debian_stubs
+	echo '// Debian stub main for stripped executables' > $(CURDIR)/chromium_src/chromium/src/third_party/debian_stubs/stub_main.cc
+	echo 'int main() { return 0; }' >> $(CURDIR)/chromium_src/chromium/src/third_party/debian_stubs/stub_main.cc
 	@echo "==> Creating stub BUILD.gn for third_party/opus (Debian uses system libopus)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/opus
 	echo '# Stub BUILD.gn for Debian builds' > $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
@@ -330,12 +334,12 @@ override_dh_auto_build:
 	echo '  public_configs = [ ":opus_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'config("opus_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'executable("opus_compare") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'executable("opus_demo") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'executable("test_opus_api") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'executable("test_opus_decode") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'executable("test_opus_encode") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'executable("test_opus_padding") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("opus_compare") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("opus_demo") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_api") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_decode") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_encode") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'executable("test_opus_padding") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	@echo "==> Creating stub chrome/android/modules/buildflags.gni (Debian strips Android files)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/chrome/android/modules
 	echo '# Stub buildflags.gni for Debian builds' > $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
@@ -361,7 +365,7 @@ override_dh_auto_build:
 	echo '# Debian strips catapult testing tools' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
 	echo '# This is a test/benchmark tool not needed for CEF' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
-	echo 'executable("bitmaptools") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
+	echo 'executable("bitmaptools") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
 	@echo "==> Creating stub third_party/libjpeg_turbo/BUILD.gn (Debian uses system libjpeg)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo
 	echo '# Stub BUILD.gn for Debian builds' > $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
@@ -490,8 +494,10 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig
 	echo '# Stub BUILD.gn for Debian builds - uses system fontconfig' > $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
 	echo 'source_set("fontconfig") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	# NOTE: Create zlib stub BUILD.gn but do NOT mkdir - directory exists with headers
+	# The tarball removes BUILD.gn but keeps header files needed by crc32.cc
 	@echo "==> Creating stub third_party/zlib/BUILD.gn (Debian uses system zlib)"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zlib
+	# Do NOT mkdir - directory already exists with zlib.h and other headers
 	echo '# Stub BUILD.gn for Debian builds - uses system zlib' > $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	echo 'source_set("zlib") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	echo 'source_set("minizip") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
@@ -530,7 +536,7 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing
 	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
 	echo 'group("convert_chart_json") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
-	echo 'executable("generate_about_tracing") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
+	echo 'executable("generate_about_tracing") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
 	@echo "==> Creating stub third_party/enterprise_companion/BUILD.gn (Debian strips enterprise_companion)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion
 	echo '# Stub BUILD.gn for Debian builds - enterprise_companion stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion/BUILD.gn
@@ -582,13 +588,13 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests
 	echo '# Stub BUILD.gn for Debian builds - test directory' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
 	echo 'group("SystemUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
-	echo 'executable("swiftshader_system_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+	echo 'executable("swiftshader_system_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
 	@echo "==> Creating stub third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn (test directory)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests
 	echo '# Stub BUILD.gn for Debian builds - test directory' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
 	echo 'group("ReactorUnitTests") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
-	echo 'executable("swiftshader_reactor_llvm_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
-	echo 'executable("swiftshader_reactor_subzero_unittests") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'executable("swiftshader_reactor_llvm_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+	echo 'executable("swiftshader_reactor_subzero_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
 	@echo "==> Creating stub third_party/swiftshader/third_party/llvm-10.0/BUILD.gn (bundled library)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0
 	echo '# Stub BUILD.gn for Debian builds - bundled library' > $(CURDIR)/chromium_src/chromium/src/third_party/swiftshader/third_party/llvm-10.0/BUILD.gn
