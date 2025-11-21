@@ -305,6 +305,8 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
 	# Patch 0025: Skip JS proto generation due to protobuf version mismatch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-skip-js-proto-generation.chromium.patch
+	# Patch 0027: Fix APFloat C++23 compatibility in SwiftShader's bundled LLVM-16
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-apfloat-cxx23-fix.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
