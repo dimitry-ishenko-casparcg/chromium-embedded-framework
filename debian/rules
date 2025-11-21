@@ -309,6 +309,8 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-apfloat-cxx23-fix.chromium.patch
 	# Patch 0028: Fix AAResults::Concept C++23 compatibility in SwiftShader's bundled LLVM-16
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-swiftshader-aaresults-cxx23-fix.chromium.patch
+	# Patch 0029: Fix DiagnosticInfo rvalue reference return types for C++23
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0029-swiftshader-diagnosticinfo-cxx23-fix.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
