@@ -1,0 +1,209 @@
+Description: Fix SwiftShader LLVM-16 ModuleSummaryIndex C++23/libc++ compatibility
+ In C++23 with libc++, std::unique_ptr requires complete types for destructors.
+ GlobalValueSummary is forward-declared when used in std::vector<std::unique_ptr<GlobalValueSummary>>.
+ This patch:
+ - Replaces std::unique_ptr<GlobalValueSummary> with raw pointers
+ - Adds explicit destructor after GlobalValueSummary is fully defined
+ - Updates all call sites to use .release() instead of std::move()
+Author: Juan Manuel Mendez <vejeta@gmail.com>
+Forwarded: not-needed
+Last-Update: 2025-11-22
+
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
+index e523652..e92fd8f 100644
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
+@@ -122,7 +122,7 @@ inline const char *getHotnessName(CalleeInfo::HotnessType HT) {
+ 
+ class GlobalValueSummary;
+ 
+-using GlobalValueSummaryList = std::vector<std::unique_ptr<GlobalValueSummary>>;
++using GlobalValueSummaryList = std::vector<GlobalValueSummary*>;
+ 
+ struct alignas(8) GlobalValueSummaryInfo {
+   union NameOrGV {
+@@ -149,6 +149,9 @@ struct alignas(8) GlobalValueSummaryInfo {
+ 
+   GlobalValueSummaryInfo(bool HaveGVs) : U(HaveGVs) {}
+ 
++  // C++23/libc++ fix: declare destructor here, define after GlobalValueSummary is complete
++  ~GlobalValueSummaryInfo();
++
+   /// List of global value summary structures for a particular value held
+   /// in the GlobalValueMap. Requires a vector in the case of multiple
+   /// COMDAT values of the same name.
+@@ -185,7 +188,7 @@ struct ValueInfo {
+     return getRef()->second.U.GV;
+   }
+ 
+-  ArrayRef<std::unique_ptr<GlobalValueSummary>> getSummaryList() const {
++  ArrayRef<GlobalValueSummary*> getSummaryList() const {
+     return getRef()->second.SummaryList;
+   }
+ 
+@@ -582,6 +585,12 @@ inline GlobalValueSummary *GlobalValueSummary::getBaseObject() {
+   return this;
+ }
+ 
++// C++23/libc++ fix: destructor definition after GlobalValueSummary is complete
++inline GlobalValueSummaryInfo::~GlobalValueSummaryInfo() {
++  for (GlobalValueSummary *S : SummaryList)
++    delete S;
++}
++
+ /// Function summary information to aid decisions and implementation of
+ /// importing.
+ class FunctionSummary : public GlobalValueSummary {
+@@ -1367,7 +1376,7 @@ public:
+       return;
+ 
+     FunctionSummary *F =
+-        dyn_cast<FunctionSummary>(V.getSummaryList().front().get());
++        dyn_cast<FunctionSummary>(V.getSummaryList().front());
+     assert(F != nullptr && "Expected FunctionSummary node");
+ 
+     for (const auto &C : F->calls()) {
+@@ -1395,7 +1404,7 @@ public:
+     for (auto &S : *this) {
+       // Skip external functions
+       if (!S.second.SummaryList.size() ||
+-          !isa<FunctionSummary>(S.second.SummaryList.front().get()))
++          !isa<FunctionSummary>(S.second.SummaryList.front()))
+         continue;
+       discoverNodes(ValueInfo(HaveGVs, &S), FunctionHasParent);
+     }
+@@ -1515,27 +1524,27 @@ public:
+ 
+   /// Add a global value summary for a value.
+   void addGlobalValueSummary(const GlobalValue &GV,
+-                             std::unique_ptr<GlobalValueSummary> Summary) {
+-    addGlobalValueSummary(getOrInsertValueInfo(&GV), std::move(Summary));
++                             GlobalValueSummary *Summary) {
++    addGlobalValueSummary(getOrInsertValueInfo(&GV), Summary);
+   }
+ 
+   /// Add a global value summary for a value of the given name.
+   void addGlobalValueSummary(StringRef ValueName,
+-                             std::unique_ptr<GlobalValueSummary> Summary) {
++                             GlobalValueSummary *Summary) {
+     addGlobalValueSummary(getOrInsertValueInfo(GlobalValue::getGUID(ValueName)),
+-                          std::move(Summary));
++                          Summary);
+   }
+ 
+   /// Add a global value summary for the given ValueInfo.
+   void addGlobalValueSummary(ValueInfo VI,
+-                             std::unique_ptr<GlobalValueSummary> Summary) {
+-    if (const FunctionSummary *FS = dyn_cast<FunctionSummary>(Summary.get()))
++                             GlobalValueSummary *Summary) {
++    if (const FunctionSummary *FS = dyn_cast<FunctionSummary>(Summary))
+       HasParamAccess |= !FS->paramAccesses().empty();
+     addOriginalName(VI.getGUID(), Summary->getOriginalName());
+     // Here we have a notionally const VI, but the value it points to is owned
+     // by the non-const *this.
+     const_cast<GlobalValueSummaryMapTy::value_type *>(VI.getRef())
+-        ->second.SummaryList.push_back(std::move(Summary));
++        ->second.SummaryList.push_back(Summary);
+   }
+ 
+   /// Add an original name for the value of the given GUID.
+@@ -1555,12 +1564,12 @@ public:
+     auto SummaryList = VI.getSummaryList();
+     auto Summary =
+         llvm::find_if(SummaryList,
+-                      [&](const std::unique_ptr<GlobalValueSummary> &Summary) {
++                      [&](GlobalValueSummary *Summary) {
+                         return Summary->modulePath() == ModuleId;
+                       });
+     if (Summary == SummaryList.end())
+       return nullptr;
+-    return Summary->get();
++    return *Summary;
+   }
+ 
+   /// Find the summary for global \p GUID in module \p ModuleId, or nullptr if
+@@ -1722,7 +1731,7 @@ public:
+     for (const auto &GlobalList : *this) {
+       auto GUID = GlobalList.first;
+       for (const auto &Summary : GlobalList.second.SummaryList) {
+-        ModuleToDefinedGVSummaries[Summary->modulePath()][GUID] = Summary.get();
++        ModuleToDefinedGVSummaries[Summary->modulePath()][GUID] = Summary;
+       }
+     }
+   }
+@@ -1808,10 +1817,10 @@ template <> struct GraphTraits<ValueInfo> {
+ template <>
+ struct GraphTraits<ModuleSummaryIndex *> : public GraphTraits<ValueInfo> {
+   static NodeRef getEntryNode(ModuleSummaryIndex *I) {
+-    std::unique_ptr<GlobalValueSummary> Root =
+-        std::make_unique<FunctionSummary>(I->calculateCallGraphRoot());
++    GlobalValueSummary *Root =
++        new FunctionSummary(I->calculateCallGraphRoot());
+     GlobalValueSummaryInfo G(I->haveGVs());
+-    G.SummaryList.push_back(std::move(Root));
++    G.SummaryList.push_back(Root);
+     static auto P =
+         GlobalValueSummaryMapTy::value_type(GlobalValue::GUID(0), std::move(G));
+     return ValueInfo(I->haveGVs(), &P);
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
+index 3dfa2d8..a56ff05 100644
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
+@@ -570,7 +570,7 @@ static void computeFunctionSummary(
+       std::move(Callsites), std::move(Allocs));
+   if (NonRenamableLocal)
+     CantBePromoted.insert(F.getGUID());
+-  Index.addGlobalValueSummary(F, std::move(FuncSummary));
++  Index.addGlobalValueSummary(F, FuncSummary.release());
+ }
+ 
+ /// Find function pointers referenced within the given vtable initializer
+@@ -702,7 +702,7 @@ static void computeVariableSummary(ModuleSummaryIndex &Index,
+     GVarSummary->setNotEligibleToImport();
+   if (!VTableFuncs.empty())
+     GVarSummary->setVTableFuncs(VTableFuncs);
+-  Index.addGlobalValueSummary(V, std::move(GVarSummary));
++  Index.addGlobalValueSummary(V, GVarSummary.release());
+ }
+ 
+ static void computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
+@@ -721,10 +721,10 @@ static void computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
+   assert(AliaseeVI && "Alias expects aliasee summary to be available");
+   assert(AliaseeVI.getSummaryList().size() == 1 &&
+          "Expected a single entry per aliasee in per-module index");
+-  AS->setAliasee(AliaseeVI, AliaseeVI.getSummaryList()[0].get());
++  AS->setAliasee(AliaseeVI, AliaseeVI.getSummaryList()[0]);
+   if (NonRenamableLocal)
+     CantBePromoted.insert(A.getGUID());
+-  Index.addGlobalValueSummary(A, std::move(AS));
++  Index.addGlobalValueSummary(A, AS.release());
+ }
+ 
+ // Set LiveRoot flag on entries matching the given value name.
+@@ -818,7 +818,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
+                     ArrayRef<FunctionSummary::ConstVCall>{},
+                     ArrayRef<FunctionSummary::ParamAccess>{},
+                     ArrayRef<CallsiteInfo>{}, ArrayRef<AllocInfo>{});
+-            Index.addGlobalValueSummary(*GV, std::move(Summary));
++            Index.addGlobalValueSummary(*GV, Summary.release());
+           } else {
+             std::unique_ptr<GlobalVarSummary> Summary =
+                 std::make_unique<GlobalVarSummary>(
+@@ -827,7 +827,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
+                         false, false, cast<GlobalVariable>(GV)->isConstant(),
+                         GlobalObject::VCallVisibilityPublic),
+                     ArrayRef<ValueInfo>{});
+-            Index.addGlobalValueSummary(*GV, std::move(Summary));
++            Index.addGlobalValueSummary(*GV, Summary.release());
+           }
+         });
+   }
+@@ -918,7 +918,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
+       continue;
+     }
+ 
+-    if (auto *FuncSummary = dyn_cast<FunctionSummary>(Summary.get())) {
++    if (auto *FuncSummary = dyn_cast<FunctionSummary>(Summary)) {
+       bool AllCallsCanBeExternallyReferenced = llvm::all_of(
+           FuncSummary->calls(), [&](const FunctionSummary::EdgeTy &Edge) {
+             return !CantBePromoted.count(Edge.first.getGUID());
