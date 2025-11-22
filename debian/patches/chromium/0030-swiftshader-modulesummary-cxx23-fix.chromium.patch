@@ -1,16 +1,44 @@
-Description: Fix SwiftShader LLVM-16 ModuleSummaryIndex C++23/libc++ compatibility
- Changes typedef from unique_ptr to raw pointer, adds destructor for cleanup,
- uses .release() for ownership transfer, removes .get() calls on raw pointers.
-Author: Juan Manuel Mendez <vejeta@gmail.com>
-Forwarded: not-needed
+Description: Fix LLVM-16 for C++23/libc++ compatibility (remaining files)
+ This patch fixes remaining C++23 compatibility issues in LLVM-16 bundled
+ with SwiftShader not covered by patches 0027-0029. Includes:
+ - ModuleSummaryIndex GlobalValueSummary incomplete type fixes
+ - ScopedPrinter DelimitedScope out-of-line destructor
+ - MIPatternMatch LLT conversion, ResourcePriorityQueue include
+ - Various .get() removal and lambda parameter type changes
+Author: Rafael Mendez <debian@mendez.tech>
 Last-Update: 2025-11-22
----
 
-diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
-index e523652..e92fd8f 100644
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
-@@ -122,7 +122,7 @@ inline const char *getHotnessName(CalleeInfo::HotnessType HT) {
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h	2025-11-22 20:40:06.007567168 +0100
+@@ -368,7 +368,7 @@
+ 
+ inline bind_ty<Register> m_Reg(Register &R) { return R; }
+ inline bind_ty<MachineInstr *> m_MInstr(MachineInstr *&MI) { return MI; }
+-inline bind_ty<LLT> m_Type(LLT Ty) { return Ty; }
++inline bind_ty<LLT> m_Type(LLT &Ty) { return Ty; }
+ inline bind_ty<CmpInst::Predicate> m_Pred(CmpInst::Predicate &P) { return P; }
+ inline operand_type_match m_Pred() { return operand_type_match(); }
+ 
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h	2025-11-22 20:40:06.007589712 +0100
+@@ -16,10 +16,10 @@
+ #ifndef LLVM_CODEGEN_RESOURCEPRIORITYQUEUE_H
+ #define LLVM_CODEGEN_RESOURCEPRIORITYQUEUE_H
+ 
++#include "llvm/CodeGen/DFAPacketizer.h"
+ #include "llvm/CodeGen/ScheduleDAG.h"
+ 
+ namespace llvm {
+-  class DFAPacketizer;
+   class InstrItineraryData;
+   class ResourcePriorityQueue;
+   class SelectionDAGISel;
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h	2025-11-22 20:40:06.021531194 +0100
+@@ -122,7 +122,7 @@
  
  class GlobalValueSummary;
  
@@ -19,7 +47,7 @@ index e523652..e92fd8f 100644
  
  struct alignas(8) GlobalValueSummaryInfo {
    union NameOrGV {
-@@ -149,6 +149,9 @@ struct alignas(8) GlobalValueSummaryInfo {
+@@ -149,6 +149,9 @@
  
    GlobalValueSummaryInfo(bool HaveGVs) : U(HaveGVs) {}
  
@@ -29,7 +57,7 @@ index e523652..e92fd8f 100644
    /// List of global value summary structures for a particular value held
    /// in the GlobalValueMap. Requires a vector in the case of multiple
    /// COMDAT values of the same name.
-@@ -185,7 +188,7 @@ struct ValueInfo {
+@@ -185,7 +188,7 @@
      return getRef()->second.U.GV;
    }
  
@@ -38,7 +66,7 @@ index e523652..e92fd8f 100644
      return getRef()->second.SummaryList;
    }
  
-@@ -582,6 +585,12 @@ inline GlobalValueSummary *GlobalValueSummary::getBaseObject() {
+@@ -582,6 +585,12 @@
    return this;
  }
  
@@ -51,7 +79,7 @@ index e523652..e92fd8f 100644
  /// Function summary information to aid decisions and implementation of
  /// importing.
  class FunctionSummary : public GlobalValueSummary {
-@@ -1367,7 +1376,7 @@ public:
+@@ -1367,7 +1376,7 @@
        return;
  
      FunctionSummary *F =
@@ -60,7 +88,7 @@ index e523652..e92fd8f 100644
      assert(F != nullptr && "Expected FunctionSummary node");
  
      for (const auto &C : F->calls()) {
-@@ -1395,7 +1404,7 @@ public:
+@@ -1395,7 +1404,7 @@
      for (auto &S : *this) {
        // Skip external functions
        if (!S.second.SummaryList.size() ||
@@ -69,7 +97,7 @@ index e523652..e92fd8f 100644
          continue;
        discoverNodes(ValueInfo(HaveGVs, &S), FunctionHasParent);
      }
-@@ -1515,27 +1524,27 @@ public:
+@@ -1515,27 +1524,27 @@
  
    /// Add a global value summary for a value.
    void addGlobalValueSummary(const GlobalValue &GV,
@@ -104,7 +132,7 @@ index e523652..e92fd8f 100644
    }
  
    /// Add an original name for the value of the given GUID.
-@@ -1555,12 +1564,12 @@ public:
+@@ -1555,12 +1564,12 @@
      auto SummaryList = VI.getSummaryList();
      auto Summary =
          llvm::find_if(SummaryList,
@@ -119,7 +147,7 @@ index e523652..e92fd8f 100644
    }
  
    /// Find the summary for global \p GUID in module \p ModuleId, or nullptr if
-@@ -1722,7 +1731,7 @@ public:
+@@ -1722,7 +1731,7 @@
      for (const auto &GlobalList : *this) {
        auto GUID = GlobalList.first;
        for (const auto &Summary : GlobalList.second.SummaryList) {
@@ -128,7 +156,7 @@ index e523652..e92fd8f 100644
        }
      }
    }
-@@ -1808,10 +1817,10 @@ template <> struct GraphTraits<ValueInfo> {
+@@ -1808,10 +1817,10 @@
  template <>
  struct GraphTraits<ModuleSummaryIndex *> : public GraphTraits<ValueInfo> {
    static NodeRef getEntryNode(ModuleSummaryIndex *I) {
@@ -142,11 +170,48 @@ index e523652..e92fd8f 100644
      static auto P =
          GlobalValueSummaryMapTy::value_type(GlobalValue::GUID(0), std::move(G));
      return ValueInfo(I->haveGVs(), &P);
-diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
-index 3dfa2d8..a56ff05 100644
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
-@@ -570,7 +570,7 @@ static void computeFunctionSummary(
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h	2025-11-22 20:40:06.020704086 +0100
+@@ -222,7 +222,7 @@
+           V.emplace(RefGUID, /*IsAnalysis=*/false);
+         Refs.push_back(ValueInfo(/*IsAnalysis=*/false, &*V.find(RefGUID)));
+       }
+-      Elem.SummaryList.push_back(std::make_unique<FunctionSummary>(
++      Elem.SummaryList.push_back(new FunctionSummary(
+           GlobalValueSummary::GVFlags(
+               static_cast<GlobalValue::LinkageTypes>(FSum.Linkage),
+               static_cast<GlobalValue::VisibilityTypes>(FSum.Visibility),
+@@ -242,7 +242,7 @@
+     for (auto &P : V) {
+       std::vector<FunctionSummaryYaml> FSums;
+       for (auto &Sum : P.second.SummaryList) {
+-        if (auto *FSum = dyn_cast<FunctionSummary>(Sum.get())) {
++        if (auto *FSum = dyn_cast<FunctionSummary>(Sum)) {
+           std::vector<uint64_t> Refs;
+           for (auto &VI : FSum->refs())
+             Refs.push_back(VI.getGUID());
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h	2025-11-22 20:40:06.037125856 +0100
+@@ -546,9 +546,10 @@
+   std::unique_ptr<DelimitedScope> OuterScope;
+ 
+ public:
+-  JSONScopedPrinter(raw_ostream &OS, bool PrettyPrint = false,
+-                    std::unique_ptr<DelimitedScope> &&OuterScope =
+-                        std::unique_ptr<DelimitedScope>{});
++  JSONScopedPrinter(raw_ostream &OS, bool PrettyPrint = false);
++  JSONScopedPrinter(raw_ostream &OS, bool PrettyPrint,
++                    std::unique_ptr<DelimitedScope> &&OuterScope);
++  ~JSONScopedPrinter();
+ 
+   static bool classof(const ScopedPrinter *SP) {
+     return SP->getKind() == ScopedPrinter::ScopedPrinterKind::JSON;
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp	2025-11-22 20:40:06.047403492 +0100
+@@ -570,7 +570,7 @@
        std::move(Callsites), std::move(Allocs));
    if (NonRenamableLocal)
      CantBePromoted.insert(F.getGUID());
@@ -155,7 +220,7 @@ index 3dfa2d8..a56ff05 100644
  }
  
  /// Find function pointers referenced within the given vtable initializer
-@@ -702,7 +702,7 @@ static void computeVariableSummary(ModuleSummaryIndex &Index,
+@@ -702,7 +702,7 @@
      GVarSummary->setNotEligibleToImport();
    if (!VTableFuncs.empty())
      GVarSummary->setVTableFuncs(VTableFuncs);
@@ -164,7 +229,7 @@ index 3dfa2d8..a56ff05 100644
  }
  
  static void computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
-@@ -721,10 +721,10 @@ static void computeAliasSummary(ModuleSummaryIndex &Index, const GlobalAlias &A,
+@@ -721,10 +721,10 @@
    assert(AliaseeVI && "Alias expects aliasee summary to be available");
    assert(AliaseeVI.getSummaryList().size() == 1 &&
           "Expected a single entry per aliasee in per-module index");
@@ -177,7 +242,7 @@ index 3dfa2d8..a56ff05 100644
  }
  
  // Set LiveRoot flag on entries matching the given value name.
-@@ -818,7 +818,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
+@@ -818,7 +818,7 @@
                      ArrayRef<FunctionSummary::ConstVCall>{},
                      ArrayRef<FunctionSummary::ParamAccess>{},
                      ArrayRef<CallsiteInfo>{}, ArrayRef<AllocInfo>{});
@@ -186,7 +251,7 @@ index 3dfa2d8..a56ff05 100644
            } else {
              std::unique_ptr<GlobalVarSummary> Summary =
                  std::make_unique<GlobalVarSummary>(
-@@ -827,7 +827,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
+@@ -827,7 +827,7 @@
                          false, false, cast<GlobalVariable>(GV)->isConstant(),
                          GlobalObject::VCallVisibilityPublic),
                      ArrayRef<ValueInfo>{});
@@ -195,7 +260,7 @@ index 3dfa2d8..a56ff05 100644
            }
          });
    }
-@@ -918,7 +918,7 @@ ModuleSummaryIndex llvm::buildModuleSummaryIndex(
+@@ -918,7 +918,7 @@
        continue;
      }
  
@@ -204,9 +269,9 @@ index 3dfa2d8..a56ff05 100644
        bool AllCallsCanBeExternallyReferenced = llvm::all_of(
            FuncSummary->calls(), [&](const FunctionSummary::EdgeTy &Edge) {
              return !CantBePromoted.count(Edge.first.getGUID());
-diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp	2025-11-22 20:40:06.047444391 +0100
 @@ -697,14 +697,14 @@
    for (const auto& GVS : SummaryList) {
      if (!GVS->isLive())
@@ -263,8 +328,21 @@ diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/Sta
        if (!FS || FS->paramAccesses().empty())
          continue;
        if (FS->isLive() && FS->isDSOLocal()) {
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp	2025-11-19 03:44:40.285629354 +0100
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp	2025-11-22 12:51:48.482750431 +0100
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp	2025-11-22 20:40:06.047485917 +0100
+@@ -8627,7 +8627,7 @@
+ 
+   // Add the summary if one was provided.
+   if (Summary)
+-    Index->addGlobalValueSummary(VI, std::move(Summary));
++    Index->addGlobalValueSummary(VI, Summary.release());
+ 
+   // Save the associated ValueInfo for use in later references by ID.
+   if (ID == NumberedValueInfos.size())
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp	2025-11-22 20:40:06.047957326 +0100
 @@ -7315,7 +7315,7 @@
        FS->setModulePath(getThisModule()->first());
        FS->setOriginalName(std::get<1>(VIAndOriginalGUID));
@@ -328,8 +406,9 @@ diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/Sta
        break;
      }
      // FS_COMBINED_ORIGINAL_NAME: [original_name]
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp	2025-11-22 14:47:48.048203306 +0100
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp	2025-11-22 14:47:48.050016039 +0100
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp	2025-11-22 20:40:06.048190327 +0100
 @@ -198,7 +198,7 @@
      for (const auto &GUIDSummaryLists : *Index)
        // Examine all summaries for this GUID.
@@ -348,14 +427,245 @@ diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/Sta
      }
    }
  
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp	2025-11-19 03:44:40.285098988 +0100
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp	2025-11-22 14:42:17.848991285 +0100
-@@ -8627,7 +8627,7 @@
+@@ -4044,7 +4044,7 @@
+     assert(V.isDeclaration());
+     return;
+   }
+-  auto *Summary = VI.getSummaryList()[0].get();
++  auto *Summary = VI.getSummaryList()[0];
+   NameVals.push_back(VE.getValueID(&V));
+   GlobalVarSummary *VS = cast<GlobalVarSummary>(Summary);
+   NameVals.push_back(getEncodedGVSummaryFlags(VS->flags()));
+@@ -4223,7 +4223,7 @@
+       assert(F.isDeclaration());
+       continue;
+     }
+-    auto *Summary = VI.getSummaryList()[0].get();
++    auto *Summary = VI.getSummaryList()[0];
+     writePerModuleFunctionSummaryRecord(NameVals, Summary, VE.getValueID(&F),
+                                         FSCallsAbbrev, FSCallsProfileAbbrev,
+                                         CallsiteAbbrev, AllocAbbrev, F);
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp	2025-11-22 20:40:06.066031503 +0100
+@@ -2912,7 +2912,7 @@
+   for (auto &GlobalList : *TheIndex) {
+     auto GUID = GlobalList.first;
+     for (auto &Summary : GlobalList.second.SummaryList)
+-      SummaryToGUIDMap[Summary.get()] = GUID;
++      SummaryToGUIDMap[Summary] = GUID;
+   }
  
-   // Add the summary if one was provided.
-   if (Summary)
--    Index->addGlobalValueSummary(VI, std::move(Summary));
-+    Index->addGlobalValueSummary(VI, Summary.release());
+   // Print the global value summary entries.
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp	2025-11-22 20:40:06.067873717 +0100
+@@ -59,7 +59,7 @@
+              : getSummaryList().size() &&
+                    llvm::all_of(
+                        getSummaryList(),
+-                       [](const std::unique_ptr<GlobalValueSummary> &Summary) {
++                       [](GlobalValueSummary *const Summary) {
+                          return Summary->isDSOLocal();
+                        });
+ }
+@@ -68,7 +68,7 @@
+   // Can only auto hide if all copies are eligible to auto hide.
+   return getSummaryList().size() &&
+          llvm::all_of(getSummaryList(),
+-                      [](const std::unique_ptr<GlobalValueSummary> &Summary) {
++                      [](GlobalValueSummary *const Summary) {
+                         return Summary->canAutoHide();
+                       });
+ }
+@@ -154,7 +154,7 @@
+   for (auto &GlobalList : *this) {
+     auto GUID = GlobalList.first;
+     for (auto &GlobSummary : GlobalList.second.SummaryList) {
+-      auto *Summary = dyn_cast_or_null<FunctionSummary>(GlobSummary.get());
++      auto *Summary = dyn_cast_or_null<FunctionSummary>(GlobSummary);
+       if (!Summary)
+         // Ignore global variable, focus on functions
+         continue;
+@@ -174,7 +174,7 @@
+   assert((!PerModuleIndex || VI.getSummaryList().size() == 1) &&
+          "Expected a single entry per global value in per-module index");
+   auto &Summary = VI.getSummaryList()[0];
+-  return Summary.get();
++  return Summary;
+ }
  
-   // Save the associated ValueInfo for use in later references by ID.
-   if (ID == NumberedValueInfos.size())
+ bool ModuleSummaryIndex::isGUIDLive(GlobalValue::GUID GUID) const {
+@@ -185,7 +185,7 @@
+   if (SummaryList.empty())
+     return true;
+   for (auto &I : SummaryList)
+-    if (isGlobalValueLive(I.get()))
++    if (isGlobalValueLive(I))
+       return true;
+   return false;
+ }
+@@ -255,7 +255,7 @@
+   for (auto &P : *this) {
+     bool IsDSOLocal = true;
+     for (auto &S : P.second.SummaryList) {
+-      if (!isGlobalValueLive(S.get())) {
++      if (!isGlobalValueLive(S)) {
+         // computeDeadSymbolsAndUpdateIndirectCalls should have marked all
+         // copies live. Note that it is possible that there is a GUID collision
+         // between internal symbols with the same name in different files of the
+@@ -266,7 +266,7 @@
+         assert(llvm::none_of(
+             P.second.SummaryList,
+             [&](const std::unique_ptr<GlobalValueSummary> &Summary) {
+-              return isGlobalValueLive(Summary.get());
++              return isGlobalValueLive(Summary);
+             }));
+         // We don't examine references from dead objects
+         break;
+@@ -282,15 +282,15 @@
+       // notEligibleToImport means it could have writes or reads via inline
+       // assembly leading it to be in the @llvm.*used).
+       if (auto *GVS = dyn_cast<GlobalVarSummary>(S->getBaseObject()))
+-        // Here we intentionally pass S.get() not GVS, because S could be
++        // Here we intentionally pass S not GVS, because S could be
+         // an alias. We don't analyze references here, because we have to
+         // know exactly if GV is readonly to do so.
+-        if (!canImportGlobalVar(S.get(), /* AnalyzeRefs */ false) ||
++        if (!canImportGlobalVar(S, /* AnalyzeRefs */ false) ||
+             GUIDPreservedSymbols.count(P.first)) {
+           GVS->setReadOnly(false);
+           GVS->setWriteOnly(false);
+         }
+-      propagateAttributesToRefs(S.get(), MarkedNonReadWriteOnly);
++      propagateAttributesToRefs(S, MarkedNonReadWriteOnly);
+ 
+       // If the flag from any summary is false, the GV is not DSOLocal.
+       IsDSOLocal &= S->isDSOLocal();
+@@ -298,7 +298,7 @@
+     if (!IsDSOLocal)
+       // Mark the flag in all summaries false so that we can do quick check
+       // without going through the whole list.
+-      for (const std::unique_ptr<GlobalValueSummary> &Summary :
++      for (GlobalValueSummary *const Summary :
+            P.second.SummaryList)
+         Summary->setDSOLocal(false);
+   }
+@@ -361,7 +361,7 @@
+     for (const ValueInfo &V : *I) {
+       FunctionSummary *F = nullptr;
+       if (V.getSummaryList().size())
+-        F = cast<FunctionSummary>(V.getSummaryList().front().get());
++        F = cast<FunctionSummary>(V.getSummaryList().front());
+       O << " " << (F == nullptr ? "External" : "") << " " << utostr(V.getGUID())
+         << (I.hasCycle() ? " (has cycle)" : "") << "\n";
+     }
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp	2025-11-22 20:40:06.074243531 +0100
+@@ -36,6 +36,9 @@
+   }
+ }
+ 
++JSONScopedPrinter::JSONScopedPrinter(raw_ostream &OS, bool PrettyPrint)
++    : JSONScopedPrinter(OS, PrettyPrint, nullptr) {}
++
+ JSONScopedPrinter::JSONScopedPrinter(
+     raw_ostream &OS, bool PrettyPrint,
+     std::unique_ptr<DelimitedScope> &&OuterScope)
+@@ -46,4 +49,6 @@
+     this->OuterScope->setPrinter(*this);
+ }
+ 
++JSONScopedPrinter::~JSONScopedPrinter() = default;
++
+ } // namespace llvm
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp	2025-11-22 20:40:06.166588938 +0100
+@@ -295,9 +295,9 @@
+     };
+ 
+     for (const auto &RefSummary : VI.getSummaryList())
+-      if (isa<GlobalVarSummary>(RefSummary.get()) &&
+-          Index.canImportGlobalVar(RefSummary.get(), /* AnalyzeRefs */ true) &&
+-          !LocalNotInModule(RefSummary.get())) {
++      if (isa<GlobalVarSummary>(RefSummary) &&
++          Index.canImportGlobalVar(RefSummary, /* AnalyzeRefs */ true) &&
++          !LocalNotInModule(RefSummary)) {
+         auto ILI = ImportList[RefSummary->modulePath()].insert(VI.getGUID());
+         // Only update stat and exports if we haven't already imported this
+         // variable.
+@@ -312,8 +312,8 @@
+ 
+         // If variable is not writeonly we attempt to recursively analyze
+         // its references in order to import referenced constants.
+-        if (!Index.isWriteOnly(cast<GlobalVarSummary>(RefSummary.get())))
+-          Worklist.emplace_back(RefSummary.get(), 0);
++        if (!Index.isWriteOnly(cast<GlobalVarSummary>(RefSummary)))
++          Worklist.emplace_back(RefSummary, 0);
+         break;
+       }
+   }
+@@ -936,7 +936,7 @@
+   while (!Worklist.empty()) {
+     auto VI = Worklist.pop_back_val();
+     for (const auto &Summary : VI.getSummaryList()) {
+-      if (auto *AS = dyn_cast<AliasSummary>(Summary.get())) {
++      if (auto *AS = dyn_cast<AliasSummary>(Summary)) {
+         // If this is an alias, visit the aliasee VI to ensure that all copies
+         // are marked live and it is added to the worklist for further
+         // processing of its references.
+@@ -945,7 +945,7 @@
+       }
+       for (auto Ref : Summary->refs())
+         visit(Ref, false);
+-      if (auto *FS = dyn_cast<FunctionSummary>(Summary.get()))
++      if (auto *FS = dyn_cast<FunctionSummary>(Summary))
+         for (auto Call : FS->calls())
+           visit(Call.first, false);
+     }
+diff -ruN a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp	2025-11-22 20:40:06.167119428 +0100
+@@ -391,7 +391,7 @@
+     // In general either all summaries should be live or all should be dead.
+     if (!Summary->isLive())
+       return false;
+-    if (auto *FS = dyn_cast<FunctionSummary>(Summary.get())) {
++    if (auto *FS = dyn_cast<FunctionSummary>(Summary)) {
+       if (!FS->fflags().MustBeUnreachable)
+         return false;
+     }
+@@ -917,7 +917,7 @@
+     if (Expected<std::unique_ptr<ModuleSummaryIndex>> SummaryOrErr =
+             getModuleSummaryIndex(*ReadSummaryFile)) {
+       Summary = std::move(*SummaryOrErr);
+-      ExitOnErr(checkCombinedSummaryForTesting(Summary.get()));
++      ExitOnErr(checkCombinedSummaryForTesting(Summary));
+     } else {
+       // Try YAML if we've failed with bitcode.
+       consumeError(SummaryOrErr.takeError());
+@@ -929,9 +929,9 @@
+ 
+   bool Changed =
+       DevirtModule(M, AARGetter, OREGetter, LookupDomTree,
+-                   ClSummaryAction == PassSummaryAction::Export ? Summary.get()
++                   ClSummaryAction == PassSummaryAction::Export ? Summary
+                                                                 : nullptr,
+-                   ClSummaryAction == PassSummaryAction::Import ? Summary.get()
++                   ClSummaryAction == PassSummaryAction::Import ? Summary
+                                                                 : nullptr)
+           .run();
+ 
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Remarks/BitstreamRemarkParser.h	2025-11-14 21:31:45.000000000 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Remarks/BitstreamRemarkParser.h	2025-11-22 23:30:48.895646763 +0100
+@@ -17,6 +17,7 @@
+ #include "llvm/Remarks/BitstreamRemarkParser.h"
+ #include "llvm/Remarks/RemarkFormat.h"
+ #include "llvm/Remarks/RemarkParser.h"
++#include "llvm/Support/MemoryBuffer.h"
+ #include <cstdint>
+ #include <memory>
+ #include <optional>
+
