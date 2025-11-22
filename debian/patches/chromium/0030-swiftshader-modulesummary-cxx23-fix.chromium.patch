@@ -1,13 +1,10 @@
 Description: Fix SwiftShader LLVM-16 ModuleSummaryIndex C++23/libc++ compatibility
- In C++23 with libc++, std::unique_ptr requires complete types for destructors.
- GlobalValueSummary is forward-declared when used in std::vector<std::unique_ptr<GlobalValueSummary>>.
- This patch:
- - Replaces std::unique_ptr<GlobalValueSummary> with raw pointers
- - Adds explicit destructor after GlobalValueSummary is fully defined
- - Updates all call sites to use .release() instead of std::move()
+ Changes typedef from unique_ptr to raw pointer, adds destructor for cleanup,
+ uses .release() for ownership transfer, removes .get() calls on raw pointers.
 Author: Juan Manuel Mendez <vejeta@gmail.com>
 Forwarded: not-needed
 Last-Update: 2025-11-22
+---
 
 diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
 index e523652..e92fd8f 100644
@@ -207,3 +204,158 @@ index 3dfa2d8..a56ff05 100644
        bool AllCallsCanBeExternallyReferenced = llvm::all_of(
            FuncSummary->calls(), [&](const FunctionSummary::EdgeTy &Edge) {
              return !CantBePromoted.count(Edge.first.getGUID());
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
+@@ -697,14 +697,14 @@
+   for (const auto& GVS : SummaryList) {
+     if (!GVS->isLive())
+       continue;
+-    if (const AliasSummary *AS = dyn_cast<AliasSummary>(GVS.get()))
++    if (const AliasSummary *AS = dyn_cast<AliasSummary>(GVS))
+       if (!AS->hasAliasee())
+         continue;
+     if (!isa<FunctionSummary>(GVS->getBaseObject()))
+       continue;
+     if (GlobalValue::isLocalLinkage(GVS->linkage())) {
+       if (GVS->modulePath() == ModuleId) {
+-        S = GVS.get();
++        S = GVS;
+         break;
+       }
+     } else if (GlobalValue::isExternalLinkage(GVS->linkage())) {
+@@ -712,17 +712,17 @@
+         ++NumIndexCalleeMultipleExternal;
+         return nullptr;
+       }
+-      S = GVS.get();
++      S = GVS;
+     } else if (GlobalValue::isWeakLinkage(GVS->linkage())) {
+       if (S) {
+         ++NumIndexCalleeMultipleWeak;
+         return nullptr;
+       }
+-      S = GVS.get();
++      S = GVS;
+     } else if (GlobalValue::isAvailableExternallyLinkage(GVS->linkage()) ||
+                GlobalValue::isLinkOnceLinkage(GVS->linkage())) {
+       if (SummaryList.size() == 1)
+-        S = GVS.get();
++        S = GVS;
+       // According thinLTOResolvePrevailingGUID these are unlikely prevailing.
+     } else {
+       ++NumIndexCalleeUnhandled;
+@@ -1110,7 +1110,7 @@
+       return;
+     for (auto &GVS : Index)
+       for (auto &GV : GVS.second.SummaryList)
+-        if (FunctionSummary *FS = dyn_cast<FunctionSummary>(GV.get()))
++        if (FunctionSummary *FS = dyn_cast<FunctionSummary>(GV))
+           Stat += FS->paramAccesses().size();
+   };
+ 
+@@ -1121,7 +1121,7 @@
+   // Convert the ModuleSummaryIndex to a FunctionMap
+   for (auto &GVS : Index) {
+     for (auto &GV : GVS.second.SummaryList) {
+-      FunctionSummary *FS = dyn_cast<FunctionSummary>(GV.get());
++      FunctionSummary *FS = dyn_cast<FunctionSummary>(GV);
+       if (!FS || FS->paramAccesses().empty())
+         continue;
+       if (FS->isLive() && FS->isDSOLocal()) {
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp	2025-11-19 03:44:40.285629354 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp	2025-11-22 12:51:48.482750431 +0100
+@@ -7315,7 +7315,7 @@
+       FS->setModulePath(getThisModule()->first());
+       FS->setOriginalName(std::get<1>(VIAndOriginalGUID));
+       TheIndex.addGlobalValueSummary(std::get<0>(VIAndOriginalGUID),
+-                                     std::move(FS));
++                                     FS.release());
+       break;
+     }
+     // FS_ALIAS: [valueid, flags, valueid]
+@@ -7342,7 +7342,7 @@
+ 
+       auto GUID = getValueInfoFromValueId(ValueID);
+       AS->setOriginalName(std::get<1>(GUID));
+-      TheIndex.addGlobalValueSummary(std::get<0>(GUID), std::move(AS));
++      TheIndex.addGlobalValueSummary(std::get<0>(GUID), AS.release());
+       break;
+     }
+     // FS_PERMODULE_GLOBALVAR_INIT_REFS: [valueid, flags, varflags, n x valueid]
+@@ -7366,7 +7366,7 @@
+       FS->setModulePath(getThisModule()->first());
+       auto GUID = getValueInfoFromValueId(ValueID);
+       FS->setOriginalName(std::get<1>(GUID));
+-      TheIndex.addGlobalValueSummary(std::get<0>(GUID), std::move(FS));
++      TheIndex.addGlobalValueSummary(std::get<0>(GUID), FS.release());
+       break;
+     }
+     // FS_PERMODULE_VTABLE_GLOBALVAR_INIT_REFS: [valueid, flags, varflags,
+@@ -7394,7 +7394,7 @@
+       VS->setVTableFuncs(VTableFuncs);
+       auto GUID = getValueInfoFromValueId(ValueID);
+       VS->setOriginalName(std::get<1>(GUID));
+-      TheIndex.addGlobalValueSummary(std::get<0>(GUID), std::move(VS));
++      TheIndex.addGlobalValueSummary(std::get<0>(GUID), VS.release());
+       break;
+     }
+     // FS_COMBINED: [valueid, modid, flags, instcount, fflags, numrefs,
+@@ -7459,7 +7459,7 @@
+       LastSeenSummary = FS.get();
+       LastSeenGUID = VI.getGUID();
+       FS->setModulePath(ModuleIdMap[ModuleId]);
+-      TheIndex.addGlobalValueSummary(VI, std::move(FS));
++      TheIndex.addGlobalValueSummary(VI, FS.release());
+       break;
+     }
+     // FS_COMBINED_ALIAS: [valueid, modid, flags, valueid]
+@@ -7481,7 +7481,7 @@
+ 
+       ValueInfo VI = std::get<0>(getValueInfoFromValueId(ValueID));
+       LastSeenGUID = VI.getGUID();
+-      TheIndex.addGlobalValueSummary(VI, std::move(AS));
++      TheIndex.addGlobalValueSummary(VI, AS.release());
+       break;
+     }
+     // FS_COMBINED_GLOBALVAR_INIT_REFS: [valueid, modid, flags, n x valueid]
+@@ -7507,7 +7507,7 @@
+       FS->setModulePath(ModuleIdMap[ModuleId]);
+       ValueInfo VI = std::get<0>(getValueInfoFromValueId(ValueID));
+       LastSeenGUID = VI.getGUID();
+-      TheIndex.addGlobalValueSummary(VI, std::move(FS));
++      TheIndex.addGlobalValueSummary(VI, FS.release());
+       break;
+     }
+     // FS_COMBINED_ORIGINAL_NAME: [original_name]
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp	2025-11-22 14:47:48.048203306 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp	2025-11-22 14:47:48.050016039 +0100
+@@ -198,7 +198,7 @@
+     for (const auto &GUIDSummaryLists : *Index)
+       // Examine all summaries for this GUID.
+       for (auto &Summary : GUIDSummaryLists.second.SummaryList)
+-        if (auto FS = dyn_cast<FunctionSummary>(Summary.get()))
++        if (auto FS = dyn_cast<FunctionSummary>(Summary))
+           // For each call in the function summary, see if the call
+           // is to a GUID (which means it is for an indirect call,
+           // otherwise we would have a Value for it). If so, synthesize
+@@ -490,7 +490,7 @@
+     } else {
+       for (auto &Summaries : Index)
+         for (auto &Summary : Summaries.second.SummaryList)
+-          Callback({Summaries.first, Summary.get()}, false);
++          Callback({Summaries.first, Summary}, false);
+     }
+   }
+ 
+--- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp	2025-11-19 03:44:40.285098988 +0100
++++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp	2025-11-22 14:42:17.848991285 +0100
+@@ -8627,7 +8627,7 @@
+ 
+   // Add the summary if one was provided.
+   if (Summary)
+-    Index->addGlobalValueSummary(VI, std::move(Summary));
++    Index->addGlobalValueSummary(VI, Summary.release());
+ 
+   // Save the associated ValueInfo for use in later references by ID.
+   if (ID == NumberedValueInfos.size())
