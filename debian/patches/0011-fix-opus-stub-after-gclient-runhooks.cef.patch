@@ -20,7 +20,7 @@ diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
 index b6c0b3f..c3e8a4a 100644
 --- a/tools/automate/automate-git.py
 +++ b/tools/automate/automate-git.py
-@@ -1689,6 +1689,35 @@ apply_runhooks_patch()
+@@ -1689,6 +1689,38 @@ apply_runhooks_patch()
  # Runs hooks for files that have been modified in the local working copy.
  run("gclient runhooks", chromium_dir)
 
@@ -41,17 +41,20 @@ index b6c0b3f..c3e8a4a 100644
 +        f.write(content)
 +      msg('Debian: Fixed opus stub BUILD.gn to add include_dirs for system libopus headers')
 +
-+# Debian: Create libXNVCtrl symlink for system libxnvctrl-dev
++# Debian: Create libXNVCtrl symlinks for system libxnvctrl-dev
++# Location matches -I../../third_party/angle/src include path
 +if os.environ.get('DEBIAN_BUILD') == '1':
-+  msg('Debian: Creating libXNVCtrl symlink to system header')
-+  nvctrl_dir = os.path.join(chromium_src_dir, 'third_party', 'libXNVCtrl')
++  msg('Debian: Creating libXNVCtrl symlinks to system headers')
++  nvctrl_dir = os.path.join(chromium_src_dir, 'third_party', 'angle', 'src', 'third_party', 'libXNVCtrl')
 +  os.makedirs(nvctrl_dir, exist_ok=True)
-+  nvctrl_link = os.path.join(nvctrl_dir, 'NVCtrl.h')
-+  if os.path.exists('/usr/include/NVCtrl/NVCtrl.h'):
-+    if os.path.exists(nvctrl_link):
-+      os.remove(nvctrl_link)
-+    os.symlink('/usr/include/NVCtrl/NVCtrl.h', nvctrl_link)
-+    msg('Debian: Created symlink %s -> /usr/include/NVCtrl/NVCtrl.h' % nvctrl_link)
++  for header in ['NVCtrl.h', 'NVCtrlLib.h']:
++    src = '/usr/include/NVCtrl/' + header
++    dst = os.path.join(nvctrl_dir, header)
++    if os.path.exists(src):
++      if os.path.exists(dst):
++        os.remove(dst)
++      os.symlink(src, dst)
++      msg('Debian: Created symlink %s -> %s' % (dst, src))
 +
  if cef_dir == cef_src_dir:
    # Running in fast update mode.
