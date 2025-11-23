@@ -1,22 +1,26 @@
-Description: Fix opus stub BUILD.gn after gclient runhooks for Debian builds
+Description: Fix opus stub BUILD.gn and create libXNVCtrl symlink after gclient runhooks
  Modifies automate-git.py to inject include_dirs into the empty opus_config
- created by debian/rules. The debian/rules creates an opus stub with an
- empty config("opus_config") {} with no include_dirs, preventing FFmpeg from
- finding opus headers like opus_defines.h. This patch adds include_dirs to
- the config so dependent targets (FFmpeg) can access system libopus headers.
+ created by debian/rules, and creates symlink for system libxnvctrl-dev header.
+ .
+ The debian/rules creates an opus stub with an empty config("opus_config") {}
+ with no include_dirs, preventing FFmpeg from finding opus headers. This patch
+ adds include_dirs to the config so dependent targets can access system headers.
+ .
+ Also creates symlink from third_party/libXNVCtrl/NVCtrl.h to system header
+ /usr/include/NVCtrl/NVCtrl.h for ANGLE GPU info utility compilation.
  .
  This is executed only when DEBIAN_BUILD=1 environment variable is set, ensuring
  it doesn't affect upstream or non-Debian builds.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-19
+Last-Update: 2025-11-23
 
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
-index b6c0b3f..99c4f88 100644
+index b6c0b3f..c3e8a4a 100644
 --- a/tools/automate/automate-git.py
 +++ b/tools/automate/automate-git.py
-@@ -1689,6 +1689,23 @@ apply_runhooks_patch()
+@@ -1689,6 +1689,35 @@ apply_runhooks_patch()
  # Runs hooks for files that have been modified in the local working copy.
  run("gclient runhooks", chromium_dir)
 
@@ -36,6 +40,18 @@ index b6c0b3f..99c4f88 100644
 +      with open(opus_build_file, 'w') as f:
 +        f.write(content)
 +      msg('Debian: Fixed opus stub BUILD.gn to add include_dirs for system libopus headers')
++
++# Debian: Create libXNVCtrl symlink for system libxnvctrl-dev
++if os.environ.get('DEBIAN_BUILD') == '1':
++  msg('Debian: Creating libXNVCtrl symlink to system header')
++  nvctrl_dir = os.path.join(chromium_src_dir, 'third_party', 'libXNVCtrl')
++  os.makedirs(nvctrl_dir, exist_ok=True)
++  nvctrl_link = os.path.join(nvctrl_dir, 'NVCtrl.h')
++  if os.path.exists('/usr/include/NVCtrl/NVCtrl.h'):
++    if os.path.exists(nvctrl_link):
++      os.remove(nvctrl_link)
++    os.symlink('/usr/include/NVCtrl/NVCtrl.h', nvctrl_link)
++    msg('Debian: Created symlink %s -> /usr/include/NVCtrl/NVCtrl.h' % nvctrl_link)
 +
  if cef_dir == cef_src_dir:
    # Running in fast update mode.
