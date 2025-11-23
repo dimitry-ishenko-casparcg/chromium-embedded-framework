@@ -537,10 +537,10 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl
 	echo '# Stub BUILD.gn for Debian builds - ANGLE third-party stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
 	echo 'source_set("libXNVCtrl") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
-	# Symlink system libXNVCtrl header (code includes third_party/libXNVCtrl/NVCtrl.h)
-	@echo "==> Creating symlink for libXNVCtrl header (Debian uses system libxnvctrl-dev)"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libXNVCtrl
-	ln -sf /usr/include/NVCtrl/NVCtrl.h $(CURDIR)/chromium_src/chromium/src/third_party/libXNVCtrl/NVCtrl.h
+	# Symlink system libXNVCtrl headers (path matches -I../../third_party/angle/src include path)
+	@echo "==> Creating symlinks for libXNVCtrl headers (Debian uses system libxnvctrl-dev)"
+	ln -sf /usr/include/NVCtrl/NVCtrl.h $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/NVCtrl.h
+	ln -sf /usr/include/NVCtrl/NVCtrlLib.h $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/NVCtrlLib.h
 	@echo "==> Creating stub third_party/libpng/BUILD.gn (Debian uses system libpng)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libpng
 	echo '# Stub BUILD.gn for Debian builds - uses system libpng' > $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
