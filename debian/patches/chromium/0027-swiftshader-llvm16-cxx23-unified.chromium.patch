@@ -1,12 +1,22 @@
-Description: Fix LLVM-16 for C++23/libc++ compatibility
- This patch fixes C++23 compatibility issues in LLVM-16 bundled with
- SwiftShader. Includes GlobalValueSummaryList type changes, .get() removals,
- lambda parameter type updates, and incomplete type fixes.
-Author: Rafael Mendez <debian@mendez.tech>
+Description: Fix LLVM-16 C++23/libc++ compatibility in SwiftShader
+ In C++23 with libc++, std::unique_ptr's destructor is constexpr, which
+ forces early instantiation requiring the complete type at class definition.
+ This affects GlobalValueSummaryList and other LLVM types using unique_ptr.
+ .
+ Changes:
+ - Replace unique_ptr with raw pointers where incomplete types cause issues
+ - Add explicit destructors and out-of-line definitions
+ - Update lambda signatures from unique_ptr references to raw pointers
+ - Remove .get() calls on elements that are now raw pointers
+ .
+ Fixes compilation errors in APFloat, AliasAnalysis, ModuleSummaryIndex,
+ FunctionImport, FunctionAttrs, BitcodeWriter, LLParser, and 15 other files.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Forwarded: not-needed
 Last-Update: 2025-11-23
 
-diff --git a/llvm/include/llvm/ADT/APFloat.h b/llvm/include/llvm/ADT/APFloat.h
-index c0e2d13..7961b90 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/ADT/APFloat.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/ADT/APFloat.h
+index c0e2d13c29..7961b90821 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/ADT/APFloat.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/ADT/APFloat.h
 @@ -622,7 +622,10 @@ IEEEFloat frexp(const IEEEFloat &Val, int &Exp, IEEEFloat::roundingMode RM);
@@ -45,8 +55,8 @@ index c0e2d13..7961b90 100644
  
    opStatus add(const DoubleAPFloat &RHS, roundingMode RM);
    opStatus subtract(const DoubleAPFloat &RHS, roundingMode RM);
-diff --git a/llvm/include/llvm/Analysis/AliasAnalysis.h b/llvm/include/llvm/Analysis/AliasAnalysis.h
-index 953e15e..cf957c7 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h
+index 953e15e358..cf957c7273 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h
 @@ -596,7 +596,7 @@ private:
@@ -58,8 +68,8 @@ index 953e15e..cf957c7 100644
  
    std::vector<AnalysisKey *> AADeps;
  
-diff --git a/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h b/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
-index ea6ed32..838f238 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
+index ea6ed322e9..838f238314 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
 @@ -368,7 +368,7 @@ template <typename Class> struct bind_ty {
@@ -71,8 +81,8 @@ index ea6ed32..838f238 100644
  inline bind_ty<CmpInst::Predicate> m_Pred(CmpInst::Predicate &P) { return P; }
  inline operand_type_match m_Pred() { return operand_type_match(); }
  
-diff --git a/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h b/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
-index bd63dd8..77e9608 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
+index bd63dd8756..77e9608ada 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
 @@ -16,10 +16,10 @@
@@ -87,8 +97,8 @@ index bd63dd8..77e9608 100644
    class InstrItineraryData;
    class ResourcePriorityQueue;
    class SelectionDAGISel;
-diff --git a/llvm/include/llvm/IR/DiagnosticInfo.h b/llvm/include/llvm/IR/DiagnosticInfo.h
-index 628445f..d252eea 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h
+index 628445fe9f..d252eea152 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h
 @@ -552,14 +552,15 @@ operator<<(RemarkT &R,
@@ -148,8 +158,8 @@ index 628445f..d252eea 100644
  }
  
  template <class RemarkT>
-diff --git a/llvm/include/llvm/IR/ModuleSummaryIndex.h b/llvm/include/llvm/IR/ModuleSummaryIndex.h
-index e523652..e92fd8f 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
+index e5236523a5..e92fd8f5f9 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
 @@ -122,7 +122,7 @@ inline const char *getHotnessName(CalleeInfo::HotnessType HT) {
@@ -284,8 +294,8 @@ index e523652..e92fd8f 100644
      static auto P =
          GlobalValueSummaryMapTy::value_type(GlobalValue::GUID(0), std::move(G));
      return ValueInfo(I->haveGVs(), &P);
-diff --git a/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h b/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h
-index 33e57e5..99f8a3a 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h
+index 33e57e5f21..99f8a3a492 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndexYAML.h
 @@ -222,7 +222,7 @@ template <> struct CustomMappingTraits<GlobalValueSummaryMapTy> {
@@ -306,8 +316,8 @@ index 33e57e5..99f8a3a 100644
            std::vector<uint64_t> Refs;
            for (auto &VI : FSum->refs())
              Refs.push_back(VI.getGUID());
-diff --git a/llvm/include/llvm/Support/ScopedPrinter.h b/llvm/include/llvm/Support/ScopedPrinter.h
-index b91acb5..f3615ed 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h
+index b91acb576b..f3615ed534 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Support/ScopedPrinter.h
 @@ -546,9 +546,10 @@ private:
@@ -324,8 +334,8 @@ index b91acb5..f3615ed 100644
  
    static bool classof(const ScopedPrinter *SP) {
      return SP->getKind() == ScopedPrinter::ScopedPrinterKind::JSON;
-diff --git a/llvm/lib/Analysis/AliasAnalysis.cpp b/llvm/lib/Analysis/AliasAnalysis.cpp
-index 9e24f6b..0769550 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/AliasAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/AliasAnalysis.cpp
+index 9e24f6b87b..0769550728 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/AliasAnalysis.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/AliasAnalysis.cpp
 @@ -76,7 +76,10 @@ static const bool EnableAATrace = false;
@@ -340,8 +350,8 @@ index 9e24f6b..0769550 100644
  
  bool AAResults::invalidate(Function &F, const PreservedAnalyses &PA,
                             FunctionAnalysisManager::Invalidator &Inv) {
-diff --git a/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp b/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
-index 3dfa2d8..a56ff05 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
+index 3dfa2d821e..a56ff058f5 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/ModuleSummaryAnalysis.cpp
 @@ -570,7 +570,7 @@ static void computeFunctionSummary(
@@ -402,8 +412,8 @@ index 3dfa2d8..a56ff05 100644
        bool AllCallsCanBeExternallyReferenced = llvm::all_of(
            FuncSummary->calls(), [&](const FunctionSummary::EdgeTy &Edge) {
              return !CantBePromoted.count(Edge.first.getGUID());
-diff --git a/llvm/lib/Analysis/StackSafetyAnalysis.cpp b/llvm/lib/Analysis/StackSafetyAnalysis.cpp
-index 6063977..1463b5b 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
+index 606397727b..1463b5bf4a 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Analysis/StackSafetyAnalysis.cpp
 @@ -697,14 +697,14 @@ FunctionSummary *findCalleeFunctionSummary(ValueInfo VI, StringRef ModuleId) {
@@ -462,8 +472,8 @@ index 6063977..1463b5b 100644
        if (!FS || FS->paramAccesses().empty())
          continue;
        if (FS->isLive() && FS->isDSOLocal()) {
-diff --git a/llvm/lib/AsmParser/LLParser.cpp b/llvm/lib/AsmParser/LLParser.cpp
-index 7f45162..b111883 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp
+index 7f451620a0..b111883131 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/AsmParser/LLParser.cpp
 @@ -8627,7 +8627,7 @@ void LLParser::addGlobalValueToIndex(
@@ -475,8 +485,8 @@ index 7f45162..b111883 100644
  
    // Save the associated ValueInfo for use in later references by ID.
    if (ID == NumberedValueInfos.size())
-diff --git a/llvm/lib/Bitcode/Reader/BitcodeReader.cpp b/llvm/lib/Bitcode/Reader/BitcodeReader.cpp
-index f014521..3d53fdd 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp
+index f014521264..3d53fddb57 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Reader/BitcodeReader.cpp
 @@ -7315,7 +7315,7 @@ Error ModuleSummaryIndexBitcodeReader::parseEntireSummary(unsigned ID) {
@@ -542,8 +552,8 @@ index f014521..3d53fdd 100644
        break;
      }
      // FS_COMBINED_ORIGINAL_NAME: [original_name]
-diff --git a/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp b/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp
-index f85fd86..160c099 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp
+index f85fd86c11..160c09989f 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Bitcode/Writer/BitcodeWriter.cpp
 @@ -198,7 +198,7 @@ public:
@@ -582,8 +592,8 @@ index f85fd86..160c099 100644
      writePerModuleFunctionSummaryRecord(NameVals, Summary, VE.getValueID(&F),
                                          FSCallsAbbrev, FSCallsProfileAbbrev,
                                          CallsiteAbbrev, AllocAbbrev, F);
-diff --git a/llvm/lib/IR/AsmWriter.cpp b/llvm/lib/IR/AsmWriter.cpp
-index 6108ce0..fbfbb23 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp
+index 6108ce09c2..fbfbb238a1 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/AsmWriter.cpp
 @@ -2912,7 +2912,7 @@ void AssemblyWriter::printModuleSummaryIndex() {
@@ -595,8 +605,8 @@ index 6108ce0..fbfbb23 100644
    }
  
    // Print the global value summary entries.
-diff --git a/llvm/lib/IR/ModuleSummaryIndex.cpp b/llvm/lib/IR/ModuleSummaryIndex.cpp
-index 2d14407..4d15654 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp
+index 2d1440756a..4d156547c2 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/IR/ModuleSummaryIndex.cpp
 @@ -59,7 +59,7 @@ bool ValueInfo::isDSOLocal(bool WithDSOLocalPropagation) const {
@@ -699,8 +709,8 @@ index 2d14407..4d15654 100644
        O << " " << (F == nullptr ? "External" : "") << " " << utostr(V.getGUID())
          << (I.hasCycle() ? " (has cycle)" : "") << "\n";
      }
-diff --git a/llvm/lib/Remarks/BitstreamRemarkParser.h b/llvm/lib/Remarks/BitstreamRemarkParser.h
-index fc786fc..966a52e 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Remarks/BitstreamRemarkParser.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Remarks/BitstreamRemarkParser.h
+index fc786fc576..966a52e0f5 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Remarks/BitstreamRemarkParser.h
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Remarks/BitstreamRemarkParser.h
 @@ -17,6 +17,7 @@
@@ -711,8 +721,8 @@ index fc786fc..966a52e 100644
  #include <cstdint>
  #include <memory>
  #include <optional>
-diff --git a/llvm/lib/Support/APFloat.cpp b/llvm/lib/Support/APFloat.cpp
-index eae4fdb..b41f548 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFloat.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFloat.cpp
+index eae4fdb6c3..b41f548383 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFloat.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFloat.cpp
 @@ -4548,11 +4548,19 @@ DoubleAPFloat::DoubleAPFloat(const DoubleAPFloat &RHS)
@@ -736,8 +746,8 @@ index eae4fdb..b41f548 100644
  DoubleAPFloat &DoubleAPFloat::operator=(const DoubleAPFloat &RHS) {
    if (Semantics == RHS.Semantics && RHS.Floats) {
      Floats[0] = RHS.Floats[0];
-diff --git a/llvm/lib/Support/ScopedPrinter.cpp b/llvm/lib/Support/ScopedPrinter.cpp
-index a17e397..b99cb49 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp
+index a17e397c0a..b99cb491e0 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ScopedPrinter.cpp
 @@ -36,6 +36,9 @@ void ScopedPrinter::printBinaryImpl(StringRef Label, StringRef Str,
@@ -757,8 +767,8 @@ index a17e397..b99cb49 100644
 +JSONScopedPrinter::~JSONScopedPrinter() = default;
 +
  } // namespace llvm
-diff --git a/llvm/lib/Transforms/IPO/FunctionAttrs.cpp b/llvm/lib/Transforms/IPO/FunctionAttrs.cpp
-index 3f61dbe..f4d3f05 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionAttrs.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionAttrs.cpp
+index 3f61dbe335..f4d3f050e9 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionAttrs.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionAttrs.cpp
 @@ -340,14 +340,14 @@ static FunctionSummary *calculatePrevailingSummary(
@@ -787,8 +797,8 @@ index 3f61dbe..f4d3f05 100644
              if (InferredFlags.NoRecurse)
                FS->setNoRecurse();
  
-diff --git a/llvm/lib/Transforms/IPO/FunctionImport.cpp b/llvm/lib/Transforms/IPO/FunctionImport.cpp
-index 7c99465..0a7caa9 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp
+index 7c994657e5..0a7caa93fa 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/FunctionImport.cpp
 @@ -171,15 +171,15 @@ static std::unique_ptr<Module> loadFile(const std::string &FileName,
@@ -897,8 +907,8 @@ index 7c99465..0a7caa9 100644
          for (auto Call : FS->calls())
            visit(Call.first, false);
      }
-diff --git a/llvm/lib/Transforms/IPO/LowerTypeTests.cpp b/llvm/lib/Transforms/IPO/LowerTypeTests.cpp
-index ddfcace..f57ee96 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/LowerTypeTests.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/LowerTypeTests.cpp
+index ddfcace6ac..f57ee96748 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/LowerTypeTests.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/LowerTypeTests.cpp
 @@ -2160,7 +2160,7 @@ bool LowerTypeTestsModule::lower() {
@@ -910,8 +920,8 @@ index ddfcace..f57ee96 100644
            continue;
          if (auto *FS = dyn_cast<FunctionSummary>(S->getBaseObject()))
            for (GlobalValue::GUID G : FS->type_tests())
-diff --git a/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp b/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp
-index 487a0a4..e7ddcaf 100644
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp
+index 487a0a4a97..e7ddcaffa5 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Transforms/IPO/WholeProgramDevirt.cpp
 @@ -391,7 +391,7 @@ bool mustBeUnreachableFunction(ValueInfo TheFnVI) {
