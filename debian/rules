@@ -305,14 +305,10 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
 	# Patch 0025: Skip JS proto generation due to protobuf version mismatch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-skip-js-proto-generation.chromium.patch
-	# Patch 0027: Fix APFloat C++23 compatibility in SwiftShader's bundled LLVM-16
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-apfloat-cxx23-fix.chromium.patch
-	# Patch 0028: Fix AAResults::Concept C++23 compatibility in SwiftShader's bundled LLVM-16
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-swiftshader-aaresults-cxx23-fix.chromium.patch
-	# Patch 0029: Fix DiagnosticInfo rvalue reference return types for C++23
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0029-swiftshader-diagnosticinfo-cxx23-fix.chromium.patch
-	# Patch 0030: Fix ModuleSummaryIndex GlobalValueSummary incomplete type for C++23
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0030-swiftshader-modulesummary-cxx23-fix.chromium.patch
+	# Patch 0027: Fix LLVM-16 C++23/libc++ compatibility in SwiftShader (unified patch)
+	# Fixes incomplete type issues with std::unique_ptr in C++23 mode (APFloat, AAResults,
+	# DiagnosticInfo, ModuleSummaryIndex and related files - 23 files total)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-llvm16-cxx23-unified.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
