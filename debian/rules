@@ -348,6 +348,9 @@ override_dh_auto_build:
 	echo 'executable("test_opus_decode") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("test_opus_encode") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("test_opus_padding") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	@echo "==> Creating opus header symlinks to system libopus"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/opus/src
+	ln -sf /usr/include/opus $(CURDIR)/chromium_src/chromium/src/third_party/opus/src/include
 	@echo "==> Creating stub chrome/android/modules/buildflags.gni (Debian strips Android files)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/chrome/android/modules
 	echo '# Stub buildflags.gni for Debian builds' > $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
