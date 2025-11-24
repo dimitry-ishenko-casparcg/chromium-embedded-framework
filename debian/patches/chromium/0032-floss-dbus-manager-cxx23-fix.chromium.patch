@@ -1,0 +1,142 @@
+Description: Fix C++23 incomplete type error in device/bluetooth/floss/floss_dbus_manager.h
+ C++23 requires complete type definition before use in std::unique_ptr.
+ Move FlossClientBundle class definition before FlossDBusManager class.
+Author: Claude Code <noreply@anthropic.com>
+Origin: vendor
+Bug-Debian: N/A
+Forwarded: no
+Last-Update: 2025-11-25
+
+diff --git a/floss_dbus_manager.h b/floss_dbus_manager.h
+index 1c14f39..36843fa 100644
+--- a/floss_dbus_manager.h
++++ b/floss_dbus_manager.h
+@@ -54,6 +54,64 @@ class FlossAdminClient;
+ // While similar to the BluezDBusManager, it requires totally different client
+ // implementations since the Floss dbus apis are drastically different. Thus, it
+ // doesn't make sense to share a common implementation between the two.
++class DEVICE_BLUETOOTH_EXPORT FlossClientBundle {
++ public:
++  FlossClientBundle(const FlossClientBundle&) = delete;
++  FlossClientBundle& operator=(const FlossClientBundle&) = delete;
++
++  explicit FlossClientBundle(bool use_stubs);
++  ~FlossClientBundle();
++
++  FlossManagerClient* manager_client() { return manager_client_.get(); }
++
++  FlossAdapterClient* adapter_client() { return adapter_client_.get(); }
++
++  FlossGattManagerClient* gatt_manager_client() {
++    return gatt_manager_client_.get();
++  }
++
++  FlossSocketManager* socket_manager() { return socket_manager_.get(); }
++
++  FlossLEScanClient* lescan_client() { return lescan_client_.get(); }
++
++  FlossLoggingClient* logging_client() { return logging_client_.get(); }
++
++  FlossAdvertiserClient* advertiser_client() {
++    return advertiser_client_.get();
++  }
++#if BUILDFLAG(IS_CHROMEOS)
++  FlossAdminClient* admin_client() { return admin_client_.get(); }
++#endif  // BUILDFLAG(IS_CHROMEOS)
++
++  FlossBatteryManagerClient* battery_manager_client() {
++    return battery_manager_client_.get();
++  }
++
++  FlossBluetoothTelephonyClient* bluetooth_telephony_client() {
++    return bluetooth_telephony_client_.get();
++  }
++
++ private:
++  friend FlossDBusManagerSetter;
++  friend FlossDBusManager;
++
++  void ResetAdapterClients();
++
++  bool use_stubs_;
++  std::unique_ptr<FlossManagerClient> manager_client_;
++  std::unique_ptr<FlossAdapterClient> adapter_client_;
++  std::unique_ptr<FlossGattManagerClient> gatt_manager_client_;
++  std::unique_ptr<FlossSocketManager> socket_manager_;
++  std::unique_ptr<FlossLEScanClient> lescan_client_;
++  std::unique_ptr<FlossLoggingClient> logging_client_;
++  std::unique_ptr<FlossAdvertiserClient> advertiser_client_;
++  std::unique_ptr<FlossBatteryManagerClient> battery_manager_client_;
++  std::unique_ptr<FlossBluetoothTelephonyClient> bluetooth_telephony_client_;
++#if BUILDFLAG(IS_CHROMEOS)
++  std::unique_ptr<FlossAdminClient> admin_client_;
++#endif  // BUILDFLAG(IS_CHROMEOS)
++};
++
+ class DEVICE_BLUETOOTH_EXPORT FlossDBusManager
+     : public dbus::ObjectManager::Interface {
+  public:
+@@ -361,63 +419,6 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusThreadManager {
+ // The bundle of all DBus clients used by FlossDBusManager. The bundle is used
+ // to control the correct ordering of creation and deletion of clients before
+ // shutting down the system bus.
+-class DEVICE_BLUETOOTH_EXPORT FlossClientBundle {
+- public:
+-  FlossClientBundle(const FlossClientBundle&) = delete;
+-  FlossClientBundle& operator=(const FlossClientBundle&) = delete;
+-
+-  explicit FlossClientBundle(bool use_stubs);
+-  ~FlossClientBundle();
+-
+-  FlossManagerClient* manager_client() { return manager_client_.get(); }
+-
+-  FlossAdapterClient* adapter_client() { return adapter_client_.get(); }
+-
+-  FlossGattManagerClient* gatt_manager_client() {
+-    return gatt_manager_client_.get();
+-  }
+-
+-  FlossSocketManager* socket_manager() { return socket_manager_.get(); }
+-
+-  FlossLEScanClient* lescan_client() { return lescan_client_.get(); }
+-
+-  FlossLoggingClient* logging_client() { return logging_client_.get(); }
+-
+-  FlossAdvertiserClient* advertiser_client() {
+-    return advertiser_client_.get();
+-  }
+-#if BUILDFLAG(IS_CHROMEOS)
+-  FlossAdminClient* admin_client() { return admin_client_.get(); }
+-#endif  // BUILDFLAG(IS_CHROMEOS)
+-
+-  FlossBatteryManagerClient* battery_manager_client() {
+-    return battery_manager_client_.get();
+-  }
+-
+-  FlossBluetoothTelephonyClient* bluetooth_telephony_client() {
+-    return bluetooth_telephony_client_.get();
+-  }
+-
+- private:
+-  friend FlossDBusManagerSetter;
+-  friend FlossDBusManager;
+-
+-  void ResetAdapterClients();
+-
+-  bool use_stubs_;
+-  std::unique_ptr<FlossManagerClient> manager_client_;
+-  std::unique_ptr<FlossAdapterClient> adapter_client_;
+-  std::unique_ptr<FlossGattManagerClient> gatt_manager_client_;
+-  std::unique_ptr<FlossSocketManager> socket_manager_;
+-  std::unique_ptr<FlossLEScanClient> lescan_client_;
+-  std::unique_ptr<FlossLoggingClient> logging_client_;
+-  std::unique_ptr<FlossAdvertiserClient> advertiser_client_;
+-  std::unique_ptr<FlossBatteryManagerClient> battery_manager_client_;
+-  std::unique_ptr<FlossBluetoothTelephonyClient> bluetooth_telephony_client_;
+-#if BUILDFLAG(IS_CHROMEOS)
+-  std::unique_ptr<FlossAdminClient> admin_client_;
+-#endif  // BUILDFLAG(IS_CHROMEOS)
+-};
+ 
+ }  // namespace floss
+ 
