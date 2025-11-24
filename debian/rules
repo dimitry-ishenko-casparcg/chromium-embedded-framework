@@ -354,6 +354,9 @@ override_dh_auto_build:
 	@echo "==> Creating dav1d header symlinks to system libdav1d"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/libdav1d/include
 	ln -sf /usr/include/dav1d $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/libdav1d/include/dav1d
+	@echo "==> Creating FLAC header symlinks to system libflac"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/flac/include
+	ln -sf /usr/include/FLAC $(CURDIR)/chromium_src/chromium/src/third_party/flac/include/FLAC
 	@echo "==> Creating stub chrome/android/modules/buildflags.gni (Debian strips Android files)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/chrome/android/modules
 	echo '# Stub buildflags.gni for Debian builds' > $(CURDIR)/chromium_src/chromium/src/chrome/android/modules/buildflags.gni
