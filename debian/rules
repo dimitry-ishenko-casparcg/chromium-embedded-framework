@@ -309,6 +309,8 @@ override_dh_auto_build:
 	# Fixes incomplete type issues with std::unique_ptr in C++23 mode (APFloat, AAResults,
 	# DiagnosticInfo, ModuleSummaryIndex and related files - 23 files total)
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-llvm16-cxx23-unified.chromium.patch
+	# Patch 0028: Add xcb library to ANGLE X11 libs for Vulkan XCB backend
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-angle-add-xcb-library.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
@@ -533,10 +535,13 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party
 	echo '# Stub libjpeg.gni for Debian builds - uses system libjpeg' > $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg.gni
 	echo 'declare_args() { use_system_libjpeg = true }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg.gni
-	@echo "==> Creating stub third_party/angle/src/third_party/libXNVCtrl/BUILD.gn (Debian strips ANGLE third-party)"
+	@echo "==> Creating stub third_party/angle/src/third_party/libXNVCtrl/BUILD.gn (Debian uses system libxnvctrl-dev)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl
-	echo '# Stub BUILD.gn for Debian builds - ANGLE third-party stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
-	echo 'source_set("libXNVCtrl") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	echo '# Stub BUILD.gn for Debian builds - link system libxnvctrl-dev' > $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	echo 'source_set("libXNVCtrl") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	echo '  libs = [ "XNVCtrl" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
 	# Symlink system libXNVCtrl headers (path matches -I../../third_party/angle/src include path)
 	@echo "==> Creating symlinks for libXNVCtrl headers (Debian uses system libxnvctrl-dev)"
 	ln -sf /usr/include/NVCtrl/NVCtrl.h $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/NVCtrl.h
