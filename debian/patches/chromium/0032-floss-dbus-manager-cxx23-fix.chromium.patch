@@ -1,20 +1,25 @@
-Description: Fix C++23 incomplete type error in device/bluetooth/floss/floss_dbus_manager.h
+Description: Fix C++23 incomplete type error in floss_dbus_manager.h
  C++23 requires complete type definition before use in std::unique_ptr.
  Move FlossClientBundle class definition before FlossDBusManager class.
-Author: Claude Code <noreply@anthropic.com>
-Origin: vendor
-Bug-Debian: N/A
-Forwarded: no
+ Use 'friend class' syntax for forward-declared friend classes.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
 Last-Update: 2025-11-25
 
 diff --git a/device/bluetooth/floss/floss_dbus_manager.h b/device/bluetooth/floss/floss_dbus_manager.h
-index 1c14f39..36843fa 100644
+index 1c14f39..96fa5d4 100644
 --- a/device/bluetooth/floss/floss_dbus_manager.h
 +++ b/device/bluetooth/floss/floss_dbus_manager.h
-@@ -54,6 +54,64 @@ class FlossAdminClient;
- // While similar to the BluezDBusManager, it requires totally different client
- // implementations since the Floss dbus apis are drastically different. Thus, it
- // doesn't make sense to share a common implementation between the two.
+@@ -47,6 +47,69 @@ class FlossSocketManager;
+ class FlossAdminClient;
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+
++// The bundle of all DBus clients used by FlossDBusManager. The bundle is used
++// to control the correct ordering of creation and deletion of clients before
++// shutting down the system bus.
++// NOTE: Moved before FlossDBusManager for C++23 compatibility (complete type
++// required for std::unique_ptr member).
 +class DEVICE_BLUETOOTH_EXPORT FlossClientBundle {
 + public:
 +  FlossClientBundle(const FlossClientBundle&) = delete;
@@ -53,8 +58,8 @@ index 1c14f39..36843fa 100644
 +  }
 +
 + private:
-+  friend FlossDBusManagerSetter;
-+  friend FlossDBusManager;
++  friend class FlossDBusManagerSetter;
++  friend class FlossDBusManager;
 +
 +  void ResetAdapterClients();
 +
@@ -73,13 +78,16 @@ index 1c14f39..36843fa 100644
 +#endif  // BUILDFLAG(IS_CHROMEOS)
 +};
 +
- class DEVICE_BLUETOOTH_EXPORT FlossDBusManager
-     : public dbus::ObjectManager::Interface {
-  public:
-@@ -361,63 +419,6 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusThreadManager {
- // The bundle of all DBus clients used by FlossDBusManager. The bundle is used
- // to control the correct ordering of creation and deletion of clients before
- // shutting down the system bus.
+ // FlossDBusManager manages the lifetimes of D-Bus connections and clients. It
+ // ensures the proper ordering of shutdowns for the D-Bus thread, connections
+ // and clients.
+@@ -358,67 +421,6 @@ class DEVICE_BLUETOOTH_EXPORT FlossDBusThreadManager {
+   scoped_refptr<dbus::Bus> system_bus_;
+ };
+
+-// The bundle of all DBus clients used by FlossDBusManager. The bundle is used
+-// to control the correct ordering of creation and deletion of clients before
+-// shutting down the system bus.
 -class DEVICE_BLUETOOTH_EXPORT FlossClientBundle {
 - public:
 -  FlossClientBundle(const FlossClientBundle&) = delete;
@@ -137,6 +145,7 @@ index 1c14f39..36843fa 100644
 -  std::unique_ptr<FlossAdminClient> admin_client_;
 -#endif  // BUILDFLAG(IS_CHROMEOS)
 -};
- 
+-
  }  // namespace floss
- 
+
+ #endif  // DEVICE_BLUETOOTH_FLOSS_FLOSS_DBUS_MANAGER_H_
