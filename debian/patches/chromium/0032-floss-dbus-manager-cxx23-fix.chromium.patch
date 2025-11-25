@@ -7,10 +7,10 @@ Bug-Debian: N/A
 Forwarded: no
 Last-Update: 2025-11-25
 
-diff --git a/floss_dbus_manager.h b/floss_dbus_manager.h
+diff --git a/device/bluetooth/floss/floss_dbus_manager.h b/device/bluetooth/floss/floss_dbus_manager.h
 index 1c14f39..36843fa 100644
---- a/floss_dbus_manager.h
-+++ b/floss_dbus_manager.h
+--- a/device/bluetooth/floss/floss_dbus_manager.h
++++ b/device/bluetooth/floss/floss_dbus_manager.h
 @@ -54,6 +54,64 @@ class FlossAdminClient;
  // While similar to the BluezDBusManager, it requires totally different client
  // implementations since the Floss dbus apis are drastically different. Thus, it

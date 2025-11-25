@@ -7,10 +7,10 @@ Bug-Debian: N/A
 Forwarded: no
 Last-Update: 2025-11-25
 
-diff --git a/mdns_responder.cc b/mdns_responder.cc
+diff --git a/services/network/mdns_responder.cc b/services/network/mdns_responder.cc
 index 184b37c..3d4a413 100644
---- a/mdns_responder.cc
-+++ b/mdns_responder.cc
+--- a/services/network/mdns_responder.cc
++++ b/services/network/mdns_responder.cc
 @@ -404,6 +404,123 @@ CreateResponseToMdnsNameGeneratorServiceQuery(
  
  }  // namespace mdns_helper
