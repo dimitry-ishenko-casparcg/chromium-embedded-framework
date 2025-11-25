@@ -311,6 +311,12 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-llvm16-cxx23-unified.chromium.patch
 	# Patch 0028: Add xcb library to ANGLE X11 libs for Vulkan XCB backend
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-angle-add-xcb-library.chromium.patch
+	# Patch 0031: Fix C++23 incomplete type error in services/network/mdns_responder.cc
+	# Move ResponseScheduler class definition before SocketHandler constructor usage
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-mdns-responder-cxx23-fix.chromium.patch
+	# Patch 0032: Fix C++23 incomplete type error in device/bluetooth/floss/floss_dbus_manager.h
+	# Move FlossClientBundle class definition before FlossDBusManager class
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-floss-dbus-manager-cxx23-fix.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
