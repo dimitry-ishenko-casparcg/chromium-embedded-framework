@@ -1,0 +1,118 @@
+Description: Fix C++23 incomplete type errors in V8 heap classes
+ C++23 requires complete type definition before use in std::unique_ptr.
+ Move MinorMarkingState class from concurrent-marking.cc to the header.
+ Move WorkstackItemBase class inside CppGraphBuilderImpl before member use.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-25
+
+diff --git a/v8/src/heap/concurrent-marking.cc b/v8/src/heap/concurrent-marking.cc
+index b88578c..277f7dd 100644
+--- a/v8/src/heap/concurrent-marking.cc
++++ b/v8/src/heap/concurrent-marking.cc
+@@ -478,22 +478,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
+   DCHECK(task_state->local_pretenuring_feedback.empty());
+ }
+
+-class ConcurrentMarking::MinorMarkingState {
+- public:
+-  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
+-
+-  V8_INLINE void MarkerStarted() {
+-    active_markers_.fetch_add(1, std::memory_order_relaxed);
+-  }
+-
+-  // Returns true if all markers are done.
+-  V8_INLINE bool MarkerDone() {
+-    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
+-  }
+-
+- private:
+-  std::atomic<int> active_markers_{0};
+-};
++// MinorMarkingState definition moved to concurrent-marking.h for C++23.
+
+ namespace {
+
+diff --git a/v8/src/heap/concurrent-marking.h b/v8/src/heap/concurrent-marking.h
+index 88741be..2becd2a 100644
+--- a/v8/src/heap/concurrent-marking.h
++++ b/v8/src/heap/concurrent-marking.h
+@@ -95,7 +95,25 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
+   struct TaskState;
+   class JobTaskMinor;
+   class JobTaskMajor;
+-  class MinorMarkingState;
++
++  // MinorMarkingState definition moved here for C++23 compatibility
++  // (complete type required for std::unique_ptr member).
++  class MinorMarkingState {
++   public:
++    ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
++
++    V8_INLINE void MarkerStarted() {
++      active_markers_.fetch_add(1, std::memory_order_relaxed);
++    }
++
++    // Returns true if all markers are done.
++    V8_INLINE bool MarkerDone() {
++      return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
++    }
++
++   private:
++    std::atomic<int> active_markers_{0};
++  };
+
+   void RunMinor(JobDelegate* delegate);
+   template <YoungGenerationMarkingVisitationMode marking_mode>
+diff --git a/v8/src/heap/cppgc-js/cpp-snapshot.cc b/v8/src/heap/cppgc-js/cpp-snapshot.cc
+index e7dd7ba..6637bfb 100644
+--- a/v8/src/heap/cppgc-js/cpp-snapshot.cc
++++ b/v8/src/heap/cppgc-js/cpp-snapshot.cc
+@@ -579,7 +579,22 @@ class CppGraphBuilderImpl final {
+   }
+
+  private:
+-  class WorkstackItemBase;
++  // WorkstackItemBase definition moved here for C++23 compatibility
++  // (complete type required for std::unique_ptr in vector).
++  // Base class for transforming recursion into iteration.
++  class WorkstackItemBase {
++   public:
++    WorkstackItemBase(State* parent, State& current)
++        : parent_(parent), current_(current) {}
++
++    virtual ~WorkstackItemBase() = default;
++    virtual void Process(CppGraphBuilderImpl&) = 0;
++
++   protected:
++    State* parent_;
++    State& current_;
++  };
++
+   class VisitationItem;
+   class VisitationDoneItem;
+
+@@ -793,20 +808,7 @@ class GraphBuildingVisitor final : public JSVisitor {
+   std::string edge_name_;
+ };
+
+-// Base class for transforming recursion into iteration. Items are processed
+-// in stack fashion.
+-class CppGraphBuilderImpl::WorkstackItemBase {
+- public:
+-  WorkstackItemBase(State* parent, State& current)
+-      : parent_(parent), current_(current) {}
+-
+-  virtual ~WorkstackItemBase() = default;
+-  virtual void Process(CppGraphBuilderImpl&) = 0;
+-
+- protected:
+-  State* parent_;
+-  State& current_;
+-};
++// WorkstackItemBase definition moved inside CppGraphBuilderImpl class for C++23.
+
+ void CppGraphBuilderImpl::ProcessPendingObjects() {
+   while (!workstack_.empty()) {
