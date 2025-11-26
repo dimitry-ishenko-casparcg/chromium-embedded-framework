@@ -322,6 +322,8 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0033-v8-cxx23-incomplete-type-fixes.chromium.patch
 	# Patch 0034: Fix C++23 incomplete type error for Heap::AllocationTrackerForDebugging
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0034-v8-heap-allocation-tracker-cxx23.chromium.patch
+	# Patch 0035: Fix C++23 incomplete type error for AsyncCompileJob::CompileStep
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-v8-wasm-compilestep-cxx23.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook

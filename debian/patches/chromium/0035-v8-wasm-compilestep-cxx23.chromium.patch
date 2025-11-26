@@ -1,0 +1,71 @@
+Description: Fix C++23 incomplete type error for AsyncCompileJob::CompileStep
+ C++23 with libc++ requires complete type definition when std::unique_ptr
+ destructor is instantiated. Move CompileStep class definition to before
+ AsyncCompileJob constructor so the type is complete when needed.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-26
+
+diff --git a/v8/src/wasm/module-compiler.cc b/v8/src/wasm/module-compiler.cc
+index 0d89c84..a1a4701 100644
+--- a/v8/src/wasm/module-compiler.cc
++++ b/v8/src/wasm/module-compiler.cc
+@@ -2427,6 +2427,29 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
+   return native_module;
+ }
+
++// C++23 requires complete type for std::unique_ptr. Moved here before
++// AsyncCompileJob::AsyncCompileJob() so the destructor can be instantiated
++// with complete type information.
++// A closure to run a compilation step (either as foreground or background
++// task) and schedule the next step(s), if any.
++class AsyncCompileJob::CompileStep {
++ public:
++  virtual ~CompileStep() = default;
++
++  void Run(AsyncCompileJob* job, bool on_foreground) {
++    if (on_foreground) {
++      HandleScope scope(job->isolate_);
++      SaveAndSwitchContext saved_context(job->isolate_, *job->native_context_);
++      RunInForeground(job);
++    } else {
++      RunInBackground(job);
++    }
++  }
++
++  virtual void RunInForeground(AsyncCompileJob*) { UNREACHABLE(); }
++  virtual void RunInBackground(AsyncCompileJob*) { UNREACHABLE(); }
++};
++
+ AsyncCompileJob::AsyncCompileJob(
+     Isolate* isolate, WasmEnabledFeatures enabled_features,
+     CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
+@@ -2900,25 +2923,8 @@ class AsyncCompileJob::CompilationStateCallback
+ #endif
+ };
+
+-// A closure to run a compilation step (either as foreground or background
+-// task) and schedule the next step(s), if any.
+-class AsyncCompileJob::CompileStep {
+- public:
+-  virtual ~CompileStep() = default;
+-
+-  void Run(AsyncCompileJob* job, bool on_foreground) {
+-    if (on_foreground) {
+-      HandleScope scope(job->isolate_);
+-      SaveAndSwitchContext saved_context(job->isolate_, *job->native_context_);
+-      RunInForeground(job);
+-    } else {
+-      RunInBackground(job);
+-    }
+-  }
+-
+-  virtual void RunInForeground(AsyncCompileJob*) { UNREACHABLE(); }
+-  virtual void RunInBackground(AsyncCompileJob*) { UNREACHABLE(); }
+-};
++// AsyncCompileJob::CompileStep moved before AsyncCompileJob::AsyncCompileJob()
++// for C++23 compatibility (complete type required for std::unique_ptr destructor).
+
+ class AsyncCompileJob::CompileTask : public CancelableTask {
+  public:
