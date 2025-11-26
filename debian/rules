@@ -327,6 +327,10 @@ override_dh_auto_build:
 	# Patch 0036: Fix C++23 incomplete type in inspector protocol templates
 	# Move destructor definitions from header to cpp templates
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-inspector-protocol-cxx23-destructor.chromium.patch
+	# Patch 0037: Compile V8 inspector with C++20 to avoid circular dependency issues
+	# The inspector protocol has ObjectPreview <-> PropertyPreview circular deps that
+	# cannot be fixed with template changes alone. C++20 doesn't have the strict check.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0037-v8-inspector-cxx20-override.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
