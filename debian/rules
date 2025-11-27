@@ -338,6 +338,15 @@ override_dh_auto_build:
 	# Patch 0039: Fix C++23 incomplete type error in ui/compositor_extra/shadow.h
 	# Same pattern as 0038: default parameter `= nullptr` with forward-declared Layer.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0039-ui-compositor-extra-shadow-cxx23.chromium.patch
+	# Patch 0040: Fix C++23 incomplete type error in gin/public/isolate_holder.h
+	# Same pattern as 0038/0039: default parameter `= {}` with forward-declared v8::CppHeap.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0040-gin-isolate-holder-cxx23-fix.chromium.patch
+	# Patch 0041: Fix C++23 incomplete type error in media/gpu/gpu_video_encode_accelerator_factory
+	# Uses function overload pattern (not value init) for std::unique_ptr<MediaLog> default param.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0041-fix-cxx23-media-gpu-medialog-incomplete-type.chromium.patch
+	# Patch 0042: Fix C++23 incomplete type error in media/gpu/vaapi/vaapi_video_encoder_delegate.h
+	# Include complete ScopedVABuffer header for std::unique_ptr class members.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-fix-cxx23-vaapi-scopedvabuffer-incomplete-type.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
