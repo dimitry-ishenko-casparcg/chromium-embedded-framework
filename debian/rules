@@ -331,6 +331,13 @@ override_dh_auto_build:
 	# The inspector protocol has ObjectPreview <-> PropertyPreview circular deps that
 	# cannot be fixed with template changes alone. C++20 doesn't have the strict check.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0037-v8-inspector-cxx20-override.chromium.patch
+	# Patch 0038: Fix C++23 incomplete type error in ui/compositor/layer_owner
+	# The default parameter `= nullptr` triggers unique_ptr destructor instantiation
+	# where Layer is incomplete. Split into two constructors.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0038-ui-compositor-layer-owner-cxx23.chromium.patch
+	# Patch 0039: Fix C++23 incomplete type error in ui/compositor_extra/shadow.h
+	# Same pattern as 0038: default parameter `= nullptr` with forward-declared Layer.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0039-ui-compositor-extra-shadow-cxx23.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
