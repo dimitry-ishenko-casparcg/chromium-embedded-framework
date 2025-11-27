@@ -1,0 +1,86 @@
+Description: Fix C++23 incomplete type error with std::unique_ptr<MediaLog> default parameter
+ C++23 with libc++ introduced strict static_assert(sizeof(_Tp) >= 0) in
+ std::unique_ptr destructor. When a function default parameter uses
+ std::unique_ptr<T> with an incomplete type T (forward-declared), the
+ compiler instantiates the destructor at the declaration point, triggering
+ the sizeof check.
+ .
+ Note: The simpler = {} value initialization fix does NOT work for this case
+ because the destructor is still instantiated at the declaration point for
+ static function default parameters.
+ .
+ This fix uses function overloading instead of default parameters:
+ - Add a 5-parameter overload (without media_log, helper_cb, task_runner)
+ - Keep the 8-parameter version but remove default values
+ - The short overload forwards to the full version with nullptr/default values
+ .
+ This pattern avoids destructor instantiation in the header while maintaining
+ API compatibility for all callers.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-27
+
+diff --git a/media/gpu/gpu_video_encode_accelerator_factory.cc b/media/gpu/gpu_video_encode_accelerator_factory.cc
+index e3e76e4..521c8a6 100644
+--- a/media/gpu/gpu_video_encode_accelerator_factory.cc
++++ b/media/gpu/gpu_video_encode_accelerator_factory.cc
+@@ -225,6 +225,21 @@ VideoEncodeAccelerator::SupportedProfiles GetSupportedProfilesInternal(
+
+ }  // anonymous namespace
+
++// static
++// Overload without optional parameters - forwards to full version with defaults.
++// This avoids C++23 libc++ incomplete type issues with std::unique_ptr<MediaLog>
++// default parameters in the header.
++MEDIA_GPU_EXPORT EncoderStatus::Or<std::unique_ptr<VideoEncodeAccelerator>>
++GpuVideoEncodeAcceleratorFactory::CreateVEA(
++    const VideoEncodeAccelerator::Config& config,
++    VideoEncodeAccelerator::Client* client,
++    const gpu::GpuPreferences& gpu_preferences,
++    const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
++    const gpu::GPUInfo::GPUDevice& gpu_device) {
++  return CreateVEA(config, client, gpu_preferences, gpu_workarounds, gpu_device,
++                   nullptr, GetCommandBufferHelperCB(), nullptr);
++}
++
+ // static
+ MEDIA_GPU_EXPORT EncoderStatus::Or<std::unique_ptr<VideoEncodeAccelerator>>
+ GpuVideoEncodeAcceleratorFactory::CreateVEA(
+diff --git a/media/gpu/gpu_video_encode_accelerator_factory.h b/media/gpu/gpu_video_encode_accelerator_factory.h
+index 989c877..39ef271 100644
+--- a/media/gpu/gpu_video_encode_accelerator_factory.h
++++ b/media/gpu/gpu_video_encode_accelerator_factory.h
+@@ -32,16 +32,28 @@ class MEDIA_GPU_EXPORT GpuVideoEncodeAcceleratorFactory {
+   // VideoEncodeAccelerator::Initialize() returns false.
+   using GetCommandBufferHelperCB =
+       base::RepeatingCallback<scoped_refptr<CommandBufferHelper>()>;
++
++  // Overload without optional parameters (C++23 libc++ compatibility).
++  // Callers that don't need media_log/command_buffer_helper/gpu_task_runner
++  // should use this overload.
++  static EncoderStatus::Or<std::unique_ptr<VideoEncodeAccelerator>> CreateVEA(
++      const VideoEncodeAccelerator::Config& config,
++      VideoEncodeAccelerator::Client* client,
++      const gpu::GpuPreferences& gpu_perferences,
++      const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
++      const gpu::GPUInfo::GPUDevice& gpu_device);
++
++  // Full version with all parameters (no default values to avoid C++23
++  // incomplete type issues with std::unique_ptr<MediaLog>).
+   static EncoderStatus::Or<std::unique_ptr<VideoEncodeAccelerator>> CreateVEA(
+       const VideoEncodeAccelerator::Config& config,
+       VideoEncodeAccelerator::Client* client,
+       const gpu::GpuPreferences& gpu_perferences,
+       const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
+       const gpu::GPUInfo::GPUDevice& gpu_device,
+-      std::unique_ptr<MediaLog> media_log = {},
+-      GetCommandBufferHelperCB get_command_buffer_helper_cb =
+-          GetCommandBufferHelperCB(),
+-      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner = nullptr);
++      std::unique_ptr<MediaLog> media_log,
++      GetCommandBufferHelperCB get_command_buffer_helper_cb,
++      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner);
+
+   // Gets the supported codec profiles for video encoding on the platform.
+   static VideoEncodeAccelerator::SupportedProfiles GetSupportedProfiles(
