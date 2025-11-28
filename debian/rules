@@ -347,6 +347,15 @@ override_dh_auto_build:
 	# Patch 0042: Fix C++23 incomplete type error in media/gpu/vaapi/vaapi_video_encoder_delegate.h
 	# Include complete ScopedVABuffer header for std::unique_ptr class members.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-fix-cxx23-vaapi-scopedvabuffer-incomplete-type.chromium.patch
+	# Patch 0043: Remove nightly-only Rust options from crabbyavif BUILD.gn
+	# Removes -Zallow-features=sanitize and disable_cfi feature for stable Rust compatibility.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0043-fix-rust-nightly-option-crabbyavif.chromium.patch
+	# Patch 0044: Fix GN unused variable scoping error in gcc_toolchain.gni
+	# Moves deb_build_arch/deb_host_arch getenv() calls inside toolchain_args scope.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0044-fix-gn-unused-variable-scoping.chromium.patch
+	# Patch 0045: Fix C++23 incomplete type error for MediaLog in MojoVideoEncodeAccelerator
+	# Uses value initialization = {} instead of = nullptr to avoid incomplete type error.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0045-fix-cxx23-medialog-mojo-video-encode-accelerator.chromium.patch
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook

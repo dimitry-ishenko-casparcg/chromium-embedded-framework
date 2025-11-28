@@ -1,0 +1,24 @@
+Description: Fix C++23 incomplete type error for MediaLog in MojoVideoEncodeAccelerator
+ C++23 libc++ requires complete types when instantiating unique_ptr's
+ destructor. Using value initialization = {} instead of = nullptr avoids
+ instantiating the destructor at the point of declaration while still
+ providing null default behavior. This is the same fix pattern as patch
+ 0041 for gpu_video_encode_accelerator_factory.h.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-28
+
+diff --git a/media/mojo/clients/mojo_video_encode_accelerator.h b/media/mojo/clients/mojo_video_encode_accelerator.h
+index c438bf5..b7a9a0c 100644
+--- a/media/mojo/clients/mojo_video_encode_accelerator.h
++++ b/media/mojo/clients/mojo_video_encode_accelerator.h
+@@ -44,7 +44,7 @@ class MojoVideoEncodeAccelerator : public VideoEncodeAccelerator {
+   EncoderStatus Initialize(
+       const Config& config,
+       Client* client,
+-      std::unique_ptr<MediaLog> media_log = nullptr) override;
++      std::unique_ptr<MediaLog> media_log = {}) override;
+   void Encode(scoped_refptr<VideoFrame> frame, bool force_keyframe) override;
+   void Encode(scoped_refptr<VideoFrame> frame,
+               const VideoEncoder::EncodeOptions&) override;
