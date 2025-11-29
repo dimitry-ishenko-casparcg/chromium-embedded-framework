@@ -311,51 +311,13 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-llvm16-cxx23-unified.chromium.patch
 	# Patch 0028: Add xcb library to ANGLE X11 libs for Vulkan XCB backend
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-angle-add-xcb-library.chromium.patch
-	# Patch 0031: Fix C++23 incomplete type error in services/network/mdns_responder.cc
-	# Move ResponseScheduler class definition before SocketHandler constructor usage
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-mdns-responder-cxx23-fix.chromium.patch
-	# Patch 0032: Fix C++23 incomplete type error in device/bluetooth/floss/floss_dbus_manager.h
-	# Move FlossClientBundle class definition before FlossDBusManager class
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-floss-dbus-manager-cxx23-fix.chromium.patch
-	# Patch 0033: Fix C++23 incomplete type errors in V8 heap classes
-	# Move MinorMarkingState and WorkstackItemBase definitions before unique_ptr member usage
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0033-v8-cxx23-incomplete-type-fixes.chromium.patch
-	# Patch 0034: Fix C++23 incomplete type error for Heap::AllocationTrackerForDebugging
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0034-v8-heap-allocation-tracker-cxx23.chromium.patch
-	# Patch 0035: Fix C++23 incomplete type error for AsyncCompileJob::CompileStep
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-v8-wasm-compilestep-cxx23.chromium.patch
-	# Patch 0036: Fix C++23 incomplete type in inspector protocol templates
-	# Move destructor definitions from header to cpp templates
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-inspector-protocol-cxx23-destructor.chromium.patch
-	# Patch 0037: Compile V8 inspector with C++20 to avoid circular dependency issues
-	# The inspector protocol has ObjectPreview <-> PropertyPreview circular deps that
-	# cannot be fixed with template changes alone. C++20 doesn't have the strict check.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0037-v8-inspector-cxx20-override.chromium.patch
-	# Patch 0038: Fix C++23 incomplete type error in ui/compositor/layer_owner
-	# The default parameter `= nullptr` triggers unique_ptr destructor instantiation
-	# where Layer is incomplete. Split into two constructors.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0038-ui-compositor-layer-owner-cxx23.chromium.patch
-	# Patch 0039: Fix C++23 incomplete type error in ui/compositor_extra/shadow.h
-	# Same pattern as 0038: default parameter `= nullptr` with forward-declared Layer.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0039-ui-compositor-extra-shadow-cxx23.chromium.patch
-	# Patch 0040: Fix C++23 incomplete type error in gin/public/isolate_holder.h
-	# Same pattern as 0038/0039: default parameter `= {}` with forward-declared v8::CppHeap.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0040-gin-isolate-holder-cxx23-fix.chromium.patch
-	# Patch 0041: Fix C++23 incomplete type error in media/gpu/gpu_video_encode_accelerator_factory
-	# Uses function overload pattern (not value init) for std::unique_ptr<MediaLog> default param.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0041-fix-cxx23-media-gpu-medialog-incomplete-type.chromium.patch
-	# Patch 0042: Fix C++23 incomplete type error in media/gpu/vaapi/vaapi_video_encoder_delegate.h
-	# Include complete ScopedVABuffer header for std::unique_ptr class members.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-fix-cxx23-vaapi-scopedvabuffer-incomplete-type.chromium.patch
-	# Patch 0043: Remove nightly-only Rust options from crabbyavif BUILD.gn
+	# Patch 0031: Remove nightly-only Rust options from crabbyavif BUILD.gn
 	# Removes -Zallow-features=sanitize and disable_cfi feature for stable Rust compatibility.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0043-fix-rust-nightly-option-crabbyavif.chromium.patch
-	# Patch 0044: Fix GN unused variable scoping error in gcc_toolchain.gni
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-fix-rust-nightly-option-crabbyavif.chromium.patch
+	# Patch 0032: Fix GN unused variable scoping error in gcc_toolchain.gni
 	# Moves deb_build_arch/deb_host_arch getenv() calls inside toolchain_args scope.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0044-fix-gn-unused-variable-scoping.chromium.patch
-	# Patch 0045: Fix C++23 incomplete type error for MediaLog in MojoVideoEncodeAccelerator
-	# Uses value initialization = {} instead of = nullptr to avoid incomplete type error.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0045-fix-cxx23-medialog-mojo-video-encode-accelerator.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-fix-gn-unused-variable-scoping.chromium.patch
+	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
 	# Step 6.8: Additional DEPS fix for generate_location_tags hook
@@ -637,13 +599,9 @@ override_dh_auto_build:
 	echo '# Stub deps_revisions.gni for Debian builds - buildtools stripped' > $(CURDIR)/chromium_src/chromium/src/buildtools/deps_revisions.gni
 	echo '# Define variables required by build system' >> $(CURDIR)/chromium_src/chromium/src/buildtools/deps_revisions.gni
 	echo 'libcxx_revision = "unknown"' >> $(CURDIR)/chromium_src/chromium/src/buildtools/deps_revisions.gni
-	@echo "==> Creating stub third_party/libxml/BUILD.gn (Debian uses system libxml2)"
+	@echo "==> Copying system libxml2 BUILD.gn (uses pkg_config for includes)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxml
-	echo '# Stub BUILD.gn for Debian builds - uses system libxml2' > $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
-	echo 'source_set("xml_reader") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
-	echo 'source_set("xml_writer") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
-	echo 'source_set("libxml") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
-	echo 'source_set("libxml_utils") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
+	cp $(CURDIR)/chromium_src/chromium/src/build/linux/unbundle/libxml.gn $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
 	@echo "==> Creating stub third_party/flac/BUILD.gn (Debian uses system flac)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/flac
 	echo '# Stub BUILD.gn for Debian builds - uses system flac' > $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
@@ -872,7 +830,7 @@ override_dh_auto_build:
 	## violating Debian's no-internet build policy.
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_cxx23=true use_remoteexec=false use_siso=false use_thin_lto=false" && \
+	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true" && \
 	export PATH=$(CURDIR)/depot_tools:$$PATH && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
