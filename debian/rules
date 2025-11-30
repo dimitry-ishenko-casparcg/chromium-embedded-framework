@@ -317,6 +317,18 @@ override_dh_auto_build:
 	# Patch 0032: Fix GN unused variable scoping error in gcc_toolchain.gni
 	# Moves deb_build_arch/deb_host_arch getenv() calls inside toolchain_args scope.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-fix-gn-unused-variable-scoping.chromium.patch
+	# Patch 0046: Fix consteval error in cookie_craving.cc
+	# Change std::string to std::string_view for MakeFixedFlatSet (consteval requires compile-time types).
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0046-cookie-craving-use-string-view-for-consteval.chromium.patch
+	# Patch 0047: Fix GCC 15 libstdc++ std::optional::emplace() compatibility
+	# Use aggregate initialization instead of emplace() for ExclusiveSyncWaitInfo.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0047-multiplex-router-default-constructor.chromium.patch
+	# Patch 0048: Fix GCC 15 libstdc++ std::optional::emplace() compatibility in WebRTC
+	# Use aggregate initialization instead of emplace() for RtpStreamConfig::Rtx.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0048-webrtc-rtp-config-emplace-fix.chromium.patch
+	# Patch 0049: Fix GCC 15 libstdc++ flat_map with move-only OnceCallback
+	# Use try_emplace instead of operator[] to avoid copy operations.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-wayland-color-manager-flat-map-fix.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
