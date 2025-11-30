@@ -1,0 +1,32 @@
+Description: Fix GCC 15 libstdc++ std::optional::emplace() compatibility
+ GCC 15's libstdc++ std::optional::emplace() requires is_constructible_v<T>
+ to be satisfied. The RtpStreamConfig::Rtx struct has default member
+ initializers making it an aggregate in C++20, but GCC 15's optional
+ implementation doesn't handle this properly with emplace().
+ Instead of using emplace(), use aggregate initialization with assignment.
+ .
+ Error was: no matching member function for call to 'emplace'
+ candidate template ignored: requirement 'is_constructible_v<...>' was not
+ satisfied
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-29
+
+diff --git a/third_party/webrtc/call/rtp_config.cc b/third_party/webrtc/call/rtp_config.cc
+index 115912c..9ddfd2d 100644
+--- a/third_party/webrtc/call/rtp_config.cc
++++ b/third_party/webrtc/call/rtp_config.cc
+@@ -258,9 +258,9 @@ RtpStreamConfig RtpConfig::GetStreamConfig(size_t index) const {
+   stream_config.raw_payload = raw_payload;
+   if (!rtx.ssrcs.empty()) {
+     RTC_DCHECK_EQ(ssrcs.size(), rtx.ssrcs.size());
+-    auto& stream_config_rtx = stream_config.rtx.emplace();
+-    stream_config_rtx.ssrc = rtx.ssrcs[index];
+-    stream_config_rtx.payload_type = rtx.payload_type;
++    stream_config.rtx = RtpStreamConfig::Rtx{};
++    stream_config.rtx->ssrc = rtx.ssrcs[index];
++    stream_config.rtx->payload_type = rtx.payload_type;
+   }
+
+   return stream_config;

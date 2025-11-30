@@ -1,0 +1,27 @@
+Description: Fix consteval error in MakeFixedFlatSet by using string_view
+ The C++20 consteval function MakeFixedFlatSet cannot be used with std::string
+ because std::string involves heap allocation which cannot be done at compile
+ time. This patch changes the template parameter from std::string to
+ std::string_view, which can be constructed at compile time from string
+ literals.
+ .
+ Error was: call to consteval function 'base::MakeFixedFlatSet<std::string>'
+ is not a constant expression
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-29
+
+diff --git a/net/device_bound_sessions/cookie_craving.cc b/net/device_bound_sessions/cookie_craving.cc
+index b343501..1fac931 100644
+--- a/net/device_bound_sessions/cookie_craving.cc
++++ b/net/device_bound_sessions/cookie_craving.cc
+@@ -113,7 +113,7 @@ std::optional<CookieCraving> CookieCraving::Create(
+   }
+
+   static constexpr auto kPermittedAttributes =
+-      base::MakeFixedFlatSet<std::string>(
++      base::MakeFixedFlatSet<std::string_view>(
+           {"domain", "path", "secure", "httponly", "samesite"});
+   if (!parsed_cookie.ForEachAttribute(
+           [](std::string_view attribute, std::string_view value) {
