@@ -269,80 +269,67 @@ override_dh_auto_build:
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
 	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
 	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
-	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0007-debian-tarball-deps.chromium.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0008-debian-tarball-gclient-toplevel.chromium.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0015-network-isolation-disable-google-storage-downloads.chromium.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0018-skip-gcs-deps-when-source-tarball.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-make-siso-import-optional.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-skip-test-fonts.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0021-disable-warning-suppression-mappings.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0001-debian-tarball-deps.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
+	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-make-siso-import-optional.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-skip-test-fonts.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-disable-warning-suppression-mappings.chromium.patch
 	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
 	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
 	# and refuses to checkout when update_depot_tools tries to switch commits
 	@echo "==> Committing depot_tools patches to avoid git conflicts"
-	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0008, 0015, 0018)" --allow-empty
+	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004)" --allow-empty
 	@echo "==> depot_tools patches committed"
-	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0010-fix-dri-pkg-config-debian.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-remove-rust-nightly-flags-debian.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-protoc-gen-js-gn-action-stub.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-disable-panic-immediate-abort.chromium.patch
-	# Patch 0018-rust-clanglib removed - now obsolete with clang-19 symlinks at lines 536-558
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-bindgen-libclang-abspath.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-skip-nodejs-version-check.chromium.patch
-	# Patch 0022: Create stub BUILD.gn for bundled libc++ when using system libc++ (use_custom_libcxx=false)
-	# When using custom unbundle toolchain (patches 0011-0012), bundled libc++ directory doesn't exist
+	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0008-fix-dri-pkg-config-debian.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-remove-rust-nightly-flags-debian.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0010-protoc-gen-js-gn-action-stub.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0011-disable-panic-immediate-abort.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0012-bindgen-libclang-abspath.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-skip-nodejs-version-check.chromium.patch
+	# Patch 0014: Create stub BUILD.gn for bundled libc++ when using system libc++ (use_custom_libcxx=false)
+	# When using custom unbundle toolchain, bundled libc++ directory doesn't exist
 	# but GN still tries to load buildtools/third_party/libc++/BUILD.gn during parse phase
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0022-add-stub-libcxx-build-gn.chromium.patch
-	# Patch 0023: Remove GCC libstdc++ optional header for system libc++ compatibility (Build 206l)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-add-stub-libcxx-build-gn.chromium.patch
+	# Patch 0015: Remove GCC libstdc++ optional header for system libc++ compatibility
 	# The Chromium source tarball contains a file 'optional' at the root directory which is a GCC header
 	# This header includes <bits/version.h> (GCC-specific, doesn't exist in libc++)
 	# Must be removed AFTER gclient sync (which extracts tarball) but BEFORE compilation
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-remove-libstdcxx-optional-header.chromium.patch
-	# Patch 0024: Fix Clang 19 warning flag names to eliminate warning spam
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-fix-clang-19-warning-flags.chromium.patch
-	# Patch 0001: Handle SwiftShader reactor conditional target (for subzero-disabled builds)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0015-remove-libstdcxx-optional-header.chromium.patch
+	# Patch 0016: Fix Clang 19 warning flag names to eliminate warning spam
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-fix-clang-19-warning-flags.chromium.patch
+	# Patch 0017: Handle SwiftShader reactor conditional target (for subzero-disabled builds)
 	# With subzero disabled and LLVM enabled, this patch ensures proper GN target resolution
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0001-swiftshader-reactor-handle-no-backends.chromium.patch
-	# Patch 0025: Skip JS proto generation due to protobuf version mismatch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-skip-js-proto-generation.chromium.patch
-	# Patch 0027: Fix LLVM-16 C++23/libc++ compatibility in SwiftShader (unified patch)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-swiftshader-reactor-handle-no-backends.chromium.patch
+	# Patch 0018: Skip JS proto generation due to protobuf version mismatch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0018-skip-js-proto-generation.chromium.patch
+	# Patch 0019: Fix LLVM-16 C++23/libc++ compatibility in SwiftShader (unified patch)
 	# Fixes incomplete type issues with std::unique_ptr in C++23 mode (APFloat, AAResults,
 	# DiagnosticInfo, ModuleSummaryIndex and related files - 23 files total)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-swiftshader-llvm16-cxx23-unified.chromium.patch
-	# Patch 0028: Add xcb library to ANGLE X11 libs for Vulkan XCB backend
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-angle-add-xcb-library.chromium.patch
-	# Patch 0031: Remove nightly-only Rust options from crabbyavif BUILD.gn
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-swiftshader-llvm16-cxx23-unified.chromium.patch
+	# Patch 0020: Add xcb library to ANGLE X11 libs for Vulkan XCB backend
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-angle-add-xcb-library.chromium.patch
+	# Patch 0021: Remove nightly-only Rust options from crabbyavif BUILD.gn
 	# Removes -Zallow-features=sanitize and disable_cfi feature for stable Rust compatibility.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-fix-rust-nightly-option-crabbyavif.chromium.patch
-	# Patch 0032: Fix GN unused variable scoping error in gcc_toolchain.gni
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0021-fix-rust-nightly-option-crabbyavif.chromium.patch
+	# Patch 0022: Fix GN unused variable scoping error in gcc_toolchain.gni
 	# Moves deb_build_arch/deb_host_arch getenv() calls inside toolchain_args scope.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-fix-gn-unused-variable-scoping.chromium.patch
-	# Patch 0046: Fix consteval error in cookie_craving.cc
-	# Change std::string to std::string_view for MakeFixedFlatSet (consteval requires compile-time types).
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0046-cookie-craving-use-string-view-for-consteval.chromium.patch
-	# Patch 0047: Fix GCC 15 libstdc++ std::optional::emplace() compatibility
-	# Use aggregate initialization instead of emplace() for ExclusiveSyncWaitInfo.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0047-multiplex-router-default-constructor.chromium.patch
-	# Patch 0048: Fix GCC 15 libstdc++ std::optional::emplace() compatibility in WebRTC
-	# Use aggregate initialization instead of emplace() for RtpStreamConfig::Rtx.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0048-webrtc-rtp-config-emplace-fix.chromium.patch
-	# Patch 0049: Fix GCC 15 libstdc++ flat_map with move-only OnceCallback
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0022-fix-gn-unused-variable-scoping.chromium.patch
+	# Patch 0023: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types
+	# Replaces emplace() with aggregate initialization assignment for C++20 aggregates with
+	# default member initializers (multiplex_router, rtp_config, gpu_image_decode_cache,
+	# paint_layer_scrollable_area, line_breaker).
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-gcc15-optional-emplace-aggregate-fixes.chromium.patch
+	# Patch 0024: Fix GCC 15 consteval errors with MakeFixedFlatSet/Map and std::string
+	# GCC 15 consteval cannot use std::string (heap allocation). Fixes cookie_craving.cc,
+	# autofill_structured_address_component.cc, generate_country_native_names.cc, country_names.cc.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-gcc15-consteval-string-fixes.chromium.patch
+	# Patch 0025: Fix GCC 15 libstdc++ flat_map with move-only OnceCallback
 	# Use try_emplace instead of operator[] to avoid copy operations.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-wayland-color-manager-flat-map-fix.chromium.patch
-	# Patch 0050: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types in GpuImageDecodeCache
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0050-gpu-image-decode-cache-emplace-fix.chromium.patch
-	# Patch 0051: Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0051-wtf-string-codepoint-iterator-include.chromium.patch
-	# Patch 0052: Fix GCC 15 libstdc++ optional::emplace() error in paint_layer_scrollable_area.h
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0052-blink-paint-layer-scrollable-area-emplace-fix.chromium.patch
-	# Patch 0053: Fix GCC 15 libstdc++ optional::emplace() error in line_breaker.cc
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0053-blink-line-breaker-emplace-fix.chromium.patch
-	# Patch 0054: Fix GCC 15 consteval error with MakeFixedFlatSet<AddressCountryCode>
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0054-autofill-address-country-consteval-fix.chromium.patch
-	# Patch 0055: Fix GCC 15 consteval error in country_native_names_inl.h generator
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0055-autofill-country-names-generator-consteval-fix.chromium.patch
-	# Patch 0056: Fix country_names.cc consumer for string_view after patch 0055
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0056-autofill-country-names-stringview-consumer-fix.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-wayland-color-manager-flat-map-fix.chromium.patch
+	# Patch 0026: Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0026-wtf-string-codepoint-iterator-include.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 

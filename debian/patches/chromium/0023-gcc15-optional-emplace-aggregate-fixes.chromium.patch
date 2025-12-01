@@ -1,0 +1,96 @@
+Description: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types
+ GCC 15's libstdc++ std::optional::emplace() requires is_constructible_v<T>
+ to be satisfied. C++20 aggregates with default member initializers don't
+ satisfy is_constructible_v in GCC 15's implementation, causing compilation
+ errors. This patch replaces emplace() calls with direct aggregate
+ initialization assignments, which works with both libc++ and libstdc++.
+ .
+ Files fixed:
+ - mojo/public/cpp/bindings/lib/multiplex_router.cc
+ - third_party/webrtc/call/rtp_config.cc
+ - cc/tiles/gpu_image_decode_cache.cc
+ - third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
+ - third_party/blink/renderer/core/layout/inline/line_breaker.cc
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-01
+
+diff --git a/mojo/public/cpp/bindings/lib/multiplex_router.cc b/mojo/public/cpp/bindings/lib/multiplex_router.cc
+index 4d0cac7..018375d 100644
+--- a/mojo/public/cpp/bindings/lib/multiplex_router.cc
++++ b/mojo/public/cpp/bindings/lib/multiplex_router.cc
+@@ -946,9 +946,7 @@ bool MultiplexRouter::ExclusiveSyncWaitForReply(InterfaceId interface_id,
+   DCHECK(!exclusive_sync_wait_);
+
+   scoped_refptr<MultiplexRouter> keep_alive(this);
+-  exclusive_sync_wait_.emplace();
+-  exclusive_sync_wait_->interface_id = interface_id;
+-  exclusive_sync_wait_->request_id = request_id;
++  exclusive_sync_wait_ = ExclusiveSyncWaitInfo{interface_id, request_id, false};
+   while (!exclusive_sync_wait_->finished) {
+     if (!WaitForIncomingMessage()) {
+       exclusive_sync_wait_.reset();
+diff --git a/third_party/webrtc/call/rtp_config.cc b/third_party/webrtc/call/rtp_config.cc
+index 115912c..9ddfd2d 100644
+--- a/third_party/webrtc/call/rtp_config.cc
++++ b/third_party/webrtc/call/rtp_config.cc
+@@ -258,9 +258,9 @@ RtpStreamConfig RtpConfig::GetStreamConfig(size_t index) const {
+   stream_config.raw_payload = raw_payload;
+   if (!rtx.ssrcs.empty()) {
+     RTC_DCHECK_EQ(ssrcs.size(), rtx.ssrcs.size());
+-    auto& stream_config_rtx = stream_config.rtx.emplace();
+-    stream_config_rtx.ssrc = rtx.ssrcs[index];
+-    stream_config_rtx.payload_type = rtx.payload_type;
++    stream_config.rtx = RtpStreamConfig::Rtx{};
++    stream_config.rtx->ssrc = rtx.ssrcs[index];
++    stream_config.rtx->payload_type = rtx.payload_type;
+   }
+
+   return stream_config;
+diff --git a/cc/tiles/gpu_image_decode_cache.cc b/cc/tiles/gpu_image_decode_cache.cc
+index 801679c..0c584bf 100644
+--- a/cc/tiles/gpu_image_decode_cache.cc
++++ b/cc/tiles/gpu_image_decode_cache.cc
+@@ -961,7 +961,10 @@ GpuImageDecodeCache::ImageData::ImageData(
+     last_use = base::TimeTicks::Now();
+   }
+   if (speculative_decode) {
+-    speculative_decode_usage_stats_.emplace();
++    // GCC 15 libstdc++ std::optional::emplace() requires is_constructible_v,
++    // which fails for aggregates with default member initializers. Use
++    // assignment instead.
++    speculative_decode_usage_stats_ = SpeculativeDecodeUsageStats{};
+     speculative_decode_usage_stats_->speculative_decode_mip_level =
+         upload_scale_mip_level;
+     TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("loading"),
+diff --git a/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h b/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
+index 2a9b29f..439c106 100644
+--- a/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
++++ b/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
+@@ -607,7 +607,9 @@ class CORE_EXPORT PaintLayerScrollableArea final
+       mojom::blink::ScrollBehavior scroll_behavior) override {
+     if (!should_restore_scroll)
+       return;
+-    pending_view_state_.emplace();
++    // GCC 15 libstdc++: Use aggregate initialization instead of emplace()
++    // for types with default member initializers.
++    pending_view_state_ = PendingViewState{};
+     pending_view_state_->state = view_state;
+     pending_view_state_->scroll_behavior = scroll_behavior;
+   }
+diff --git a/third_party/blink/renderer/core/layout/inline/line_breaker.cc b/third_party/blink/renderer/core/layout/inline/line_breaker.cc
+index bbc44ec..6a81c6f 100644
+--- a/third_party/blink/renderer/core/layout/inline/line_breaker.cc
++++ b/third_party/blink/renderer/core/layout/inline/line_breaker.cc
+@@ -2742,7 +2742,9 @@ bool LineBreaker::ComputeTrailingCollapsibleSpaceHelper(LineInfo& line_info) {
+       if (!trailing_collapsible_space_.has_value() ||
+           trailing_collapsible_space_->item_results != results ||
+           trailing_collapsible_space_->item_result_index != index) {
+-        trailing_collapsible_space_.emplace();
++        // GCC 15 libstdc++: Use aggregate initialization instead of emplace()
++        // for types with default member initializers.
++        trailing_collapsible_space_ = TrailingCollapsibleSpace{};
+         trailing_collapsible_space_->item_results = results;
+         trailing_collapsible_space_->item_result_index = index;
+         if (item_result.EndOffset() - 1 > item_result.StartOffset()) {

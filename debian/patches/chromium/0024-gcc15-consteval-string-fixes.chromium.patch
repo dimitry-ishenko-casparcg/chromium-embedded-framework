@@ -1,0 +1,100 @@
+Description: Fix GCC 15 consteval errors with MakeFixedFlatSet/Map and std::string
+ GCC 15's consteval functions cannot use std::string because it involves heap
+ allocation at compile time. This patch fixes multiple locations where
+ base::MakeFixedFlatSet or base::MakeFixedFlatMap are used with std::string
+ types by switching to std::string_view, or using runtime helper functions.
+ .
+ Files fixed:
+ - net/device_bound_sessions/cookie_craving.cc (MakeFixedFlatSet<string>)
+ - components/autofill/.../autofill_structured_address_component.cc
+   (MakeFixedFlatSet<AddressCountryCode>)
+ - components/autofill/core/browser/geo/generate_country_native_names.cc
+   (generator outputs string_view instead of string)
+ - components/autofill/core/browser/geo/country_names.cc
+   (consumer adaptation for string_view values)
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-01
+
+diff --git a/net/device_bound_sessions/cookie_craving.cc b/net/device_bound_sessions/cookie_craving.cc
+index b343501..1fac931 100644
+--- a/net/device_bound_sessions/cookie_craving.cc
++++ b/net/device_bound_sessions/cookie_craving.cc
+@@ -113,7 +113,7 @@ std::optional<CookieCraving> CookieCraving::Create(
+   }
+
+   static constexpr auto kPermittedAttributes =
+-      base::MakeFixedFlatSet<std::string>(
++      base::MakeFixedFlatSet<std::string_view>(
+           {"domain", "path", "secure", "httponly", "samesite"});
+   if (!parsed_cookie.ForEachAttribute(
+           [](std::string_view attribute, std::string_view value) {
+diff --git a/components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.cc b/components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.cc
+index 42aadc4..5160eb4 100644
+--- a/components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.cc
++++ b/components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.cc
+@@ -31,8 +31,18 @@ namespace autofill {
+
+ namespace {
+ // The list of countries where the fallback parsing is not supported.
+-static constexpr auto countries_not_supporting_fallback_parsing =
+-    base::MakeFixedFlatSet<AddressCountryCode>({AddressCountryCode("IN")});
++// GCC 15: Cannot use MakeFixedFlatSet<AddressCountryCode> because AddressCountryCode
++// wraps std::string which cannot be consteval-constructed. Use string_view comparison.
++constexpr std::string_view kCountriesNotSupportingFallbackParsing[] = {"IN"};
++
++bool IsCountryNotSupportingFallbackParsing(const AddressCountryCode& country) {
++  for (std::string_view code : kCountriesNotSupportingFallbackParsing) {
++    if (country.value() == code) {
++      return true;
++    }
++  }
++  return false;
++}
+ }  // namespace
+
+ std::string_view VerificationStatusToStringView(VerificationStatus status) {
+@@ -501,7 +511,7 @@ void AddressComponent::ParseValueAndAssignSubcomponents() {
+   // As a final fallback, parse using the fallback method.
+   // In some countries (e.g. India), the parsing cannot be reliably implemented
+   // and the fallback method does more harm than good.
+-  if (!countries_not_supporting_fallback_parsing.contains(GetCountryCode())) {
++  if (!IsCountryNotSupportingFallbackParsing(GetCountryCode())) {
+     ParseValueAndAssignSubcomponentsByFallbackMethod();
+   }
+ }
+diff --git a/components/autofill/core/browser/geo/generate_country_native_names.cc b/components/autofill/core/browser/geo/generate_country_native_names.cc
+index fa9e4cc..2dd12d9 100644
+--- a/components/autofill/core/browser/geo/generate_country_native_names.cc
++++ b/components/autofill/core/browser/geo/generate_country_native_names.cc
+@@ -84,7 +84,7 @@ void WriteCountryNativeNamesInlFile(
+       "namespace {\n\n"
+       "constexpr auto kCountryNativeNames = "
+       "base::MakeFixedFlatMap<std::u16string_view, "
+-      "std::string>({\n";
++      "std::string_view>({\n";
+
+   for (const auto& [native_name, country_code] : country_native_names) {
+     inl_file_content += "    {u\"" + base::UTF16ToUTF8(native_name) + "\", \"" +
+diff --git a/components/autofill/core/browser/geo/country_names.cc b/components/autofill/core/browser/geo/country_names.cc
+index 2925e20..a53f32f 100644
+--- a/components/autofill/core/browser/geo/country_names.cc
++++ b/components/autofill/core/browser/geo/country_names.cc
+@@ -86,8 +86,14 @@ const std::string& CountryNames::GetCountryCode(
+   // Next, check country native names.
+   const auto native_result =
+       kCountryNativeNames.find(base::i18n::ToUpper(country));
+-  if (native_result != kCountryNativeNames.end())
+-    return native_result->second;
++  if (native_result != kCountryNativeNames.end()) {
++    // The generated kCountryNativeNames map now uses string_view values for
++    // consteval compatibility with GCC 15. We need to convert to std::string
++    // to return a const reference that outlives this function.
++    static thread_local std::string cached_native_result;
++    cached_native_result = std::string(native_result->second);
++    return cached_native_result;
++  }
+
+   // Next, check country names localized to the current locale.
+   const std::string& country_code =
