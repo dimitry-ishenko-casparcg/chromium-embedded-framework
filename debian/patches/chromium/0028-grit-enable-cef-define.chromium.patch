@@ -1,0 +1,32 @@
+Description: Import CEF enable_cef variable for GRIT defines
+ Fix GRIT build error "undefined Grit variable found: enable_cef" by
+ importing the enable_cef variable from CEF's features.gni instead of
+ declaring a duplicate variable. This allows components_strings GRIT
+ target to properly resolve CEF-specific string conditions.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-01
+
+diff --git a/components/strings/BUILD.gn b/components/strings/BUILD.gn
+index d408e22..b6a3cd5 100644
+--- a/components/strings/BUILD.gn
++++ b/components/strings/BUILD.gn
+@@ -11,6 +11,9 @@ import("//printing/buildflags/buildflags.gni")
+ import("//services/screen_ai/buildflags/features.gni")
+ import("//tools/grit/grit_rule.gni")
+
++# Import CEF features to get enable_cef variable for GRIT defines
++import("//cef/libcef/features/features.gni")
++
+ if (is_android) {
+   import("//build/config/android/rules.gni")
+ }
+@@ -37,6 +40,7 @@ grit_strings("components_strings") {
+     "enable_screen_ai_service=$enable_screen_ai_service",
+     "enable_vr=$enable_vr",
+     "use_blink=$use_blink",
++    "enable_cef=$enable_cef",
+   ]
+
+   outputs = [ "grit/components_strings.h" ]
