@@ -1,0 +1,30 @@
+Description: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types
+ GCC 15's libstdc++ std::optional::emplace() requires is_constructible_v
+ to be satisfied, which fails for C++20 aggregates that have default
+ member initializers. The SpeculativeDecodeUsageStats struct has default
+ member initializers, making it an aggregate in C++20, but aggregates
+ don't satisfy is_constructible_v in GCC 15's implementation.
+ .
+ Fix by replacing emplace() with direct aggregate initialization
+ assignment, which works with both libc++ and libstdc++.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-30
+
+diff --git a/cc/tiles/gpu_image_decode_cache.cc b/cc/tiles/gpu_image_decode_cache.cc
+index 801679c..0c584bf 100644
+--- a/cc/tiles/gpu_image_decode_cache.cc
++++ b/cc/tiles/gpu_image_decode_cache.cc
+@@ -961,7 +961,10 @@ GpuImageDecodeCache::ImageData::ImageData(
+     last_use = base::TimeTicks::Now();
+   }
+   if (speculative_decode) {
+-    speculative_decode_usage_stats_.emplace();
++    // GCC 15 libstdc++ std::optional::emplace() requires is_constructible_v,
++    // which fails for aggregates with default member initializers. Use
++    // assignment instead.
++    speculative_decode_usage_stats_ = SpeculativeDecodeUsageStats{};
+     speculative_decode_usage_stats_->speculative_decode_mip_level =
+         upload_scale_mip_level;
+     TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("loading"),

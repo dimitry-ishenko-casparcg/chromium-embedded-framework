@@ -1,0 +1,32 @@
+Description: Fix country_names.cc for string_view consumer after generator change
+ The generated kCountryNativeNames map now uses string_view values for
+ consteval compatibility with GCC 15 (patch 0055). The consumer code in
+ country_names.cc returns const std::string& but the map now contains
+ string_view values. Use thread_local cache to convert string_view to
+ std::string for the return value.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-01
+
+diff --git a/components/autofill/core/browser/geo/country_names.cc b/components/autofill/core/browser/geo/country_names.cc
+index 2925e20..a53f32f 100644
+--- a/components/autofill/core/browser/geo/country_names.cc
++++ b/components/autofill/core/browser/geo/country_names.cc
+@@ -86,8 +86,14 @@ const std::string& CountryNames::GetCountryCode(
+   // Next, check country native names.
+   const auto native_result =
+       kCountryNativeNames.find(base::i18n::ToUpper(country));
+-  if (native_result != kCountryNativeNames.end())
+-    return native_result->second;
++  if (native_result != kCountryNativeNames.end()) {
++    // The generated kCountryNativeNames map now uses string_view values for
++    // consteval compatibility with GCC 15. We need to convert to std::string
++    // to return a const reference that outlives this function.
++    static thread_local std::string cached_native_result;
++    cached_native_result = std::string(native_result->second);
++    return cached_native_result;
++  }
+
+   // Next, check country names localized to the current locale.
+   const std::string& country_code =
