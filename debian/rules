@@ -333,6 +333,9 @@ override_dh_auto_build:
 	# Patch 0027: Fix GRIT tracing resources - create stub about_tracing files without catapult
 	# Catapult is stripped from Debian source for DFSG compliance, so we generate stubs directly.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-tracing-stub-catapult-removed.chromium.patch
+	# Patch 0028: Add enable_cef to GRIT defines for components_strings
+	# CEF patches add <if expr="enable_cef"> conditionals to GRD files, so GRIT needs enable_cef defined.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-grit-enable-cef-define.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
