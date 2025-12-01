@@ -1,0 +1,49 @@
+Description: Fix GRIT tracing resources by creating stub about_tracing files locally
+ The catapult third-party library is stripped from the Debian source tarball
+ for DFSG compliance. The original BUILD.gn depends on catapult to generate
+ about_tracing.html and about_tracing.js files for the tracing UI.
+ .
+ Since catapult is not available, we create a local GN action that generates
+ empty stub files using touch, satisfying the GRIT resource generation
+ dependencies without requiring catapult.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-01
+
+diff --git a/content/browser/tracing/BUILD.gn b/content/browser/tracing/BUILD.gn
+index ca4bfa3..8a4e550 100644
+--- a/content/browser/tracing/BUILD.gn
++++ b/content/browser/tracing/BUILD.gn
+@@ -11,6 +11,21 @@ assert(!is_android)
+ # this file to be in the same directory as the inputs.
+ tracing_grd = "$target_gen_dir/tracing_resources.grd"
+
++# Debian: catapult is stripped from the source tarball, so we create stub
++# about_tracing files directly instead of depending on catapult.
++action("generate_stub_tracing_files") {
++  script = "//build/gn_run_binary.py"
++  outputs = [
++    "$target_gen_dir/about_tracing.html",
++    "$target_gen_dir/about_tracing.js",
++  ]
++  args = [
++    "touch",
++    rebase_path("$target_gen_dir/about_tracing.html", root_build_dir),
++    rebase_path("$target_gen_dir/about_tracing.js", root_build_dir),
++  ]
++}
++
+ generate_grd("build_grd") {
+   grd_prefix = "tracing"
+   out_grd = tracing_grd
+@@ -19,7 +34,8 @@ generate_grd("build_grd") {
+     "about_tracing.js",
+   ]
+   input_files_base_dir = rebase_path(target_gen_dir, root_build_dir)
+-  deps = [ "//third_party/catapult/tracing:generate_about_tracing" ]
++  # Debian: use stub files instead of catapult-generated files
++  deps = [ ":generate_stub_tracing_files" ]
+ }
+
+ grit("resources") {
