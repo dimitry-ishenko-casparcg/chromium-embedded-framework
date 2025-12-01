@@ -329,6 +329,20 @@ override_dh_auto_build:
 	# Patch 0049: Fix GCC 15 libstdc++ flat_map with move-only OnceCallback
 	# Use try_emplace instead of operator[] to avoid copy operations.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-wayland-color-manager-flat-map-fix.chromium.patch
+	# Patch 0050: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types in GpuImageDecodeCache
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0050-gpu-image-decode-cache-emplace-fix.chromium.patch
+	# Patch 0051: Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0051-wtf-string-codepoint-iterator-include.chromium.patch
+	# Patch 0052: Fix GCC 15 libstdc++ optional::emplace() error in paint_layer_scrollable_area.h
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0052-blink-paint-layer-scrollable-area-emplace-fix.chromium.patch
+	# Patch 0053: Fix GCC 15 libstdc++ optional::emplace() error in line_breaker.cc
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0053-blink-line-breaker-emplace-fix.chromium.patch
+	# Patch 0054: Fix GCC 15 consteval error with MakeFixedFlatSet<AddressCountryCode>
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0054-autofill-address-country-consteval-fix.chromium.patch
+	# Patch 0055: Fix GCC 15 consteval error in country_native_names_inl.h generator
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0055-autofill-country-names-generator-consteval-fix.chromium.patch
+	# Patch 0056: Fix country_names.cc consumer for string_view after patch 0055
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0056-autofill-country-names-stringview-consumer-fix.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 

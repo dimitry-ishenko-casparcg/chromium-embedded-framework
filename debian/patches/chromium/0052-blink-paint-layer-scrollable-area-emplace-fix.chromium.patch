@@ -1,0 +1,25 @@
+Description: Fix GCC 15 libstdc++ optional::emplace() error in paint_layer_scrollable_area.h
+ GCC 15's libstdc++ std::optional::emplace() requires is_constructible_v<T>
+ to be satisfied. PendingViewState is an aggregate with default member
+ initializers, which makes it non-constructible in the traditional sense.
+ Use aggregate initialization assignment instead of emplace().
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-11-30
+
+diff --git a/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h b/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
+index 2a9b29f..439c106 100644
+--- a/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
++++ b/third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
+@@ -607,7 +607,9 @@ class CORE_EXPORT PaintLayerScrollableArea final
+       mojom::blink::ScrollBehavior scroll_behavior) override {
+     if (!should_restore_scroll)
+       return;
+-    pending_view_state_.emplace();
++    // GCC 15 libstdc++: Use aggregate initialization instead of emplace()
++    // for types with default member initializers.
++    pending_view_state_ = PendingViewState{};
+     pending_view_state_->state = view_state;
+     pending_view_state_->scroll_behavior = scroll_behavior;
+   }
