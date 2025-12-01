@@ -330,6 +330,9 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-wayland-color-manager-flat-map-fix.chromium.patch
 	# Patch 0026: Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0026-wtf-string-codepoint-iterator-include.chromium.patch
+	# Patch 0027: Fix GRIT tracing resources - create stub about_tracing files without catapult
+	# Catapult is stripped from Debian source for DFSG compliance, so we generate stubs directly.
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-tracing-stub-catapult-removed.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -598,7 +601,7 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing
 	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
 	echo 'group("convert_chart_json") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
-	echo 'executable("generate_about_tracing") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
+	echo 'group("generate_about_tracing") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/BUILD.gn
 	@echo "==> Creating stub third_party/enterprise_companion/BUILD.gn (Debian strips enterprise_companion)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion
 	echo '# Stub BUILD.gn for Debian builds - enterprise_companion stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/enterprise_companion/BUILD.gn
