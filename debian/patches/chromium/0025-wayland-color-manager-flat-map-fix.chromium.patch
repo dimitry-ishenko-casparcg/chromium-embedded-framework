@@ -1,42 +1,47 @@
 Description: Fix GCC 15 libstdc++ flat_map with move-only OnceCallback
- GCC 15's libstdc++ flat_map implementation triggers copy operations when
- using operator[] or try_emplace to access or insert elements. This fails
- with move-only types like base::OnceCallback which have deleted copy
- constructors.
+ GCC 15's libstdc++ flat_map implementation triggers construct_at during
+ template instantiation for value types, which fails for move-only types
+ like base::OnceCallback that have deleted copy constructors.
  .
- The fix uses find() and insert() separately, creating the value vector
- with the callback already moved in before inserting the pair. This avoids
- any internal copy operations that the flat_map implementation might trigger.
+ The fix replaces base::flat_map with std::map for the pending_callbacks_
+ and pending_creations_ members. std::map uses node-based storage that
+ doesn't require copying value types during internal operations.
  .
- Error was: call to deleted constructor of 'base::OnceCallback'
+ Error was: no matching function for call to 'construct_at'
  note: 'OnceCallback' has been explicitly marked deleted here
 Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-30
+Last-Update: 2025-12-02
 
-diff --git a/ui/ozone/platform/wayland/host/wayland_wp_color_manager.cc b/ui/ozone/platform/wayland/host/wayland_wp_color_manager.cc
-index 023e375..defa123 100644
---- a/ui/ozone/platform/wayland/host/wayland_wp_color_manager.cc
-+++ b/ui/ozone/platform/wayland/host/wayland_wp_color_manager.cc
-@@ -160,10 +160,17 @@ void WaylandWpColorManager::GetImageDescription(
-     return;
-   }
+diff --git a/ui/ozone/platform/wayland/host/wayland_wp_color_manager.h b/ui/ozone/platform/wayland/host/wayland_wp_color_manager.h
+index 0599b06..c750850 100644
+--- a/ui/ozone/platform/wayland/host/wayland_wp_color_manager.h
++++ b/ui/ozone/platform/wayland/host/wayland_wp_color_manager.h
+@@ -8,6 +8,7 @@
+ #include <color-management-v1-client-protocol.h>
 
--  pending_callbacks_[key].push_back(std::move(callback));
--  // Return early if there's already a pending creation for this key.
--  if (pending_callbacks_[key].size() > 1) {
-+  // Avoid try_emplace/operator[] which trigger copies of move-only types in
-+  // GCC 15 libstdc++'s flat_map implementation. Use find() + insert() instead.
-+  auto existing = pending_callbacks_.find(key);
-+  if (existing != pending_callbacks_.end()) {
-+    // Key already exists, just add the callback
-+    existing->second.push_back(std::move(callback));
-     return;
-   }
-+  // Key doesn't exist - create new vector with our callback and insert it
-+  std::vector<WaylandWpImageDescription::CreationCallback> callbacks;
-+  callbacks.push_back(std::move(callback));
-+  pending_callbacks_.insert({key, std::move(callbacks)});
+ #include <cstdint>
++#include <map>
+ #include <memory>
 
-   auto cleanup = [&]() {
+ #include "base/containers/flat_map.h"
+@@ -120,12 +121,15 @@ class WaylandWpColorManager
+       image_description_cache_{64};
+
+   // Callbacks for image descriptions that are being created.
+-  base::flat_map<ImageDescription,
+-                 std::vector<WaylandWpImageDescription::CreationCallback>>
++  // Using std::map instead of base::flat_map because GCC 15 libstdc++'s
++  // flat_map template instantiation triggers construct_at for value types,
++  // which fails for move-only types like OnceCallback.
++  std::map<ImageDescription,
++           std::vector<WaylandWpImageDescription::CreationCallback>>
+       pending_callbacks_;
+
+   // Holds the image description objects while their creation is pending.
+-  base::flat_map<ImageDescription, scoped_refptr<WaylandWpImageDescription>>
++  std::map<ImageDescription, scoped_refptr<WaylandWpImageDescription>>
+       pending_creations_;
+
+   // Feature support, as bitsets.
