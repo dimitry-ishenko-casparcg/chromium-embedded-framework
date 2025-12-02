@@ -4,8 +4,9 @@ Description: Fix GRIT tracing resources by creating stub about_tracing files loc
  about_tracing.html and about_tracing.js files for the tracing UI.
  .
  Since catapult is not available, we create a local GN action that generates
- empty stub files using touch, satisfying the GRIT resource generation
- dependencies without requiring catapult.
+ empty stub files using /usr/bin/touch (absolute path required because
+ gn_run_binary.py prepends ./ to non-absolute paths), satisfying the GRIT
+ resource generation dependencies without requiring catapult.
 Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
@@ -28,7 +29,7 @@ index ca4bfa3..8a4e550 100644
 +    "$target_gen_dir/about_tracing.js",
 +  ]
 +  args = [
-+    "touch",
++    "/usr/bin/touch",
 +    rebase_path("$target_gen_dir/about_tracing.html", root_build_dir),
 +    rebase_path("$target_gen_dir/about_tracing.js", root_build_dir),
 +  ]
