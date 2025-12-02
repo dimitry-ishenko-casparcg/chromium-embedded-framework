@@ -1,8 +1,12 @@
-Description: Import CEF enable_cef variable for GRIT defines
- Fix GRIT build error "undefined Grit variable found: enable_cef" by
- importing the enable_cef variable from CEF's features.gni instead of
- declaring a duplicate variable. This allows components_strings GRIT
- target to properly resolve CEF-specific string conditions.
+Description: Import CEF enable_cef variable for components_strings GRIT target
+ Fix GRIT build error "undefined Grit variable found: enable_cef" in
+ components_strings by importing the enable_cef variable from CEF's
+ features.gni and adding it to the grit_defines list. This allows
+ components_strings GRIT target to properly resolve CEF-specific string
+ conditions in .grd/.grdp files.
+ .
+ Related patch 0029 handles a similar issue for Chrome WebUI preprocessing
+ (chrome_grit_defines in chrome/common/features.gni).
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed

@@ -1,0 +1,25 @@
+Description: Add enable_cef to chrome_grit_defines for preprocess_if_expr
+ The build_webui.gni template uses chrome_grit_defines for preprocessor_defines
+ when running preprocess_if_expr.py on TypeScript/HTML files. CEF's about_version.ts
+ uses <if expr="enable_cef"> conditionals, so enable_cef must be in this list.
+ .
+ Note: chrome/common/features.gni already imports //cef/libcef/features/features.gni
+ (added by CEF's patch_add_cef_to_features_gni.patch), which defines enable_cef.
+ This patch only adds it to the chrome_grit_defines list for WebUI preprocessing.
+ .
+ Related patch 0028 handles a similar issue for components_strings GRIT target.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-02
+
+diff --git a/chrome/common/features.gni b/chrome/common/features.gni
+index c46c6f6..425d9d2 100644
+--- a/chrome/common/features.gni
++++ b/chrome/common/features.gni
+@@ -105,4 +105,5 @@ chrome_grit_defines = [
+   "optimize_webui=$optimize_webui",
+   "chrome_root_store_cert_management_ui=$chrome_root_store_cert_management_ui",
+   "use_nss_certs=$use_nss_certs",
++  "enable_cef=$enable_cef",
+ ]

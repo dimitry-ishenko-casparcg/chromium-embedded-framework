@@ -336,6 +336,9 @@ override_dh_auto_build:
 	# Patch 0028: Add enable_cef to GRIT defines for components_strings
 	# CEF patches add <if expr="enable_cef"> conditionals to GRD files, so GRIT needs enable_cef defined.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-grit-enable-cef-define.chromium.patch
+	# Patch 0029: Add enable_cef to chrome_grit_defines for preprocess_if_expr
+	# CEF's about_version.ts/html use <if expr="enable_cef"> conditionals processed by build_webui.gni
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0029-add-enable-cef-to-chrome-grit-defines.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
