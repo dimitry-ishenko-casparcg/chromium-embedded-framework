@@ -1,0 +1,32 @@
+Description: Fix fontconfig stub to use pkg-config for system library linkage
+ The fontconfig stub BUILD.gn was empty and did not provide the library
+ linkage needed when targets depend on fontconfig.
+ .
+ The generate_fontconfig_caches executable depends on fontconfig_util_linux,
+ which depends on //third_party/fontconfig. Without proper library linkage,
+ linking fails with undefined symbols: FcInit, FcFini.
+ .
+ Fix by using pkg_config to get the proper compiler and linker flags
+ from the system fontconfig package.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-03
+
+diff --git a/third_party/fontconfig/BUILD.gn b/third_party/fontconfig/BUILD.gn
+index 0494ef4..085a69f 100644
+--- a/third_party/fontconfig/BUILD.gn
++++ b/third_party/fontconfig/BUILD.gn
+@@ -1,2 +1,11 @@
+ # Stub BUILD.gn for Debian builds - uses system fontconfig
+-source_set("fontconfig") { sources = [] }
++import("//build/config/linux/pkg_config.gni")
++
++pkg_config("fontconfig_config") {
++  packages = [ "fontconfig" ]
++}
++
++source_set("fontconfig") {
++  sources = []
++  public_configs = [ ":fontconfig_config" ]
++}

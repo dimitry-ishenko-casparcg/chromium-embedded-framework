@@ -342,6 +342,9 @@ override_dh_auto_build:
 	# Patch 0030: Fix ToValueList to use std::move for projection results
 	# std::ranges::for_each stores projection result as lvalue, causing Append(DictValue&&) mismatch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0030-fix-to-value-list-move-for-append.chromium.patch
+	# Patch 0031: Fix fontconfig stub to use pkg-config for system library linkage
+	# Without this, generate_fontconfig_caches fails to link (undefined: FcInit, FcFini)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-fontconfig-stub-add-pkg-config.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
