@@ -1,0 +1,32 @@
+Description: Fix ToValueList to use std::move for projection results
+ The ToValueList function uses std::ranges::for_each with a projection.
+ When the projection returns a value type (like base::Value::Dict),
+ std::ranges::for_each passes the result by reference to the callback.
+ .
+ The original code used std::forward<T>(value), but since the projection
+ result is stored as an lvalue by for_each before passing to the callback,
+ T deduces to a non-reference type and forward returns an lvalue reference.
+ .
+ This causes compilation errors because Value::List::Append(DictValue&&)
+ requires an rvalue reference but receives an lvalue.
+ .
+ Fix by using std::move(value) unconditionally since the projection result
+ is always consumed exactly once and should be moved into the list.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-03
+
+diff --git a/base/containers/to_value_list.h b/base/containers/to_value_list.h
+index 643ccd0..01735ae 100644
+--- a/base/containers/to_value_list.h
++++ b/base/containers/to_value_list.h
+@@ -36,7 +36,7 @@ Value::List ToValueList(Range&& range, Proj proj = {}) {
+   auto container = Value::List::with_capacity(std::ranges::size(range));
+   std::ranges::for_each(
+       std::forward<Range>(range),
+-      [&]<typename T>(T&& value) { container.Append(std::forward<T>(value)); },
++      [&]<typename T>(T&& value) { container.Append(std::move(value)); },
+       std::move(proj));
+   return container;
+ }
