@@ -1,0 +1,69 @@
+Description: Fix compose config MakeFixedFlatSet consteval with std::string for GCC 15
+ GCC 15 libstdc++ does not allow std::string in consteval functions because
+ std::string requires heap allocation which is not permitted at compile time.
+ .
+ The consteval MakeFixedFlatSet<std::string> calls fail with:
+ "call to consteval function is not a constant expression"
+ "pointer to subobject of temporary is not a constant expression"
+ .
+ Replace constexpr MakeFixedFlatSet with runtime-initialized functions using
+ base::NoDestructor<base::flat_set<std::string>>.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-04
+
+diff --git a/components/compose/core/browser/config.cc b/components/compose/core/browser/config.cc
+index 7a4d190..b35f7f7 100644
+--- a/components/compose/core/browser/config.cc
++++ b/components/compose/core/browser/config.cc
+@@ -45,12 +45,21 @@ std::vector<std::string> GetFieldTrialParamAsSplitString(
+                            base::SPLIT_WANT_NONEMPTY);
+ }
+
+-constexpr auto DEFAULT_COMPOSE_ENABLED_COUNTRIES =
+-    base::MakeFixedFlatSet<std::string>({"bd", "ca", "gh", "in", "ke", "my",
+-                                         "ng", "ph", "pk", "sg", "tz", "ug",
+-                                         "us", "zm", "zw"});
+-constexpr auto DEFAULT_PROACTIVE_NUDGE_ENABLED_COUNTRIES =
+-    base::MakeFixedFlatSet<std::string>({"us"});
++// GCC 15 libstdc++: consteval MakeFixedFlatSet cannot use std::string
++// (heap allocation not allowed at compile time). Use runtime initialization.
++const base::flat_set<std::string>& GetDefaultComposeEnabledCountries() {
++  static const base::NoDestructor<base::flat_set<std::string>> countries(
++      std::initializer_list<std::string>{"bd", "ca", "gh", "in", "ke", "my",
++                                          "ng", "ph", "pk", "sg", "tz", "ug",
++                                          "us", "zm", "zw"});
++  return *countries;
++}
++
++const base::flat_set<std::string>& GetDefaultProactiveNudgeEnabledCountries() {
++  static const base::NoDestructor<base::flat_set<std::string>> countries(
++      std::initializer_list<std::string>{"us"});
++  return *countries;
++}
+
+ }  // namespace
+
+@@ -208,9 +217,7 @@ Config::Config() {
+                                       "enabled_countries");
+   enabled_countries =
+       (enabled_countries_from_finch.empty())
+-          ? base::flat_set<std::string>(
+-                DEFAULT_COMPOSE_ENABLED_COUNTRIES.begin(),
+-                DEFAULT_COMPOSE_ENABLED_COUNTRIES.end())
++          ? GetDefaultComposeEnabledCountries()
+           : base::flat_set<std::string>(enabled_countries_from_finch);
+
+   std::vector<std::string> proactive_nudge_countries_from_finch =
+@@ -218,9 +225,7 @@ Config::Config() {
+                                       "proactive_nudge_countries");
+   proactive_nudge_countries =
+       (proactive_nudge_countries_from_finch.empty())
+-          ? base::flat_set<std::string>(
+-                DEFAULT_PROACTIVE_NUDGE_ENABLED_COUNTRIES.begin(),
+-                DEFAULT_PROACTIVE_NUDGE_ENABLED_COUNTRIES.end())
++          ? GetDefaultProactiveNudgeEnabledCountries()
+           : base::flat_set<std::string>(proactive_nudge_countries_from_finch);
+
+   session_max_allowed_lifetime =

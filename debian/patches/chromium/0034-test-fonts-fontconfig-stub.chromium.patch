@@ -1,0 +1,86 @@
+Description: Stub test_fonts/fontconfig BUILD.gn for missing test fonts
+ The Debian Chromium source tarball strips test fonts to reduce package size.
+ This causes generate_fontconfig_caches to fail because it requires the
+ test_fonts directory to exist.
+ .
+ This patch stubs out all targets in third_party/test_fonts/fontconfig/BUILD.gn
+ to satisfy build dependencies without actually running the fontconfig cache
+ generation (which requires the missing test fonts).
+ .
+ Related to the existing third_party/test_fonts/BUILD.gn stub.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-04
+
+diff --git a/third_party/test_fonts/fontconfig/BUILD.gn b/third_party/test_fonts/fontconfig/BUILD.gn
+index fac67b4..35d8552 100644
+--- a/third_party/test_fonts/fontconfig/BUILD.gn
++++ b/third_party/test_fonts/fontconfig/BUILD.gn
+@@ -2,56 +2,29 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
+
+-import("//build/compiled_action.gni")
++# Debian patch: Test fonts are stripped from the Chromium source tarball.
++# This stubbed BUILD.gn satisfies build dependencies without requiring
++# the fonts or running fontconfig cache generation.
+
+ if (is_linux || is_chromeos) {
++  # Empty test_support group - test fonts aren't available in Debian builds
+   group("test_support") {
+     testonly = true
+-    public_deps = [ ":fontconfig_util_linux" ]
+-    data_deps = [ "//third_party/test_fonts" ]
+-    if (current_toolchain == host_toolchain) {
+-      data_deps += [ ":do_generate_fontconfig_caches" ]
+-    }
+   }
+
+-  source_set("fontconfig_util_linux") {
++  # Empty fontconfig_util_linux - not needed without test fonts
++  group("fontconfig_util_linux") {
+     testonly = true
+-    sources = [
+-      "fontconfig_util_linux.cc",
+-      "fontconfig_util_linux.h",
+-    ]
+-    data_deps = [ ":fonts_conf" ]
+-    deps = [ "//third_party/fontconfig" ]
+   }
+
+-  copy("fonts_conf") {
+-    sources = [ "fonts.conf" ]
+-    outputs = [ "$root_out_dir/etc/fonts/{{source_file_part}}" ]
++  # Empty fonts_conf - not needed without test fonts
++  group("fonts_conf") {
+   }
+
+   if (current_toolchain == host_toolchain) {
+-    executable("generate_fontconfig_caches") {
++    # Empty do_generate_fontconfig_caches - test fonts not available
++    group("do_generate_fontconfig_caches") {
+       testonly = true
+-      sources = [ "generate_fontconfig_caches.cc" ]
+-      deps = [ ":fontconfig_util_linux" ]
+-    }
+-
+-    compiled_action("do_generate_fontconfig_caches") {
+-      testonly = true
+-      tool = ":generate_fontconfig_caches"
+-
+-      # The copied test fonts are inputs to generate_fontconfig_caches, so must
+-      # be listed in deps, not data_deps (https://crbug.com/919422).
+-      deps = [
+-        ":fonts_conf",
+-        "//third_party/test_fonts",
+-      ]
+-      args = []
+-      inputs = [ "$root_out_dir/etc/fonts/fonts.conf" ]
+-      outputs = [
+-        "$root_out_dir/fontconfig_caches/fb5c91b2895aa445d23aebf7f9e2189c-le64.cache-11",
+-        "$root_out_dir/fontconfig_caches/CACHEDIR.TAG",
+-      ]
+     }
+   }
+ }

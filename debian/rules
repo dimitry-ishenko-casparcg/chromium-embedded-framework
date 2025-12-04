@@ -348,6 +348,15 @@ override_dh_auto_build:
 	# Patch 0032: Fix surface_aggregator AggregateStatistics emplace for GCC 15
 	# GCC 15 libstdc++ std::optional::emplace() fails for aggregates with default initializers
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-surface-aggregator-emplace-fix.chromium.patch
+	# Patch 0033: Fix compose config MakeFixedFlatSet consteval with std::string for GCC 15
+	# consteval functions cannot use std::string (heap allocation not allowed at compile time)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0033-compose-config-consteval-fix.chromium.patch
+	# Patch 0034: Stub test_fonts/fontconfig BUILD.gn - test fonts stripped from Debian tarball
+	# Without this, generate_fontconfig_caches fails because test_fonts directory is missing
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0034-test-fonts-fontconfig-stub.chromium.patch
+	# Patch 0035: Add missing <memory> include for std::unique_ptr in tips_agent.h
+	# System libc++ doesn't transitively include <memory>
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-tips-agent-add-memory-include.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -378,8 +387,11 @@ override_dh_auto_build:
 	echo 'source_set("opus") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '  public_configs = [ ":opus_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '  libs = [ "opus" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
-	echo 'config("opus_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo 'config("opus_config") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '  include_dirs = [ "/usr/include/opus" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("opus_compare") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("opus_demo") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
 	echo 'executable("test_opus_api") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/opus/BUILD.gn
@@ -640,9 +652,19 @@ override_dh_auto_build:
 	@echo "==> Creating stub third_party/dav1d/BUILD.gn (Debian uses system dav1d)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/dav1d
 	echo '# Stub BUILD.gn for Debian builds - uses system dav1d' > $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
-	echo 'source_set("dav1d") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
-	echo 'config("dav1d_config") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
-	echo 'group("dav1d_headers") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '# Links to system libdav1d via libs = [ "dav1d" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'source_set("dav1d") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '  public_configs = [ ":dav1d_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '  libs = [ "dav1d" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'config("dav1d_config") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '  include_dirs = [ "/usr/include/dav1d" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo 'group("dav1d_headers") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '  public_configs = [ ":dav1d_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
 	@echo "==> Creating stub third_party/libxslt/BUILD.gn (Debian uses system libxslt)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxslt
 	echo '# Stub BUILD.gn for Debian builds - uses system libxslt' > $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn

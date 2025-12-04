@@ -1,0 +1,27 @@
+Description: Remove enable_pseudolocales conditional from cef_strings.grd
+ The cef_strings.grd file uses an <if expr="enable_pseudolocales"> conditional
+ that refers to a GRIT variable not passed during the build. Since we build
+ with is_official_build=true, pseudolocales are disabled anyway (the variable
+ is defined as enable_pseudolocales = !is_official_build in build/config/locales.gni).
+ .
+ Removing the conditional avoids the "undefined Grit variable found" error.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-04
+
+diff --git a/libcef/resources/cef_strings.grd b/libcef/resources/cef_strings.grd
+index a3d59a2..22e4780 100644
+--- a/libcef/resources/cef_strings.grd
++++ b/libcef/resources/cef_strings.grd
+@@ -105,10 +105,6 @@ need to be translated for each locale.-->
+     <output filename="cef_strings_vi.pak" type="data_package" lang="vi" />
+     <output filename="cef_strings_zh-CN.pak" type="data_package" lang="zh-CN" />
+     <output filename="cef_strings_zh-TW.pak" type="data_package" lang="zh-TW" />
+-    <if expr="enable_pseudolocales">
+-      <output filename="cef_strings_ar-XB.pak" type="data_package" lang="ar-XB" />
+-      <output filename="cef_strings_en-XA.pak" type="data_package" lang="en-XA" />
+-    </if>
+   </outputs>
+   <release seq="1" allow_pseudo="false">
+     <messages fallback_to_english="true">
