@@ -10,3 +10,4 @@
 0010-add-rust-toolchain-stub.cef.patch
 0011-fix-opus-stub-after-gclient-runhooks.cef.patch
 0012-add-gn-debian-args-function.cef.patch
+0013-remove-pseudolocales-conditional.cef.patch
