@@ -1,0 +1,30 @@
+Description: Fix surface_aggregator AggregateStatistics emplace for GCC 15
+ GCC 15 libstdc++ std::optional::emplace() requires is_constructible_v<T>,
+ which fails for aggregate types with default member initializers.
+ .
+ The AggregateStatistics struct has default member initializers (= false),
+ making it an aggregate in C++20 that doesn't satisfy is_constructible_v.
+ .
+ Replace stats_.emplace() with assignment from aggregate initialization
+ stats_ = AggregateStatistics{}.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-03
+
+diff --git a/components/viz/service/display/surface_aggregator.cc b/components/viz/service/display/surface_aggregator.cc
+index d8c2a93..5ec0a7c 100644
+--- a/components/viz/service/display/surface_aggregator.cc
++++ b/components/viz/service/display/surface_aggregator.cc
+@@ -2161,7 +2161,10 @@ SurfaceAggregator::Aggregate(const SurfaceId& surface_id,
+   root_surface_id_ = surface_id;
+
+   // Start recording new stats for this aggregation.
+-  stats_.emplace();
++  // GCC 15 libstdc++ std::optional::emplace() requires is_constructible_v,
++  // which fails for aggregates with default member initializers. Use
++  // assignment instead.
++  stats_ = AggregateStatistics{};
+
+   ResolvedFrameData* resolved_frame = GetResolvedFrame(surface_id);
+
