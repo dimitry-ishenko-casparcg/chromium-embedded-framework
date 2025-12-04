@@ -345,6 +345,9 @@ override_dh_auto_build:
 	# Patch 0031: Fix fontconfig stub to use pkg-config for system library linkage
 	# Without this, generate_fontconfig_caches fails to link (undefined: FcInit, FcFini)
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-fontconfig-stub-add-pkg-config.chromium.patch
+	# Patch 0032: Fix surface_aggregator AggregateStatistics emplace for GCC 15
+	# GCC 15 libstdc++ std::optional::emplace() fails for aggregates with default initializers
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-surface-aggregator-emplace-fix.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
