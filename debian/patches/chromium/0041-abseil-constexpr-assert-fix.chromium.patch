@@ -1,0 +1,40 @@
+Description: Fix abseil constexpr_parser.h assert macro conflict with Chromium
+ Chromium's base/logging.h redefines assert to DLOG_ASSERT which is not
+ constexpr-compatible. When base/logging.h is included before abseil's
+ str_format headers, the assert macro gets overwritten with a non-constexpr
+ version, causing "use of undeclared identifier 'assert'" errors in the
+ compile-time format checking code.
+ .
+ Fix by undefining any existing assert macro and re-including cassert
+ after absl/base/config.h to ensure we get the standard constexpr-compatible
+ assert macro.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-05
+
+diff --git a/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h b/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
+index 8f59387..8384f36 100644
+--- a/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
++++ b/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
+@@ -15,12 +15,19 @@
+ #ifndef ABSL_STRINGS_INTERNAL_STR_FORMAT_CONSTEXPR_PARSER_H_
+ #define ABSL_STRINGS_INTERNAL_STR_FORMAT_CONSTEXPR_PARSER_H_
+
+-#include <cassert>
+ #include <cstdint>
+ #include <cstdio>
+ #include <limits>
+
+ #include "absl/base/config.h"
++
++// Chromium's base/logging.h redefines assert to DLOG_ASSERT which is not
++// constexpr-compatible. We need to use the standard assert for constexpr code.
++// Save and restore any existing assert definition.
++#ifdef assert
++#undef assert
++#endif
++#include <cassert>
+ #include "absl/base/const_init.h"
+ #include "absl/base/optimization.h"
+ #include "absl/strings/internal/str_format/extension.h"
