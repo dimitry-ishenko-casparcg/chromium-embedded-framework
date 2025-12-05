@@ -1,0 +1,36 @@
+Description: Fix StringPrintf format arguments for abseil strict checking
+ With is_official_build=true, abseil uses compile-time format checking which
+ requires %s arguments to be const char*, not std::string or std::string_view.
+ Fix by using .c_str() for std::string and converting std::string_view to
+ std::string before getting c_str().
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-05
+
+diff --git a/media/audio/audio_device_description.cc b/media/audio/audio_device_description.cc
+index 6c85513..3e4205a 100644
+--- a/media/audio/audio_device_description.cc
++++ b/media/audio/audio_device_description.cc
+@@ -120,8 +120,8 @@ std::string AudioDeviceDescription::GetDefaultDeviceName(
+   }
+   // TODO(guidou): Put the names together in a localized manner.
+   // http://crbug.com/788767
+-  return base::StringPrintf("%s - %s", GetDefaultDeviceName(),
+-                            real_device_name);
++  return base::StringPrintf("%s - %s", GetDefaultDeviceName().c_str(),
++                            std::string(real_device_name).c_str());
+ }
+
+ // static
+@@ -132,8 +132,8 @@ std::string AudioDeviceDescription::GetCommunicationsDeviceName(
+   }
+   // TODO(guidou): Put the names together in a localized manner.
+   // http://crbug.com/788767
+-  return base::StringPrintf("%s - %s", GetCommunicationsDeviceName(),
+-                            real_device_name);
++  return base::StringPrintf("%s - %s", GetCommunicationsDeviceName().c_str(),
++                            std::string(real_device_name).c_str());
+ }
+
+ // static

@@ -1,0 +1,34 @@
+Description: Disable assert macro redefinition in partition_alloc for abseil/perfetto
+ Chromium's partition_alloc logging.h (line 390-391) redefines assert to
+ PA_DLOG_ASSERT. This breaks abseil's str_format constexpr code and perfetto's
+ scattered_stream_writer.h which require the standard assert macro from <cassert>.
+ .
+ When is_official_build=true, these compile-time checks are enabled and any
+ code path that includes partition_alloc logging.h before these third-party
+ headers will fail with "use of undeclared identifier 'assert'" errors.
+ .
+ This is the companion patch to 0042, which fixes the same issue in base/logging.h.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-05
+
+diff --git a/base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/logging.h b/base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/logging.h
+index 1234567..abcdefg 100644
+--- a/base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/logging.h
++++ b/base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/logging.h
+@@ -386,9 +386,11 @@ PA_COMPONENT_EXPORT(PARTITION_ALLOC_BASE) extern LogSeverity LOGGING_DCHECK;
+ constexpr LogSeverity LOGGING_DCHECK = LOGGING_FATAL;
+ #endif  // PA_BUILDFLAG(DCHECK_IS_CONFIGURABLE)
+
+-// Redefine the standard assert to use our nice log files
+-#undef assert
+-#define assert(x) PA_DLOG_ASSERT(x)
++// Chromium originally redefined assert to PA_DLOG_ASSERT, but this breaks
++// abseil's str_format and perfetto's constexpr code which require the standard
++// assert macro from <cassert>. Disable the redefinition.
++// #undef assert
++// #define assert(x) PA_DLOG_ASSERT(x)
+
+ // Async signal safe logging mechanism.
+ PA_COMPONENT_EXPORT(PARTITION_ALLOC_BASE)

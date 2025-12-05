@@ -1,0 +1,38 @@
+Description: Add library linkage to openh264 BUILD.gn stub
+ The Debian Chromium tarball replaces bundled openh264 with a stub BUILD.gn
+ that uses system libopenh264. However, the stub was missing the
+ libs = [ "openh264" ] declaration. This would cause undefined symbol errors
+ for openh264 functions at link time.
+ .
+ Fix by adding proper config with include_dirs and libs declaration to both
+ encoder and decoder targets.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-05
+
+diff --git a/third_party/openh264/BUILD.gn b/third_party/openh264/BUILD.gn
+index cfc4e70..a9f8cca 100644
+--- a/third_party/openh264/BUILD.gn
++++ b/third_party/openh264/BUILD.gn
+@@ -1,3 +1,18 @@
+ # Stub BUILD.gn for Debian builds - uses system openh264
+-source_set("decoder") { sources = [] }
+-source_set("encoder") { sources = [] }
++# Links to system libopenh264 via libs = [ "openh264" ]
++
++config("openh264_config") {
++  include_dirs = [ "/usr/include/wels" ]
++}
++
++source_set("decoder") {
++  sources = []
++  public_configs = [ ":openh264_config" ]
++  libs = [ "openh264" ]
++}
++
++source_set("encoder") {
++  sources = []
++  public_configs = [ ":openh264_config" ]
++  libs = [ "openh264" ]
++}

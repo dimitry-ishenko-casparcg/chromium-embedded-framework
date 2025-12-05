@@ -1,0 +1,30 @@
+Description: Add library linkage to libpng BUILD.gn stub
+ The Debian Chromium tarball replaces bundled libpng with a stub BUILD.gn
+ that uses system libpng. However, the stub was missing the libs = [ "png" ]
+ declaration needed for linking. This caused undefined symbol errors for
+ png_get_io_ptr, png_error, png_set_IHDR, etc. at link time.
+ .
+ Fix by adding proper config with include_dirs and libs declaration.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-05
+
+diff --git a/third_party/libpng/BUILD.gn b/third_party/libpng/BUILD.gn
+index 3c46839..ac12c4b 100644
+--- a/third_party/libpng/BUILD.gn
++++ b/third_party/libpng/BUILD.gn
+@@ -1,2 +1,12 @@
+ # Stub BUILD.gn for Debian builds - uses system libpng
+-source_set("libpng") { sources = [] }
++# Links to system libpng via libs = [ "png" ]
++
++config("libpng_config") {
++  include_dirs = [ "/usr/include/libpng16" ]
++}
++
++source_set("libpng") {
++  sources = []
++  public_configs = [ ":libpng_config" ]
++  libs = [ "png" ]
++}
