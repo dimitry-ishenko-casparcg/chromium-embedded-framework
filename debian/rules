@@ -342,9 +342,8 @@ override_dh_auto_build:
 	# Patch 0030: Fix ToValueList to use std::move for projection results
 	# std::ranges::for_each stores projection result as lvalue, causing Append(DictValue&&) mismatch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0030-fix-to-value-list-move-for-append.chromium.patch
-	# Patch 0031: Fix fontconfig stub to use pkg-config for system library linkage
-	# Without this, generate_fontconfig_caches fails to link (undefined: FcInit, FcFini)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-fontconfig-stub-add-pkg-config.chromium.patch
+	# NOTE: Patch 0031 removed - fontconfig stub is created directly below in Step 7.2
+	# The fontconfig BUILD.gn with pkg-config support is created fresh, not patched
 	# Patch 0032: Fix surface_aggregator AggregateStatistics emplace for GCC 15
 	# GCC 15 libstdc++ std::optional::emplace() fails for aggregates with default initializers
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-surface-aggregator-emplace-fix.chromium.patch
@@ -357,22 +356,14 @@ override_dh_auto_build:
 	# Patch 0035: Add missing <memory> include for std::unique_ptr in tips_agent.h
 	# System libc++ doesn't transitively include <memory>
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-tips-agent-add-memory-include.chromium.patch
-	# Patch 0036: Add libs linkage to libpng stub for system library linking
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-libpng-stub-add-libs-linkage.chromium.patch
-	# Patch 0037: Add libs linkage to libjpeg_turbo stub for system library linking
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0037-libjpeg-turbo-stub-add-libs-linkage.chromium.patch
-	# Patch 0038: Add libs linkage to flac stub for system library linking
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0038-flac-stub-add-libs-linkage.chromium.patch
-	# Patch 0039: Add libs linkage to openh264 stub for system library linking
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0039-openh264-stub-add-libs-linkage.chromium.patch
+	# NOTE: Patches 0036-0039 removed - libpng, libjpeg_turbo, flac, openh264 stubs are created
+	# directly below in Step 7.5 with proper libs linkage. These stubs don't exist at patch time.
 	# Patch 0040: Fix StringPrintf format args for abseil strict checking
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0040-audio-device-stringprintf-cstr-fix.chromium.patch
-	# Patch 0041: Fix abseil constexpr_parser.h assert macro conflict with Chromium
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0041-abseil-constexpr-assert-fix.chromium.patch
-	# Patch 0042: Disable assert redefinition in base/logging.h for abseil compatibility
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-disable-assert-redefinition-for-abseil.chromium.patch
-	# Patch 0043: Disable assert redefinition in partition_alloc logging.h for abseil/perfetto compatibility
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0043-disable-assert-redefinition-partition-alloc.chromium.patch
+	# Patch 0041: Disable assert redefinition in base/logging.h for abseil compatibility
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0041-disable-assert-redefinition-for-abseil.chromium.patch
+	# Patch 0042: Disable assert redefinition in partition_alloc logging.h for abseil/perfetto compatibility
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-disable-assert-redefinition-partition-alloc.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -449,13 +440,31 @@ override_dh_auto_build:
 	echo '# This is a test/benchmark tool not needed for CEF' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
 	echo 'executable("bitmaptools") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/catapult/telemetry/BUILD.gn
-	@echo "==> Creating stub third_party/libjpeg_turbo/BUILD.gn (Debian uses system libjpeg)"
+	@echo "==> Creating stub third_party/libjpeg_turbo/BUILD.gn (Debian uses system libjpeg via libs)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo
 	echo '# Stub BUILD.gn for Debian builds' > $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
 	echo '# Debian uses system libjpeg instead of bundled libjpeg-turbo' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '# Links to system libjpeg via libs = [ "jpeg" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
 	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
-	echo 'source_set("simd") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
-	echo 'source_set("simd_asm") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'config("libjpeg_config") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  include_dirs = [ "/usr/include" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'source_set("libjpeg") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  public_configs = [ ":libjpeg_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  libs = [ "jpeg" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'source_set("simd") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  public_configs = [ ":libjpeg_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo 'source_set("simd_asm") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '  public_configs = [ ":libjpeg_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/libjpeg_turbo/BUILD.gn
 	@echo "==> Creating stub third_party/catapult/third_party/typ/BUILD.gn"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ
 	echo '# Stub BUILD.gn for Debian builds - typ is a testing library' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/third_party/typ/BUILD.gn
@@ -573,10 +582,12 @@ override_dh_auto_build:
 	echo "# Stub update_rust.py for Debian builds - uses system rustc" >> $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
 	echo "RUST_REVISION = '15283f6fe95e5b604273d13a428bab5fc0788f5a'" >> $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
 	echo "RUST_SUB_REVISION = 1" >> $(CURDIR)/chromium_src/chromium/src/tools/rust/update_rust.py
-	@echo "==> Creating stub third_party/fontconfig/BUILD.gn (Debian uses system fontconfig)"
+	@echo "==> Creating stub third_party/fontconfig/BUILD.gn (Debian uses system fontconfig via pkg-config)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig
-	echo '# Stub BUILD.gn for Debian builds - uses system fontconfig' > $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
-	echo 'source_set("fontconfig") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	echo '# Stub BUILD.gn for Debian builds - uses system fontconfig via pkg-config' > $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	echo 'import("//build/config/linux/pkg_config.gni")' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	echo 'pkg_config("fontconfig_config") { packages = [ "fontconfig" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
+	echo 'source_set("fontconfig") { sources = [] public_configs = [ ":fontconfig_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/fontconfig/BUILD.gn
 	# NOTE: Create zlib stub BUILD.gn but do NOT mkdir - directory exists with headers
 	# The tarball removes BUILD.gn but keeps header files needed by crc32.cc
 	@echo "==> Creating stub third_party/zlib/BUILD.gn (Debian uses system zlib)"
@@ -621,10 +632,20 @@ override_dh_auto_build:
 	@echo "==> Creating symlinks for libXNVCtrl headers (Debian uses system libxnvctrl-dev)"
 	ln -sf /usr/include/NVCtrl/NVCtrl.h $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/NVCtrl.h
 	ln -sf /usr/include/NVCtrl/NVCtrlLib.h $(CURDIR)/chromium_src/chromium/src/third_party/angle/src/third_party/libXNVCtrl/NVCtrlLib.h
-	@echo "==> Creating stub third_party/libpng/BUILD.gn (Debian uses system libpng)"
+	@echo "==> Creating stub third_party/libpng/BUILD.gn (Debian uses system libpng via libs)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libpng
 	echo '# Stub BUILD.gn for Debian builds - uses system libpng' > $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
-	echo 'source_set("libpng") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '# Links to system libpng via libs = [ "png" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo 'config("libpng_config") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '  include_dirs = [ "/usr/include/libpng16" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo 'source_set("libpng") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '  public_configs = [ ":libpng_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '  libs = [ "png" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/libpng/BUILD.gn
 	@echo "==> Creating stub third_party/zstd/BUILD.gn (Debian uses system zstd)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zstd
 	echo '# Stub BUILD.gn for Debian builds - uses system zstd' > $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
@@ -661,10 +682,20 @@ override_dh_auto_build:
 	@echo "==> Copying system libxml2 BUILD.gn (uses pkg_config for includes)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxml
 	cp $(CURDIR)/chromium_src/chromium/src/build/linux/unbundle/libxml.gn $(CURDIR)/chromium_src/chromium/src/third_party/libxml/BUILD.gn
-	@echo "==> Creating stub third_party/flac/BUILD.gn (Debian uses system flac)"
+	@echo "==> Creating stub third_party/flac/BUILD.gn (Debian uses system flac via libs)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/flac
 	echo '# Stub BUILD.gn for Debian builds - uses system flac' > $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
-	echo 'source_set("flac") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '# Links to system libFLAC via libs = [ "FLAC" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo 'config("flac_config") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '  include_dirs = [ "/usr/include/FLAC" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo 'source_set("flac") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '  public_configs = [ ":flac_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '  libs = [ "FLAC" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/flac/BUILD.gn
 	@echo "==> Creating stub third_party/dav1d/BUILD.gn (Debian uses system dav1d)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/dav1d
 	echo '# Stub BUILD.gn for Debian builds - uses system dav1d' > $(CURDIR)/chromium_src/chromium/src/third_party/dav1d/BUILD.gn
@@ -727,11 +758,26 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/updater
 	echo '# Stub BUILD.gn for Debian builds - updater test dependency' > $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
 	echo 'group("old_updater") {}' >> $(CURDIR)/chromium_src/chromium/src/third_party/updater/BUILD.gn
-	@echo "==> Creating stub third_party/openh264/BUILD.gn (Debian uses system openh264)"
+	@echo "==> Creating stub third_party/openh264/BUILD.gn (Debian uses system openh264 via libs)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/openh264
 	echo '# Stub BUILD.gn for Debian builds - uses system openh264' > $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
-	echo 'source_set("decoder") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
-	echo 'source_set("encoder") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '# Links to system libopenh264 via libs = [ "openh264" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'config("openh264_config") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  include_dirs = [ "/usr/include/wels" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'source_set("decoder") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  public_configs = [ ":openh264_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  libs = [ "openh264" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo 'source_set("encoder") {' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  sources = []' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  public_configs = [ ":openh264_config" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '  libs = [ "openh264" ]' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
+	echo '}' >> $(CURDIR)/chromium_src/chromium/src/third_party/openh264/BUILD.gn
 	@echo "==> Stub files created"
 	@echo "==> Note: optimize_webui=false in GN_DEFINES avoids need for WASM file (Build 119)"
 
