@@ -366,6 +366,8 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-disable-assert-redefinition-partition-alloc.chromium.patch
 	# Patch 0043: Add cassert includes to perfetto headers for assert availability
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0043-add-cassert-includes-perfetto-abseil.chromium.patch
+	# Patch 0044: Re-include cassert after all includes in abseil/perfetto headers
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0044-fix-assert-macro-cassert-after-includes.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 

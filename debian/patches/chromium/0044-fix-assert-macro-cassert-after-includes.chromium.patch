@@ -1,0 +1,111 @@
+Description: Fix assert macro undeclared in abseil and perfetto headers
+ The assert macro may be undefined by Chromium's base/logging.h or
+ cef_logging.h headers which use #undef assert for their own DCHECK
+ implementation. When abseil and perfetto headers include <cassert>
+ before other includes, the assert macro gets undefined by subsequent
+ Chromium header inclusions.
+ .
+ The fix is to re-include <assert.h> (NOT <cassert>) after all other
+ includes in each affected header file. CRITICAL: We must use <assert.h>
+ instead of <cassert> because:
+ - <cassert> has a header guard (#ifndef _GLIBCXX_CASSERT) which prevents
+   re-inclusion - if it was already included, it does nothing
+ - <assert.h> is specifically designed to be re-includeable - it does
+   #undef _ASSERT_H and #undef assert at the beginning before redefining
+ .
+ Affected files:
+  - third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
+  - third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
+  - third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
+  - third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
+  - third_party/perfetto/include/perfetto/tracing/locked_handle.h
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-07
+
+diff --git a/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h b/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
+index 120bc35..d1b5de7 100644
+--- a/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
++++ b/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
+@@ -31,6 +31,11 @@
+ #include "absl/types/span.h"
+ #include "absl/utility/utility.h"
+
++// Debian: Re-include <assert.h> after all other includes to ensure the assert
++// macro is defined. Chromium headers may have undefined it earlier.
++// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
++// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
++#include <assert.h>
++
+ namespace absl {
+ ABSL_NAMESPACE_BEGIN
+
+diff --git a/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h b/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
+index 8f59387..46c7c4f 100644
+--- a/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
++++ b/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
+@@ -25,6 +25,11 @@
+ #include "absl/base/optimization.h"
+ #include "absl/strings/internal/str_format/extension.h"
+
++// Debian: Re-include <assert.h> after all other includes to ensure the assert
++// macro is defined. Chromium headers may have undefined it earlier.
++// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
++// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
++#include <assert.h>
++
+ namespace absl {
+ ABSL_NAMESPACE_BEGIN
+ namespace str_format_internal {
+diff --git a/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h b/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
+index 81007e1..8dee5c9 100644
+--- a/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
++++ b/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
+@@ -29,6 +29,11 @@
+ #include "perfetto/base/logging.h"
+ #include "perfetto/protozero/contiguous_memory_range.h"
+
++// Debian: Re-include <assert.h> after all other includes to ensure the assert
++// macro is defined. Chromium headers may have undefined it earlier.
++// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
++// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
++#include <assert.h>
++
+ namespace protozero {
+
+ // This class deals with the following problem: append-only proto messages want
+diff --git a/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h b/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
+index aeb46ed..14e95b9 100644
+--- a/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
++++ b/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
+@@ -9,6 +9,11 @@
+ #include "perfetto/tracing/internal/data_source_internal.h"
+ #include "perfetto/tracing/internal/tracing_muxer.h"
+
++// Debian: Re-include <assert.h> after all other includes to ensure the assert
++// macro is defined. Chromium headers may have undefined it earlier.
++// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
++// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
++#include <assert.h>
++
+ namespace perfetto {
+ namespace internal {
+
+diff --git a/third_party/perfetto/include/perfetto/tracing/locked_handle.h b/third_party/perfetto/include/perfetto/tracing/locked_handle.h
+index 0fe7cb1..0b2c02d 100644
+--- a/third_party/perfetto/include/perfetto/tracing/locked_handle.h
++++ b/third_party/perfetto/include/perfetto/tracing/locked_handle.h
+@@ -20,6 +20,11 @@
+ #include <cassert>
+ #include <mutex>
+
++// Debian: Re-include <assert.h> after all other includes to ensure the assert
++// macro is defined. Chromium headers may have undefined it earlier.
++// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
++// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
++#include <assert.h>
++
+ namespace perfetto {
+
+ // This is used for GetDataSourceLocked(), in the (rare) case where the
