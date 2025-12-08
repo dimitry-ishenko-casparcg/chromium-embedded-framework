@@ -368,6 +368,8 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0043-add-cassert-includes-perfetto-abseil.chromium.patch
 	# Patch 0044: Re-include cassert after all includes in abseil/perfetto headers
 	tail -n +27 debian/patches/chromium/0044-fix-assert-macro-cassert-after-includes.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
+	# Patch 0045: Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0045-pulseaudio-assert-fix.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 

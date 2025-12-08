@@ -1,0 +1,115 @@
+Description: Fix PulseAudio assert errors in official builds
+ Chromium's base/logging.h undefines assert and replaces it with DLOG_ASSERT
+ in official builds. However, PulseAudio's xmalloc.h header uses assert() in
+ inline functions. When Chromium code includes PulseAudio headers after the
+ logging headers, the assert macro is undefined and compilation fails.
+ .
+ This patch adds an explicit assert define (as a no-op) before including the
+ PulseAudio header in all affected files. The fix is applied to:
+ - media/audio/pulse/audio_manager_pulse.h
+ - media/audio/pulse/pulse_util.h
+ - media/audio/pulse/pulse_loopback.h
+ - media/audio/pulse/pulse_input.h
+ - media/audio/pulse/pulse_loopback_manager.h
+ - media/audio/pulse/pulse_output.cc
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-08
+
+diff --git a/media/audio/pulse/audio_manager_pulse.h b/media/audio/pulse/audio_manager_pulse.h
+index 95587c6..2155220 100644
+--- a/media/audio/pulse/audio_manager_pulse.h
++++ b/media/audio/pulse/audio_manager_pulse.h
+@@ -5,6 +5,11 @@
+ #ifndef MEDIA_AUDIO_PULSE_AUDIO_MANAGER_PULSE_H_
+ #define MEDIA_AUDIO_PULSE_AUDIO_MANAGER_PULSE_H_
+
++// Debian: Explicitly define assert as a no-op for official builds.
++// Chromium's logging headers undef assert, and PulseAudio's xmalloc.h uses assert().
++#ifndef assert
++#define assert(x) ((void)0)
++#endif
+ #include <pulse/pulseaudio.h>
+
+ #include <memory>
+diff --git a/media/audio/pulse/pulse_input.h b/media/audio/pulse/pulse_input.h
+index 86c4763..2d0cfca 100644
+--- a/media/audio/pulse/pulse_input.h
++++ b/media/audio/pulse/pulse_input.h
+@@ -5,6 +5,11 @@
+ #ifndef MEDIA_AUDIO_PULSE_PULSE_INPUT_H_
+ #define MEDIA_AUDIO_PULSE_PULSE_INPUT_H_
+
++// Debian: Explicitly define assert as a no-op for official builds.
++// Chromium's logging headers undef assert, and PulseAudio's xmalloc.h uses assert().
++#ifndef assert
++#define assert(x) ((void)0)
++#endif
+ #include <pulse/pulseaudio.h>
+ #include <stddef.h>
+
+diff --git a/media/audio/pulse/pulse_loopback.h b/media/audio/pulse/pulse_loopback.h
+index e337593..139c54a 100644
+--- a/media/audio/pulse/pulse_loopback.h
++++ b/media/audio/pulse/pulse_loopback.h
+@@ -5,6 +5,11 @@
+ #ifndef MEDIA_AUDIO_PULSE_PULSE_LOOPBACK_H_
+ #define MEDIA_AUDIO_PULSE_PULSE_LOOPBACK_H_
+
++// Debian: Explicitly define assert as a no-op for official builds.
++// Chromium's logging headers undef assert, and PulseAudio's xmalloc.h uses assert().
++#ifndef assert
++#define assert(x) ((void)0)
++#endif
+ #include <pulse/pulseaudio.h>
+
+ #include "media/audio/agc_audio_stream.h"
+diff --git a/media/audio/pulse/pulse_loopback_manager.h b/media/audio/pulse/pulse_loopback_manager.h
+index bd68356..7eff795 100644
+--- a/media/audio/pulse/pulse_loopback_manager.h
++++ b/media/audio/pulse/pulse_loopback_manager.h
+@@ -5,6 +5,11 @@
+ #ifndef MEDIA_AUDIO_PULSE_PULSE_LOOPBACK_MANAGER_H_
+ #define MEDIA_AUDIO_PULSE_PULSE_LOOPBACK_MANAGER_H_
+
++// Debian: Explicitly define assert as a no-op for official builds.
++// Chromium's logging headers undef assert, and PulseAudio's xmalloc.h uses assert().
++#ifndef assert
++#define assert(x) ((void)0)
++#endif
+ #include <pulse/pulseaudio.h>
+
+ #include "base/memory/raw_ptr.h"
+diff --git a/media/audio/pulse/pulse_output.cc b/media/audio/pulse/pulse_output.cc
+index 75edc88..7bd8852 100644
+--- a/media/audio/pulse/pulse_output.cc
++++ b/media/audio/pulse/pulse_output.cc
+@@ -4,6 +4,11 @@
+
+ #include "media/audio/pulse/pulse_output.h"
+
++// Debian: Explicitly define assert as a no-op for official builds.
++// Chromium's logging headers undef assert, and PulseAudio's xmalloc.h uses assert().
++#ifndef assert
++#define assert(x) ((void)0)
++#endif
+ #include <pulse/pulseaudio.h>
+ #include <stdint.h>
+
+diff --git a/media/audio/pulse/pulse_util.h b/media/audio/pulse/pulse_util.h
+index b11fba1..fc69c3e 100644
+--- a/media/audio/pulse/pulse_util.h
++++ b/media/audio/pulse/pulse_util.h
+@@ -5,6 +5,11 @@
+ #ifndef MEDIA_AUDIO_PULSE_PULSE_UTIL_H_
+ #define MEDIA_AUDIO_PULSE_PULSE_UTIL_H_
+
++// Debian: Explicitly define assert as a no-op for official builds.
++// Chromium's logging headers undef assert, and PulseAudio's xmalloc.h uses assert().
++#ifndef assert
++#define assert(x) ((void)0)
++#endif
+ #include <pulse/pulseaudio.h>
+
+ #include <string>
