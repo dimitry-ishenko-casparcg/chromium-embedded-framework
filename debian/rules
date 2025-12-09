@@ -723,7 +723,8 @@ override_dh_auto_build:
 	@echo "==> Creating stub third_party/libxslt/BUILD.gn (Debian uses system libxslt)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libxslt
 	echo '# Stub BUILD.gn for Debian builds - uses system libxslt' > $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
-	echo 'source_set("libxslt") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
+	echo 'config("libxslt_config") { libs = [ "xslt" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
+	echo 'source_set("libxslt") { sources = [] public_configs = [ ":libxslt_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/libxslt/BUILD.gn
 	@echo "==> Creating stub third_party/libsecret/BUILD.gn (Debian uses system libsecret)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/libsecret
 	echo '# Stub BUILD.gn for Debian builds - uses system libsecret' > $(CURDIR)/chromium_src/chromium/src/third_party/libsecret/BUILD.gn
