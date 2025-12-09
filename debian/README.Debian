@@ -7,6 +7,21 @@ EXPERIMENTAL STATUS
 This package is EXPERIMENTAL and targeted for unstable/testing only.
 It is NOT intended for stable releases at this time.
 
+Binary Packages
+---------------
+
+This source package produces three binary packages:
+
+  libcef137        - CEF shared library (libcef.so.137)
+                     The version number (137) matches the Chromium major version
+                     used by this CEF build (Chromium 137.x → libcef137)
+
+  libcef-dev       - Development files (headers, static libraries)
+                     Depends on libcef137
+
+  cef-resources    - Architecture-independent resources (PAK files, locales)
+                     Required at runtime by CEF applications
+
 Package Structure and Chromium Integration
 --------------------------------------------
 
