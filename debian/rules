@@ -601,7 +601,8 @@ override_dh_auto_build:
 	echo '# Stub BUILD.gn for Debian builds - uses system zlib' > $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	echo 'config("zlib_config") { libs = [ "z" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	echo 'source_set("zlib") { sources = [] public_configs = [ ":zlib_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
-	echo 'source_set("minizip") { sources = [] public_configs = [ ":zlib_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'config("minizip_config") { libs = [ "minizip" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
+	echo 'source_set("minizip") { sources = [] public_configs = [ ":minizip_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zlib/BUILD.gn
 	# Symlink system zlib headers to bundled paths (tarball strips zlib.h but code expects it)
 	@echo "==> Creating symlinks for zlib headers (code includes third_party/zlib/zlib.h)"
 	ln -sf /usr/include/zlib.h $(CURDIR)/chromium_src/chromium/src/third_party/zlib/zlib.h
@@ -655,8 +656,9 @@ override_dh_auto_build:
 	@echo "==> Creating stub third_party/zstd/BUILD.gn (Debian uses system zstd)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/zstd
 	echo '# Stub BUILD.gn for Debian builds - uses system zstd' > $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
-	echo 'source_set("decompress") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
-	echo 'source_set("compress") { sources = [] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	echo 'config("zstd_config") { libs = [ "zstd" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	echo 'source_set("decompress") { sources = [] public_configs = [ ":zstd_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
+	echo 'source_set("compress") { sources = [] public_configs = [ ":zstd_config" ] }' >> $(CURDIR)/chromium_src/chromium/src/third_party/zstd/BUILD.gn
 	@echo "==> Creating stub third_party/catapult/tracing/tracing/BUILD.gn (Debian strips catapult)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing
 	echo '# Stub BUILD.gn for Debian builds - catapult stripped' > $(CURDIR)/chromium_src/chromium/src/third_party/catapult/tracing/tracing/BUILD.gn
