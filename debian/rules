@@ -1004,10 +1004,13 @@ override_dh_auto_install:
 	fi
 
 	# Install other required libraries from Release directory
+	# Skip system libraries that conflict with Debian packages (libegl1, libgles2, libvulkan1)
 	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.so*; do \
-		if [ -f "$$lib" ] && [ "$$(basename $$lib)" != "libcef.so" ]; then \
+		libname="$$(basename $$lib)"; \
+		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
+		   ! echo "$$libname" | grep -qE '^lib(EGL|GLESv2|vulkan)\.so'; then \
 			install -D -m644 "$$lib" \
-				"$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/$$(basename $$lib)"; \
+				"$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/$$libname"; \
 		fi \
 	done
 
