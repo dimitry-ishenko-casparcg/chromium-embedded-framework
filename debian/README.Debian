@@ -13,8 +13,8 @@ Binary Packages
 This source package produces three binary packages:
 
   libcef137        - CEF shared library (libcef.so.137)
-                     The version number (137) matches the Chromium major version
-                     used by this CEF build (Chromium 137.x → libcef137)
+                     The version number (137) is the CEF major version.
+                     See "CEF and Chromium Version Alignment" section below.
 
   libcef-dev       - Development files (headers, static libraries)
                      Depends on libcef137
@@ -84,6 +84,45 @@ This CEF package enables functionality in:
   - nageru: Potential improvements (to be investigated)
 
 These packages have been waiting for CEF since 2018 (bug #915400).
+
+CEF and Chromium Version Alignment
+----------------------------------
+
+CEF uses its own version numbering that is DISTINCT from the Chromium version.
+The relationship is:
+
+  CEF Version    CEF Branch    Chromium Version     Debian Status
+  -----------    ----------    ----------------     -------------
+  CEF 137        7444          142.0.7444.x         testing (142.0.7444.175)
+  CEF 138        7499          143.0.7499.x         security only
+
+**Why This Matters:**
+
+This package (libcef137) was chosen specifically to align with Debian Chromium
+in testing (142.0.7444.175). The CEF branch number (7444) corresponds to the
+Chromium build number (142.0.**7444**.x).
+
+**CEF Version Scheme:**
+
+  - CEF version number (e.g., 137) is the CEF project's own major version
+  - CEF branch number (e.g., 7444) maps directly to Chromium build number
+  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 142.0.7444.175)
+  - CEF branch 7444 = Chromium 142.0.7444.x
+
+**Upstream CEF Branch in This Package:**
+
+  - Git remote: upstream/7444
+  - CHROMIUM_BUILD_COMPATIBILITY.txt: refs/tags/142.0.7444.53
+  - This matches Debian Chromium testing (142.0.7444.175)
+
+**Impact on Dependent Packages:**
+
+Applications that depend on CEF should specify the CEF version they require:
+  - stremio-gtk (uses libcef138) - requires Chromium 143 (not in testing)
+  - obs-studio - compatible with libcef137
+
+To update to a newer CEF version, both the CEF source and Chromium tarballs
+must be updated to matching versions.
 
 Security Updates
 ----------------
@@ -366,4 +405,4 @@ For More Information
   - Bug #893448: RFP for chromium-source
   - Bug #817285: Per-package security ACLs (IMPLEMENTED)
 
- -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sun, 17 Nov 2025 23:40:00 -0400
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Wed, 11 Dec 2025 12:00:00 -0400
