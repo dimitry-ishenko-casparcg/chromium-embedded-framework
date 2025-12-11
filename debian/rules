@@ -360,16 +360,11 @@ override_dh_auto_build:
 	# directly below in Step 7.5 with proper libs linkage. These stubs don't exist at patch time.
 	# Patch 0040: Fix StringPrintf format args for abseil strict checking
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0040-audio-device-stringprintf-cstr-fix.chromium.patch
-	# Patch 0041: Disable assert redefinition in base/logging.h for abseil compatibility
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0041-disable-assert-redefinition-for-abseil.chromium.patch
-	# Patch 0042: Disable assert redefinition in partition_alloc logging.h for abseil/perfetto compatibility
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-disable-assert-redefinition-partition-alloc.chromium.patch
-	# Patch 0043: Add cassert includes to perfetto headers for assert availability
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0043-add-cassert-includes-perfetto-abseil.chromium.patch
-	# Patch 0044: Re-include cassert after all includes in abseil/perfetto headers
-	tail -n +27 debian/patches/chromium/0044-fix-assert-macro-cassert-after-includes.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
-	# Patch 0045: Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0045-pulseaudio-assert-fix.chromium.patch
+	# Patch 0041: Fix assert macro in abseil/perfetto headers (explicit define)
+	# Adds explicit #define assert(x) ((void)0) after includes to fix assert undefined errors.
+	tail -n +14 debian/patches/chromium/0041-fix-assert-macro-abseil-perfetto.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
+	# Patch 0042: Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-pulseaudio-assert-fix.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 

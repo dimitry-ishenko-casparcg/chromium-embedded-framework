@@ -4,124 +4,100 @@ Description: Fix assert macro undefined errors in abseil and perfetto headers
  abseil's str_format and perfetto's tracing code which use assert() in
  constexpr contexts.
  .
- Previous attempts using #include <assert.h> after all other includes
- did not work reliably - the build still failed with "use of undeclared
- identifier 'assert'" errors even though the include was present.
- .
  Fix by explicitly defining assert as ((void)0) when it's not defined.
  This provides a constexpr-safe no-op that works in all contexts.
 Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-12-07
+Last-Update: 2025-12-11
 
 diff --git a/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h b/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
-index a1fcfbc..a246998 100644
+index 120bc35..a246998 100644
 --- a/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
 +++ b/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
-@@ -31,11 +31,12 @@
+@@ -31,6 +31,13 @@
  #include "absl/types/span.h"
  #include "absl/utility/utility.h"
 
--// Debian: Re-include <assert.h> after all other includes to ensure the assert
--// macro is defined. Chromium headers may have undefined it earlier.
--// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
--// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
--#include <assert.h>
 +// Debian: Explicitly define assert as a no-op for official builds.
 +// Chromium's logging headers undef assert, and #include <assert.h> doesn't work
 +// reliably in all contexts. This explicit define ensures assert is always available.
 +#ifndef assert
 +#define assert(x) ((void)0)
 +#endif
-
++
  namespace absl {
  ABSL_NAMESPACE_BEGIN
+
 diff --git a/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h b/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
-index 5e34f92..051351b 100644
+index 8f59387..051351b 100644
 --- a/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
 +++ b/third_party/abseil-cpp/absl/strings/internal/str_format/constexpr_parser.h
-@@ -25,11 +25,12 @@
+@@ -25,6 +25,13 @@
  #include "absl/base/optimization.h"
  #include "absl/strings/internal/str_format/extension.h"
 
--// Debian: Re-include <assert.h> after all other includes to ensure the assert
--// macro is defined. Chromium headers may have undefined it earlier.
--// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
--// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
--#include <assert.h>
 +// Debian: Explicitly define assert as a no-op for official builds.
 +// Chromium's logging headers undef assert, and #include <assert.h> doesn't work
 +// reliably in all contexts. This explicit define ensures assert is always available.
 +#ifndef assert
 +#define assert(x) ((void)0)
 +#endif
-
++
  namespace absl {
  ABSL_NAMESPACE_BEGIN
+ namespace str_format_internal {
 diff --git a/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h b/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
-index 677d85f..a4db14c 100644
+index 719c490..ee1d2b3 100644
 --- a/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
 +++ b/third_party/perfetto/include/perfetto/protozero/scattered_stream_writer.h
-@@ -29,11 +29,12 @@
+@@ -29,6 +29,13 @@
  #include "perfetto/base/logging.h"
  #include "perfetto/protozero/contiguous_memory_range.h"
 
--// Debian: Re-include <assert.h> after all other includes to ensure the assert
--// macro is defined. Chromium headers may have undefined it earlier.
--// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
--// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
--#include <assert.h>
 +// Debian: Explicitly define assert as a no-op for official builds.
 +// Chromium's logging headers undef assert, and #include <assert.h> doesn't work
 +// reliably in all contexts. This explicit define ensures assert is always available.
 +#ifndef assert
 +#define assert(x) ((void)0)
 +#endif
-
++
  namespace protozero {
 
+ // This class deals with the following problem: append-only proto messages want
 diff --git a/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h b/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
-index 4a725e4..4fb9fa7 100644
+index bb37597..d8bcdff 100644
 --- a/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
 +++ b/third_party/perfetto/include/perfetto/tracing/internal/data_source_type.h
-@@ -9,11 +9,12 @@
+@@ -7,6 +7,13 @@
  #include "perfetto/tracing/internal/data_source_internal.h"
  #include "perfetto/tracing/internal/tracing_muxer.h"
 
--// Debian: Re-include <assert.h> after all other includes to ensure the assert
--// macro is defined. Chromium headers may have undefined it earlier.
--// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
--// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
--#include <assert.h>
 +// Debian: Explicitly define assert as a no-op for official builds.
 +// Chromium's logging headers undef assert, and #include <assert.h> doesn't work
 +// reliably in all contexts. This explicit define ensures assert is always available.
 +#ifndef assert
 +#define assert(x) ((void)0)
 +#endif
-
++
  namespace perfetto {
  namespace internal {
+
 diff --git a/third_party/perfetto/include/perfetto/tracing/locked_handle.h b/third_party/perfetto/include/perfetto/tracing/locked_handle.h
-index 38520da..5069270 100644
+index 9f1c65b..e1f2123 100644
 --- a/third_party/perfetto/include/perfetto/tracing/locked_handle.h
 +++ b/third_party/perfetto/include/perfetto/tracing/locked_handle.h
-@@ -20,11 +20,12 @@
- #include <cassert>
+@@ -19,6 +19,13 @@
+
  #include <mutex>
 
--// Debian: Re-include <assert.h> after all other includes to ensure the assert
--// macro is defined. Chromium headers may have undefined it earlier.
--// NOTE: Must use <assert.h> not <cassert> because <cassert> has header guards
--// that prevent re-inclusion, while <assert.h> is designed to be re-includeable.
--#include <assert.h>
 +// Debian: Explicitly define assert as a no-op for official builds.
 +// Chromium's logging headers undef assert, and #include <assert.h> doesn't work
 +// reliably in all contexts. This explicit define ensures assert is always available.
 +#ifndef assert
 +#define assert(x) ((void)0)
 +#endif
-
++
  namespace perfetto {
 
+ // This is used for GetDataSourceLocked(), in the (rare) case where the
