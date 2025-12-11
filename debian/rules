@@ -996,6 +996,14 @@ override_dh_auto_install:
 	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Resources/*.pak \
 		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
 
+	# Install ICU data file (CRITICAL for internationalization)
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/icudtl.dat \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
+
+	# Install V8 context snapshot (CRITICAL for JavaScript)
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/v8_context_snapshot.bin \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
+
 	# Install locales
 	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales ]; then \
 		mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
@@ -1013,6 +1021,13 @@ override_dh_auto_install:
 				"$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/$$libname"; \
 		fi \
 	done
+
+	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
+	if [ -f chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/vk_swiftshader_icd.json ]; then \
+		mkdir -p $(CURDIR)/debian/libcef137/usr/share/vulkan/icd.d/; \
+		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/vk_swiftshader_icd.json \
+			$(CURDIR)/debian/libcef137/usr/share/vulkan/icd.d/; \
+	fi
 
 override_dh_auto_test:
 	# Skip tests for now - CEF tests require X display
