@@ -21,10 +21,10 @@ source tarball and place it in the parent directory:
     $ apt-get source --download-only chromium
 
 This creates:
-    chromium_142.0.7444.59.orig.tar.xz  (~961 MB)
+    chromium_143.0.7499.40.orig.tar.xz  (~969 MB)
 
 The build system (debian/rules) will reference this file at:
-    ../chromium_142.0.7444.59.orig.tar.xz
+    ../chromium_143.0.7499.40.orig.tar.xz
 
 Build Workflow
 --------------
@@ -33,8 +33,8 @@ Build Workflow
 
     $ cd /path/to/workspace/
     $ apt-get source --download-only chromium
-    $ ls -lh chromium_142.0.7444.59.orig.tar.xz
-    # Verify file exists and is ~961 MB
+    $ ls -lh chromium_143.0.7499.40.orig.tar.xz
+    # Verify file exists and is ~969 MB
 
 2. Extract/clone CEF package:
 
@@ -50,7 +50,7 @@ Build Workflow
     $ dpkg-buildpackage -us -uc
 
 The build process will:
-- Step 1: Clone CEF repository (branch 7444) using automate-git.py
+- Step 1: Clone CEF repository (branch 7499) using automate-git.py
 - Step 2: Extract chromium tarball to chromium_src/chromium/
 - Step 3: Apply Debian patches to CEF (using quilt)
 - Step 4: Build CEF binary distribution
@@ -336,11 +336,11 @@ To add new system library substitutions:
 Version Compatibility
 ---------------------
 
-CEF branch 7444 requires Chromium 142.0.7444.x sources.
+CEF branch 7499 requires Chromium 143.0.7499.x sources.
 
 The build system includes version compatibility fixes:
-- CEF expects 142.0.7444.53 (upstream Chromium tag)
-- Debian has 142.0.7444.59 (with Debian patches)
+- CEF expects 143.0.7499.110 (upstream Chromium tag)
+- Debian has 143.0.7499.40 (with Debian patches)
 - debian/rules patches CHROMIUM_BUILD_COMPATIBILITY.txt during build
 
 When updating to new CEF/Chromium versions:

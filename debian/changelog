@@ -1,10 +1,11 @@
+chromium-embedded-framework (138.0.1-1) UNRELEASED; urgency=medium
+
+  * New upstream release: CEF 138 (branch 7499, Chromium 143)
+
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Thu, 12 Dec 2025 12:00:00 -0400
+
 chromium-embedded-framework (137.0.1-1) UNRELEASED; urgency=medium
 
   * Initial release (Closes: #915400)
-  * EXPERIMENTAL package for unstable/testing only
-  * Builds against upstream Chromium sources via automate-git.py
-  * Will migrate to chromium-source when available (bug #893448)
-  * Enables obs-studio browser sources, stremio-gtk packaging,
-    casparcg-server HTTP support
 
  -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 02 Nov 2025 06:00:00 -0400

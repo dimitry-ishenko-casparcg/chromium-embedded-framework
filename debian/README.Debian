@@ -12,12 +12,12 @@ Binary Packages
 
 This source package produces three binary packages:
 
-  libcef137        - CEF shared library (libcef.so.137)
-                     The version number (137) is the CEF major version.
+  libcef138        - CEF shared library (libcef.so.138)
+                     The version number (138) is the CEF major version.
                      See "CEF and Chromium Version Alignment" section below.
 
   libcef-dev       - Development files (headers, static libraries)
-                     Depends on libcef137
+                     Depends on libcef138
 
   cef-resources    - Architecture-independent resources (PAK files, locales)
                      Required at runtime by CEF applications
@@ -93,33 +93,33 @@ The relationship is:
 
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
-  CEF 137        7444          142.0.7444.x         testing (142.0.7444.175)
-  CEF 138        7499          143.0.7499.x         security only
+  CEF 137        7444          142.0.7444.x         previous (142.0.7444.175)
+  CEF 138        7499          143.0.7499.x         testing (143.0.7499.40)
 
 **Why This Matters:**
 
-This package (libcef137) was chosen specifically to align with Debian Chromium
-in testing (142.0.7444.175). The CEF branch number (7444) corresponds to the
-Chromium build number (142.0.**7444**.x).
+This package (libcef138) was chosen specifically to align with Debian Chromium
+in testing (143.0.7499.40). The CEF branch number (7499) corresponds to the
+Chromium build number (143.0.**7499**.x).
 
 **CEF Version Scheme:**
 
-  - CEF version number (e.g., 137) is the CEF project's own major version
-  - CEF branch number (e.g., 7444) maps directly to Chromium build number
-  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 142.0.7444.175)
-  - CEF branch 7444 = Chromium 142.0.7444.x
+  - CEF version number (e.g., 138) is the CEF project's own major version
+  - CEF branch number (e.g., 7499) maps directly to Chromium build number
+  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 143.0.7499.40)
+  - CEF branch 7499 = Chromium 143.0.7499.x
 
 **Upstream CEF Branch in This Package:**
 
-  - Git remote: upstream/7444
-  - CHROMIUM_BUILD_COMPATIBILITY.txt: refs/tags/142.0.7444.53
-  - This matches Debian Chromium testing (142.0.7444.175)
+  - Git remote: upstream/7499
+  - CHROMIUM_BUILD_COMPATIBILITY.txt: refs/tags/143.0.7499.110
+  - This matches Debian Chromium testing (143.0.7499.40)
 
 **Impact on Dependent Packages:**
 
 Applications that depend on CEF should specify the CEF version they require:
-  - stremio-gtk (uses libcef138) - requires Chromium 143 (not in testing)
-  - obs-studio - compatible with libcef137
+  - stremio-gtk (uses libcef138) - now packagable with Chromium 143
+  - obs-studio - compatible with libcef138
 
 To update to a newer CEF version, both the CEF source and Chromium tarballs
 must be updated to matching versions.
