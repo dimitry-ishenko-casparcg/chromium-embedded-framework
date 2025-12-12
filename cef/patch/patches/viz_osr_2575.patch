@@ -66,7 +66,7 @@ index 8af69cac78b7488d28f1f05ccb174793fe5148cd..9f74e511c263d147b5fbe81fe100d217
   private:
    const HWND hwnd_;
 diff --git components/viz/service/BUILD.gn components/viz/service/BUILD.gn
-index 40718df4d3d7092309ea7027ae6c59a7963fd03c..a276ac4305da50a53f9a859077f2180d8d5ddc5d 100644
+index da33fa857f85484853d14f24d0601f4c284fd67a..f6ee55c54d6f573c46cebb9fc52a8fcf59eb0b2a 100644
 --- components/viz/service/BUILD.gn
 +++ components/viz/service/BUILD.gn
 @@ -276,6 +276,8 @@ viz_component("service") {
@@ -147,7 +147,7 @@ index 07502f4ff2afd53a43d8f0ab68d4c4c39f6c0737..3149c44c839a0dc7cf78a203d7c505a9
    HWND child_hwnd;
    auto device = CreateSoftwareOutputDeviceWin(
 diff --git components/viz/service/display_embedder/output_surface_provider_impl.h components/viz/service/display_embedder/output_surface_provider_impl.h
-index e4b46a79560e7698a6400b2ab8a57f38205a8718..8cb033874632dcaf2c02f618a8805cf247c9d7b8 100644
+index f49bbc5d568f0cb323a22997a949e2cae8f35d59..1ae39ed5164c89f075b61ce63f2ffb709a8de0a8 100644
 --- components/viz/service/display_embedder/output_surface_provider_impl.h
 +++ components/viz/service/display_embedder/output_surface_provider_impl.h
 @@ -54,7 +54,8 @@ class VIZ_SERVICE_EXPORT OutputSurfaceProviderImpl
@@ -171,7 +171,7 @@ index e4b46a79560e7698a6400b2ab8a57f38205a8718..8cb033874632dcaf2c02f618a8805cf2
    const raw_ptr<GpuServiceImpl> gpu_service_impl_;
  
 diff --git components/viz/service/display_embedder/software_output_device_win.cc components/viz/service/display_embedder/software_output_device_win.cc
-index 838031388c4c20bbcf068210559cb2018a661cd6..51b98d8e755c732db95151030a5e580f89b7a40d 100644
+index b5154321105f08335b67ad2d552afa61337a4976..66048e7ca6a149c267debe333976178c45ab651a 100644
 --- components/viz/service/display_embedder/software_output_device_win.cc
 +++ components/viz/service/display_embedder/software_output_device_win.cc
 @@ -156,8 +156,9 @@ void SoftwareOutputDeviceWinProxy::EndPaintDelegated(
@@ -187,10 +187,10 @@ index 838031388c4c20bbcf068210559cb2018a661cd6..51b98d8e755c732db95151030a5e580f
  
    TRACE_EVENT_BEGIN("viz", "SoftwareOutputDeviceWinProxy::Draw",
 diff --git components/viz/service/frame_sinks/root_compositor_frame_sink_impl.cc components/viz/service/frame_sinks/root_compositor_frame_sink_impl.cc
-index 03f18d799eb8887f8435624eb7da4547e85aef08..d31d9237914d844de26083e9ffa44f05857763f9 100644
+index d8f845998240032f668324665d61b2efd60c0e1c..978fbcf6bb8529381f988b9104459a9bcbd754ea 100644
 --- components/viz/service/frame_sinks/root_compositor_frame_sink_impl.cc
 +++ components/viz/service/frame_sinks/root_compositor_frame_sink_impl.cc
-@@ -130,7 +130,8 @@ RootCompositorFrameSinkImpl::Create(
+@@ -131,7 +131,8 @@ RootCompositorFrameSinkImpl::Create(
        params->gpu_compositing, params->widget);
    auto output_surface = output_surface_provider->CreateOutputSurface(
        params->widget, params->gpu_compositing, display_client.get(),
@@ -284,10 +284,10 @@ index 78a96bff9ba9e24dababf758ba38f9b430b39a14..7b46e68f52e3c13f731ce48670600442
  
    // Sends the created child window to the browser process so that it can be
 diff --git services/viz/privileged/mojom/compositing/frame_sink_manager.mojom services/viz/privileged/mojom/compositing/frame_sink_manager.mojom
-index ad6f66db209484678e74807f091f03683307e7ce..8633d4740c784cc733e37d53a72be0729063c7f6 100644
+index e440ae1c216333afe1d90114d48a3bf7f39cf41f..6fd653152a5da896c0a30e9db3b39efff53e03cd 100644
 --- services/viz/privileged/mojom/compositing/frame_sink_manager.mojom
 +++ services/viz/privileged/mojom/compositing/frame_sink_manager.mojom
-@@ -61,6 +61,8 @@ struct RootCompositorFrameSinkParams {
+@@ -62,6 +62,8 @@ struct RootCompositorFrameSinkParams {
    // `external_begin_frame_controller` is set.
    pending_associated_remote<ExternalBeginFrameControllerClient>?
        external_begin_frame_controller_client;

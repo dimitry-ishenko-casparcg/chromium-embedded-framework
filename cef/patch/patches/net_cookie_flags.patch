@@ -11,7 +11,7 @@ index c10df92f30b1292a8243f376025e81afcefba78d..59e6208b3954635076022807edfc9a30
 +
  // See note at top of file about why adding LoadFlags is often a bad idea.
 diff --git net/url_request/url_request_http_job.cc net/url_request/url_request_http_job.cc
-index ded7b6165e06f629de88521bd97387017a4a664e..f98e9539252f06654bf591d01389b388214fdbab 100644
+index f02b9cc7669d20882e52ef497e83b2a2f37aa9a4..238caa30ec2e32f9b8689d4f8208b92f502bf5be 100644
 --- net/url_request/url_request_http_job.cc
 +++ net/url_request/url_request_http_job.cc
 @@ -2216,7 +2216,8 @@ bool URLRequestHttpJob::ShouldAddCookieHeader() const {
@@ -25,10 +25,10 @@ index ded7b6165e06f629de88521bd97387017a4a664e..f98e9539252f06654bf591d01389b388
  
  bool URLRequestHttpJob::ShouldRecordPartitionedCookieUsage() const {
 diff --git services/network/cors/cors_url_loader_factory.cc services/network/cors/cors_url_loader_factory.cc
-index d5a7d004b5db54aa942995f5603731e0a93dcc49..aa44cdc0d2fb72632897029f8541abaeb6a0be56 100644
+index d50de805cddfd5d0f987ec5cf82039eec29280a3..b3ffa8203a6d8cd7a00a61996ffeb43f9b399cc9 100644
 --- services/network/cors/cors_url_loader_factory.cc
 +++ services/network/cors/cors_url_loader_factory.cc
-@@ -656,7 +656,8 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
+@@ -649,7 +649,8 @@ bool CorsURLLoaderFactory::IsValidRequest(const ResourceRequest& request,
            net::LOAD_DISABLE_CACHE | net::LOAD_PREFETCH |
            net::LOAD_IGNORE_LIMITS | net::LOAD_DO_NOT_USE_EMBEDDED_IDENTITY |
            net::LOAD_SUPPORT_ASYNC_REVALIDATION |

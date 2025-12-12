@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Align with Debian Chromium configuration (chromium_142.0.7444.175-1.debian.tar.xz)
+# Align with Debian Chromium configuration (chromium_143.0.7499.40-1~deb13u1.debian.tar.xz)
 # Reference: /tmp/chromium-debian-reference/debian/rules
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
@@ -83,8 +83,8 @@ export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 # Individual settings like use_custom_libcxx=false and use_thin_lto=false are there
 
 # CEF version/branch
-# Branch 7444 matches Chromium 142.0.7444.x (Debian chromium 142.0.7444.175)
-CEF_BRANCH = 7444
+# Branch 7499 matches Chromium 143.0.7499.x (Debian chromium 143.0.7499.40)
+CEF_BRANCH = 7499
 
 %:
 	dh $@
@@ -140,13 +140,13 @@ override_dh_auto_build:
 		git commit -m "CEF source with Debian patches applied"
 	@echo "==> CEF git repository initialized"
 
-	# Step 4: Fix version mismatch (CEF expects .53, Debian has .162)
-	sed -i "s/142\.0\.7444\.53/142.0.7444.175/" \
+	# Step 4: Fix version mismatch (CEF expects specific tag, Debian has different point release)
+	sed -i "s/143\.0\.7499\.[0-9]*/143.0.7499.40/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Extract Debian chromium source tarball
 	@echo "==> Extracting Debian chromium source"
-	tar -xf $(CURDIR)/../chromium_142.0.7444.175.orig.tar.xz \
+	tar -xf $(CURDIR)/../chromium_143.0.7499.40.orig.tar.xz \
 		-C $(CURDIR)/chromium_src
 	mkdir -p $(CURDIR)/chromium_src/chromium
 	@if [ -d $(CURDIR)/chromium_src/chromium-* ]; then \
@@ -159,7 +159,7 @@ override_dh_auto_build:
 	# This ensures devtools-frontend can use system rollup instead of bundled version
 	@echo "==> Setting up system Node.js and rollup"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
-	cp /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	-ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node 2>/dev/null || true
 	# use system rollup
 	cp -ra /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/node/node_modules/
 	-test -L $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 || \
@@ -169,7 +169,7 @@ override_dh_auto_build:
 	# Step 5.5: Apply Debian Chromium patches to vanilla source
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../chromium_142.0.7444.175-1.debian.tar.xz \
+	tar -xf $(CURDIR)/../chromium_143.0.7499.40-1~deb13u1.debian.tar.xz \
 		-C $(CURDIR)/chromium_src/chromium/
 	# Apply debianization patches (system libraries, build fixes, security patches)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
@@ -353,18 +353,25 @@ override_dh_auto_build:
 	# Patch 0034: Stub test_fonts/fontconfig BUILD.gn - test fonts stripped from Debian tarball
 	# Without this, generate_fontconfig_caches fails because test_fonts directory is missing
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0034-test-fonts-fontconfig-stub.chromium.patch
-	# Patch 0035: Add missing <memory> include for std::unique_ptr in tips_agent.h
-	# System libc++ doesn't transitively include <memory>
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-tips-agent-add-memory-include.chromium.patch
+	# NOTE: Patch 0035 removed - Chromium 143+ already includes <memory> in tips_agent.h
 	# NOTE: Patches 0036-0039 removed - libpng, libjpeg_turbo, flac, openh264 stubs are created
 	# directly below in Step 7.5 with proper libs linkage. These stubs don't exist at patch time.
 	# Patch 0040: Fix StringPrintf format args for abseil strict checking
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0040-audio-device-stringprintf-cstr-fix.chromium.patch
-	# Patch 0041: Fix assert macro in abseil/perfetto headers (explicit define)
-	# Adds explicit #define assert(x) ((void)0) after includes to fix assert undefined errors.
-	tail -n +14 debian/patches/chromium/0041-fix-assert-macro-abseil-perfetto.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
-	# Patch 0042: Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-pulseaudio-assert-fix.chromium.patch
+	# Patch 0041: Disable assert redefinition in base/logging.h for abseil compatibility
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0041-disable-assert-redefinition-for-abseil.chromium.patch
+	# Patch 0042: Disable assert redefinition in partition_alloc logging.h for abseil/perfetto compatibility
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0042-disable-assert-redefinition-partition-alloc.chromium.patch
+	# Patch 0044: Fix assert macro in abseil/perfetto headers (explicit define)
+	# Note: Patch 0043 was removed as it conflicts with 0044. Patch 0044 provides the
+	# complete fix by adding explicit #define assert(x) ((void)0) after includes.
+	tail -n +18 debian/patches/chromium/0044-fix-assert-macro-cassert-after-includes.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
+	# Patch 0045: Fix undefined deb_build_arch GN variable (Debian cross-build.patch bug)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0045-fix-deb-build-arch-gn.chromium.patch
+	# Patch 0046: Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0046-pulseaudio-assert-fix.chromium.patch
+	# Patch 0047: Fix cookie_util.cc iterator type mismatch for system libc++
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0047-fix-cookie-util-iterator-types.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -955,7 +962,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium_142.0.7444.175.orig.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium_143.0.7499.40.orig.tar.xz \
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \
@@ -966,11 +973,11 @@ override_dh_auto_build:
 override_dh_auto_install:
 	# Install libcef.so
 	install -D -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/libcef.so \
-		$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/libcef.so.137.0.1
+		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
 
 	# Create soname symlink
-	ln -s libcef.so.137.0.1 \
-		$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/libcef.so.137
+	ln -s libcef.so.138.0.1 \
+		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138
 
 	# Install headers
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
@@ -1013,15 +1020,15 @@ override_dh_auto_install:
 		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
 		   ! echo "$$libname" | grep -qE '^lib(EGL|GLESv2|vulkan)\.so'; then \
 			install -D -m644 "$$lib" \
-				"$(CURDIR)/debian/libcef137/usr/lib/x86_64-linux-gnu/$$libname"; \
+				"$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/$$libname"; \
 		fi \
 	done
 
 	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
 	if [ -f chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/vk_swiftshader_icd.json ]; then \
-		mkdir -p $(CURDIR)/debian/libcef137/usr/share/vulkan/icd.d/; \
+		mkdir -p $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
 		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/vk_swiftshader_icd.json \
-			$(CURDIR)/debian/libcef137/usr/share/vulkan/icd.d/; \
+			$(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
 	fi
 
 override_dh_auto_test:

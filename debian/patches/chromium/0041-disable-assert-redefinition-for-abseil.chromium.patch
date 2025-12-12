@@ -1,0 +1,36 @@
+Description: Disable assert macro redefinition for abseil compatibility
+ Chromium's base/logging.h redefines assert to DLOG_ASSERT at line 591-592.
+ This breaks abseil's str_format constexpr code (constexpr_parser.h, bind.h,
+ arg.h, extension.h) which requires the standard assert macro from <cassert>
+ for compile-time format checking.
+ .
+ When is_official_build=true, abseil's compile-time format checking is enabled,
+ and any code path that includes base/logging.h before abseil str_format headers
+ will fail with "use of undeclared identifier 'assert'" errors.
+ .
+ Fix by commenting out the assert redefinition. This is a cleaner fix than
+ patching individual abseil headers.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-05
+
+diff --git a/base/logging.h b/base/logging.h
+index 13ebd3b..46ed019 100644
+--- a/base/logging.h
++++ b/base/logging.h
+@@ -587,9 +587,11 @@ BASE_EXPORT extern LogSeverity LOGGING_DCHECK;
+ constexpr LogSeverity LOGGING_DCHECK = LOGGING_FATAL;
+ #endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
+
+-// Redefine the standard assert to use our nice log files
+-#undef assert
+-#define assert(x) DLOG_ASSERT(x)
++// Chromium originally redefined assert to DLOG_ASSERT, but this breaks
++// abseil's str_format constexpr code which requires the standard assert
++// macro from <cassert>. Disable the redefinition.
++// #undef assert
++// #define assert(x) DLOG_ASSERT(x)
+
+ // This class more or less represents a particular log message.  You
+ // create an instance of LogMessage and then stream stuff to it.

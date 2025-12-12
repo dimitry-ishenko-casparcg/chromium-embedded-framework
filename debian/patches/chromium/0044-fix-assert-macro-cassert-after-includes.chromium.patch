@@ -9,7 +9,7 @@ Description: Fix assert macro undefined errors in abseil and perfetto headers
 Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-12-11
+Last-Update: 2025-12-12
 
 diff --git a/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h b/third_party/abseil-cpp/absl/strings/internal/str_format/bind.h
 index 120bc35..a246998 100644

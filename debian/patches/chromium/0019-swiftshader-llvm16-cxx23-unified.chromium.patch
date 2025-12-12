@@ -9,11 +9,12 @@ Description: Fix LLVM-16 C++23/libc++ compatibility in SwiftShader
  - Update lambda signatures from unique_ptr references to raw pointers
  - Remove .get() calls on elements that are now raw pointers
  .
- Fixes compilation errors in APFloat, AliasAnalysis, ModuleSummaryIndex,
- FunctionImport, FunctionAttrs, BitcodeWriter, LLParser, and 15 other files.
+ Note: APFloat getFirst/getSecond getters, MIPatternMatch LLT parameter,
+ and DiagnosticInfo templates are already fixed in Chromium 143 upstream.
+ Only the destructor definition is needed for APFloat in this patch.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Forwarded: not-needed
-Last-Update: 2025-11-23
+Last-Update: 2025-12-12
 
 diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/ADT/APFloat.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/ADT/APFloat.h
 index c0e2d13c29..7961b90821 100644
@@ -39,22 +40,6 @@ index c0e2d13c29..7961b90821 100644
  
    DoubleAPFloat &operator=(const DoubleAPFloat &RHS);
  
-@@ -651,10 +655,11 @@ public:
- 
-   bool needsCleanup() const { return Floats != nullptr; }
- 
--  APFloat &getFirst() { return Floats[0]; }
--  const APFloat &getFirst() const { return Floats[0]; }
--  APFloat &getSecond() { return Floats[1]; }
--  const APFloat &getSecond() const { return Floats[1]; }
-+  // Out-of-line definitions required for C++23 compatibility
-+  APFloat &getFirst();
-+  const APFloat &getFirst() const;
-+  APFloat &getSecond();
-+  const APFloat &getSecond() const;
- 
-   opStatus add(const DoubleAPFloat &RHS, roundingMode RM);
-   opStatus subtract(const DoubleAPFloat &RHS, roundingMode RM);
 diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h
 index 953e15e358..cf957c7273 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/Analysis/AliasAnalysis.h
@@ -67,19 +52,6 @@ index 953e15e358..cf957c7273 100644
 +  std::vector<Concept*> AAs;
  
    std::vector<AnalysisKey *> AADeps;
- 
-diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
-index ea6ed322e9..838f238314 100644
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/GlobalISel/MIPatternMatch.h
-@@ -368,7 +368,7 @@ template <typename Class> struct bind_ty {
- 
- inline bind_ty<Register> m_Reg(Register &R) { return R; }
- inline bind_ty<MachineInstr *> m_MInstr(MachineInstr *&MI) { return MI; }
--inline bind_ty<LLT> m_Type(LLT Ty) { return Ty; }
-+inline bind_ty<LLT> m_Type(LLT &Ty) { return Ty; }
- inline bind_ty<CmpInst::Predicate> m_Pred(CmpInst::Predicate &P) { return P; }
- inline operand_type_match m_Pred() { return operand_type_match(); }
  
 diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
 index bd63dd8756..77e9608ada 100644
@@ -97,67 +69,6 @@ index bd63dd8756..77e9608ada 100644
    class InstrItineraryData;
    class ResourcePriorityQueue;
    class SelectionDAGISel;
-diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h
-index 628445fe9f..d252eea152 100644
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/DiagnosticInfo.h
-@@ -552,14 +552,15 @@ operator<<(RemarkT &R,
- /// Also allow r-value for the remark to allow insertion into a
- /// temporarily-constructed remark.
- template <class RemarkT>
--RemarkT &
-+std::remove_reference_t<RemarkT> &
- operator<<(RemarkT &&R,
-            std::enable_if_t<
--               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,
-+               std::is_base_of<DiagnosticInfoOptimizationBase,
-+                               std::remove_reference_t<RemarkT>>::value,
-                StringRef>
-                S) {
-   R.insert(S);
--  return R;
-+  return static_cast<std::remove_reference_t<RemarkT> &>(R);
- }
- 
- template <class RemarkT>
-@@ -574,14 +575,15 @@ operator<<(RemarkT &R,
- }
- 
- template <class RemarkT>
--RemarkT &
-+std::remove_reference_t<RemarkT> &
- operator<<(RemarkT &&R,
-            std::enable_if_t<
--               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,
-+               std::is_base_of<DiagnosticInfoOptimizationBase,
-+                               std::remove_reference_t<RemarkT>>::value,
-                DiagnosticInfoOptimizationBase::Argument>
-                A) {
-   R.insert(A);
--  return R;
-+  return static_cast<std::remove_reference_t<RemarkT> &>(R);
- }
- 
- template <class RemarkT>
-@@ -596,14 +598,15 @@ operator<<(RemarkT &R,
- }
- 
- template <class RemarkT>
--RemarkT &
-+std::remove_reference_t<RemarkT> &
- operator<<(RemarkT &&R,
-            std::enable_if_t<
--               std::is_base_of<DiagnosticInfoOptimizationBase, RemarkT>::value,
-+               std::is_base_of<DiagnosticInfoOptimizationBase,
-+                               std::remove_reference_t<RemarkT>>::value,
-                DiagnosticInfoOptimizationBase::setIsVerbose>
-                V) {
-   R.insert(V);
--  return R;
-+  return static_cast<std::remove_reference_t<RemarkT> &>(R);
- }
- 
- template <class RemarkT>
 diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
 index e5236523a5..e92fd8f5f9 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
@@ -172,9 +83,9 @@ index e5236523a5..e92fd8f5f9 100644
  struct alignas(8) GlobalValueSummaryInfo {
    union NameOrGV {
 @@ -149,6 +149,9 @@ struct alignas(8) GlobalValueSummaryInfo {
- 
-   GlobalValueSummaryInfo(bool HaveGVs) : U(HaveGVs) {}
- 
+
+   inline GlobalValueSummaryInfo(bool HaveGVs);
+
 +  // C++23/libc++ fix: declare destructor here, define after GlobalValueSummary is complete
 +  ~GlobalValueSummaryInfo();
 +
@@ -190,10 +101,10 @@ index e5236523a5..e92fd8f5f9 100644
      return getRef()->second.SummaryList;
    }
  
-@@ -582,6 +585,12 @@ inline GlobalValueSummary *GlobalValueSummary::getBaseObject() {
+@@ -584,6 +587,12 @@ inline GlobalValueSummary *GlobalValueSummary::getBaseObject() {
    return this;
  }
- 
+
 +// C++23/libc++ fix: destructor definition after GlobalValueSummary is complete
 +inline GlobalValueSummaryInfo::~GlobalValueSummaryInfo() {
 +  for (GlobalValueSummary *S : SummaryList)
@@ -725,9 +636,9 @@ diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFl
 index eae4fdb6c3..b41f548383 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFloat.cpp
 +++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/APFloat.cpp
-@@ -4548,11 +4548,19 @@ DoubleAPFloat::DoubleAPFloat(const DoubleAPFloat &RHS)
+@@ -4548,11 +4548,14 @@ DoubleAPFloat::DoubleAPFloat(const DoubleAPFloat &RHS)
  }
- 
+
  DoubleAPFloat::DoubleAPFloat(DoubleAPFloat &&RHS)
 -    : Semantics(RHS.Semantics), Floats(std::move(RHS.Floats)) {
 +    : Semantics(RHS.Semantics), Floats(RHS.Floats) {
@@ -735,13 +646,8 @@ index eae4fdb6c3..b41f548383 100644
    RHS.Semantics = &semBogus;
    assert(Semantics == &semPPCDoubleDouble);
  }
- 
+
 +DoubleAPFloat::~DoubleAPFloat() { delete[] Floats; }
-+
-+APFloat &DoubleAPFloat::getFirst() { return Floats[0]; }
-+const APFloat &DoubleAPFloat::getFirst() const { return Floats[0]; }
-+APFloat &DoubleAPFloat::getSecond() { return Floats[1]; }
-+const APFloat &DoubleAPFloat::getSecond() const { return Floats[1]; }
 +
  DoubleAPFloat &DoubleAPFloat::operator=(const DoubleAPFloat &RHS) {
    if (Semantics == RHS.Semantics && RHS.Floats) {

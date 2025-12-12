@@ -1,0 +1,41 @@
+Description: Fix cookie_util.cc iterator type mismatch for system libc++
+ In system libc++, std::string_view::begin() returns const char* while
+ std::string::const_iterator is __wrap_iter<const char*>. These types are
+ not implicitly convertible, causing compilation errors. Use auto to let
+ the compiler deduce the correct iterator type from header_value.begin().
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-12
+
+diff --git a/net/cookies/cookie_util.cc b/net/cookies/cookie_util.cc
+index 79c7e45..a69383d 100644
+--- a/net/cookies/cookie_util.cc
++++ b/net/cookies/cookie_util.cc
+@@ -841,7 +841,7 @@ bool IsCookiePartitionedValid(const GURL& url,
+
+ void ParseRequestCookieLine(std::string_view header_value,
+                             ParsedRequestCookies* parsed_cookies) {
+-  std::string::const_iterator i = header_value.begin();
++  auto i = header_value.begin();
+   while (i != header_value.end()) {
+     // Here we are at the beginning of a cookie.
+
+@@ -850,7 +850,7 @@ void ParseRequestCookieLine(std::string_view header_value,
+     if (i == header_value.end()) return;
+
+     // Find cookie name.
+-    std::string::const_iterator cookie_name_beginning = i;
++    auto cookie_name_beginning = i;
+     while (i != header_value.end() && *i != '=') ++i;
+     auto cookie_name = std::string_view(cookie_name_beginning, i);
+
+@@ -859,7 +859,7 @@ void ParseRequestCookieLine(std::string_view header_value,
+     // Cookies may have no value, in this case '=' may or may not be there.
+     if (i != header_value.end() && i + 1 != header_value.end()) {
+       ++i;  // Skip '='.
+-      std::string::const_iterator cookie_value_beginning = i;
++      auto cookie_value_beginning = i;
+       if (*i == '"') {
+         ++i;  // Skip '"'.
+         while (i != header_value.end() && *i != '"') ++i;
