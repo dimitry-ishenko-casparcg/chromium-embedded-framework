@@ -1,0 +1,21 @@
+# CEF/Chromium statically links many libraries for ABI stability.
+# This is standard practice for browser engines and matches Debian Chromium.
+# See https://chromium.googlesource.com/chromium/src/+/HEAD/docs/linux/chromium_browser.md
+libcef138: embedded-library freetype [usr/lib/x86_64-linux-gnu/libcef.so.*]
+libcef138: embedded-library libjsoncpp [usr/lib/x86_64-linux-gnu/libcef.so.*]
+libcef138: embedded-library srtp [usr/lib/x86_64-linux-gnu/libcef.so.*]
+libcef138: embedded-library tiff [usr/lib/x86_64-linux-gnu/libcef.so.*]
+
+# SwiftShader is an internal Vulkan software renderer bundled with CEF.
+# It is not intended for external linking and has no stable ABI.
+libcef138: lacks-unversioned-link-to-shared-library *libvk_swiftshader*
+libcef138: package-name-doesnt-match-sonames libcef libvk-swiftshader
+
+# CEF upstream does not set SONAME in ELF headers. We use versioned filenames
+# (libcef.so.138.0.1) and soname symlinks (libcef.so.138) instead.
+libcef138: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libcef.so.* libcef.so
+libcef138: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libvk_swiftshader.so libvk_swiftshader.so
+
+# The development symlink (libcef.so) is correctly provided by libcef-dev package.
+# This is standard practice for split library/dev packages in Debian.
+libcef138: lacks-versioned-link-to-shared-library usr/lib/x86_64-linux-gnu/libcef.so [usr/lib/x86_64-linux-gnu/libcef.so.*]
