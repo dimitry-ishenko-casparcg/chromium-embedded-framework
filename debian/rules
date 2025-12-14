@@ -93,6 +93,11 @@ override_dh_auto_configure:
 	# automate-git.py handles configuration
 	@echo "CEF build will be configured by automate-git.py"
 
+override_dh_dwz:
+	# Skip dwz - Chromium uses DWARF5 debug info with .debug_str_offsets
+	# sections that dwz doesn't understand
+	@echo "Skipping dwz (incompatible DWARF5 debug info)"
+
 ## ============================================================================
 ## BUILD PROCESS DOCUMENTATION
 ## ============================================================================
@@ -972,45 +977,51 @@ override_dh_auto_build:
 		--minimal-distrib
 
 override_dh_auto_install:
-	# Install libcef.so
-	install -D -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/libcef.so \
+	# Create package directories first
+	mkdir -p $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu
+	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include
+	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef
+
+	# Install libcef.so (use _linux64 pattern to exclude _linux64_minimal)
+	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libcef.so \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
 
 	# Create soname symlink
 	ln -s libcef.so.138.0.1 \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138
 
-	# Install headers
+	# Install headers (use _linux64 pattern to exclude _linux64_minimal)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
-	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/include \
+	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/include \
 		$(CURDIR)/debian/libcef-dev/usr/include/cef
 
-	# Install cmake config files if they exist
-	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/cmake ]; then \
+	# Install cmake config files if they exist (use _linux64 pattern)
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/cmake ]; then \
 		mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
-		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/cmake/* \
+		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/cmake/* \
 			$(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
 	fi
 
-	# Install resources (PAK files, locales)
+	# Install resources (PAK files) - use _linux64 pattern
+	# PAK files are in Resources/ directory, NOT Release/
 	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.pak \
-		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Resources/*.pak \
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/*.pak \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/
+
+	# Install ICU data file (CRITICAL for internationalization) - use _linux64 pattern
+	# icudtl.dat is in Resources/ directory, NOT Release/
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/icudtl.dat \
+		$(CURDIR)/debian/cef-resources/usr/share/cef/
+
+	# Install V8 context snapshot (CRITICAL for JavaScript) - use _linux64 pattern
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/v8_context_snapshot.bin \
 		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
 
-	# Install ICU data file (CRITICAL for internationalization)
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/icudtl.dat \
-		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
-
-	# Install V8 context snapshot (CRITICAL for JavaScript)
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/v8_context_snapshot.bin \
-		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
-
-	# Install locales
-	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales ]; then \
+	# Install locales - use _linux64 pattern
+	# Locales are in Resources/ directory, NOT Release/
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/locales ]; then \
 		mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
-		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/locales/*.pak \
+		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/locales/*.pak \
 			$(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
 	fi
 
