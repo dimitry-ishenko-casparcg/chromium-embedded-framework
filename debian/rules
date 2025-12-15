@@ -1037,11 +1037,27 @@ override_dh_auto_install:
 	done
 
 	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
-	if [ -f chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/vk_swiftshader_icd.json ]; then \
-		mkdir -p $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
-		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/vk_swiftshader_icd.json \
-			$(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
-	fi
+	# Use for loop to handle glob expansion properly ([ -f ] with glob fails)
+	for icd in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/vk_swiftshader_icd.json; do \
+		if [ -f "$$icd" ]; then \
+			mkdir -p $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
+			cp "$$icd" $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
+			break; \
+		fi \
+	done
+
+	# Install chrome-sandbox (needed for CEF process isolation)
+	# Note: This binary requires setuid root to function, but we install it without setuid
+	# for security. Users who need sandbox support should either:
+	# - Run the application with --no-sandbox flag, OR
+	# - Configure setuid permissions manually: sudo chown root:root /usr/lib/cef/chrome-sandbox && sudo chmod 4755 /usr/lib/cef/chrome-sandbox
+	for sandbox in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/chrome-sandbox; do \
+		if [ -f "$$sandbox" ]; then \
+			mkdir -p $(CURDIR)/debian/libcef138/usr/lib/cef/; \
+			install -m755 "$$sandbox" $(CURDIR)/debian/libcef138/usr/lib/cef/chrome-sandbox; \
+			break; \
+		fi \
+	done
 
 override_dh_auto_test:
 	# Skip tests for now - CEF tests require X display

@@ -1,0 +1,5 @@
+# ICU data symlink is needed in the architecture-specific library directory
+# because CEF loads icudtl.dat relative to libcef.so location before processing
+# command-line switches like --resources-dir-path. This is the only way to make
+# CEF find ICU data when using Debian's split package layout.
+cef-resources: triplet-dir-and-architecture-mismatch is for amd64 instead of all [usr/lib/x86_64-linux-gnu/]

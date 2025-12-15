@@ -1,0 +1,18 @@
+# CEF resource symlinks - CEF loads resources relative to libcef.so location
+# before processing command-line switches like --resources-dir-path.
+# These symlinks allow CEF to find its resources when using Debian's split
+# package layout (library in /usr/lib, resources in /usr/share).
+
+# ICU data (internationalization)
+usr/share/cef/icudtl.dat usr/lib/x86_64-linux-gnu/icudtl.dat
+
+# V8 JavaScript engine snapshot
+usr/share/cef/v8_context_snapshot.bin usr/lib/x86_64-linux-gnu/v8_context_snapshot.bin
+
+# Chrome PAK resource files
+usr/share/cef/chrome_100_percent.pak usr/lib/x86_64-linux-gnu/chrome_100_percent.pak
+usr/share/cef/chrome_200_percent.pak usr/lib/x86_64-linux-gnu/chrome_200_percent.pak
+usr/share/cef/resources.pak usr/lib/x86_64-linux-gnu/resources.pak
+
+# Locales directory
+usr/share/cef/locales usr/lib/x86_64-linux-gnu/locales
