@@ -1,21 +1,17 @@
-# CEF/Chromium statically links many libraries for ABI stability.
-# This is standard practice for browser engines and matches Debian Chromium.
-# See https://chromium.googlesource.com/chromium/src/+/HEAD/docs/linux/chromium_browser.md
-libcef138: embedded-library freetype [usr/lib/x86_64-linux-gnu/libcef.so.*]
-libcef138: embedded-library libjsoncpp [usr/lib/x86_64-linux-gnu/libcef.so.*]
-libcef138: embedded-library srtp [usr/lib/x86_64-linux-gnu/libcef.so.*]
-libcef138: embedded-library tiff [usr/lib/x86_64-linux-gnu/libcef.so.*]
-
-# SwiftShader is an internal Vulkan software renderer bundled with CEF.
-# It is not intended for external linking and has no stable ABI.
-libcef138: lacks-unversioned-link-to-shared-library *libvk_swiftshader*
-libcef138: package-name-doesnt-match-sonames libcef libvk-swiftshader
-
-# CEF upstream does not set SONAME in ELF headers. We use versioned filenames
-# (libcef.so.138.0.1) and soname symlinks (libcef.so.138) instead.
-libcef138: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libcef.so.* libcef.so
-libcef138: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libvk_swiftshader.so libvk_swiftshader.so
-
-# The development symlink (libcef.so) is correctly provided by libcef-dev package.
-# This is standard practice for split library/dev packages in Debian.
-libcef138: lacks-versioned-link-to-shared-library usr/lib/x86_64-linux-gnu/libcef.so [usr/lib/x86_64-linux-gnu/libcef.so.*]
+# RPATH for CEF's private ANGLE libraries is intentional and Debian-compliant.
+#
+# CEF requires specific ANGLE libraries (libEGL.so, libGLESv2.so) which are
+# Google's OpenGL ES implementation, NOT Mesa. These conflict with system
+# libegl1/libgles2 packages, so they're installed to /usr/lib/x86_64-linux-gnu/cef/
+#
+# According to Debian policy (https://wiki.debian.org/RpathIssue):
+# "The only time a binary or shared library in a Debian package should set
+# RPATH or RUNPATH is if it is linked to private shared libraries in the
+# same package. In that case, place those private shared libraries in
+# /usr/lib/<package>."
+#
+# The ANGLE libraries are private to CEF and installed in /usr/lib/.../cef/,
+# which follows this guideline. The RPATH allows CEF to find them at runtime
+# without requiring users to set LD_LIBRARY_PATH.
+# Suppress the RPATH warning for libcef.so - it needs to find private ANGLE libraries
+libcef138: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr/lib/x86_64-linux-gnu/libcef.so.138.0.1]

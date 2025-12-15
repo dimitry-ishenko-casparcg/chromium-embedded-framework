@@ -85,6 +85,60 @@ This CEF package enables functionality in:
 
 These packages have been waiting for CEF since 2018 (bug #915400).
 
+Runtime Libraries and Configuration
+-----------------------------------
+
+**ANGLE Libraries (libEGL.so, libGLESv2.so):**
+
+CEF includes Google's ANGLE libraries (Almost Native Graphics Layer Engine),
+which provide OpenGL ES implementation over Vulkan. These are NOT the same
+as system Mesa libraries (libegl1, libgles2).
+
+To avoid conflicts with system Mesa libraries, the ANGLE libraries are
+installed to a private directory:
+
+  /usr/lib/x86_64-linux-gnu/cef/
+
+The main CEF library (libcef.so) has RUNPATH set to find these libraries
+automatically. This follows Debian policy for private shared libraries:
+
+  https://wiki.debian.org/RpathIssue
+
+Applications using CEF will automatically use the correct ANGLE libraries
+without needing to set LD_LIBRARY_PATH.
+
+**Chrome Sandbox:**
+
+CEF includes chrome-sandbox for process isolation, installed at:
+
+  /usr/lib/cef/chrome-sandbox
+
+By default, this binary is NOT setuid root for security reasons. This means
+sandbox support is disabled out of the box. Applications can work around
+this by:
+
+  1. Running with --no-sandbox flag, OR
+  2. Manually enabling setuid (requires root):
+     sudo chown root:root /usr/lib/cef/chrome-sandbox
+     sudo chmod 4755 /usr/lib/cef/chrome-sandbox
+
+**SwiftShader (Software Rendering):**
+
+CEF includes SwiftShader for software Vulkan rendering when hardware
+acceleration is unavailable. The Vulkan ICD configuration is installed to:
+
+  /usr/share/vulkan/icd.d/vk_swiftshader_icd.json
+
+**Resource Files:**
+
+CEF resource files (PAK files, locales, ICU data) are in the cef-resources
+package, installed to:
+
+  /usr/share/cef/
+
+Applications need to set CefSettings.resources_dir_path to this location,
+or symlink these files to the application's working directory.
+
 CEF and Chromium Version Alignment
 ----------------------------------
 
