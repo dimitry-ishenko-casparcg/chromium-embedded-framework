@@ -113,7 +113,8 @@ Build-Depends: debhelper-compat (= 13),
                rustc,
                bindgen,
                rust-src,
-               librust-libc-dev
+               librust-libc-dev,
+               patchelf
 Standards-Version: 4.7.2
 Homepage: https://bitbucket.org/chromiumembedded/cef
 Vcs-Browser: https://salsa.debian.org/debian/chromium-embedded-framework

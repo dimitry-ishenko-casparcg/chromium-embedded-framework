@@ -986,6 +986,15 @@ override_dh_auto_install:
 	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libcef.so \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
 
+	# Add RPATH for CEF's private ANGLE libraries (libEGL.so, libGLESv2.so)
+	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
+	# Debian policy allows RPATH for private shared libraries in /usr/lib/<package>/
+	# See: https://wiki.debian.org/RpathIssue
+	# The ANGLE libraries must be in a separate directory to avoid conflicts with system Mesa.
+	# libcef.so already has $ORIGIN RUNPATH from upstream, we append the CEF private lib dir.
+	patchelf --set-rpath '$$ORIGIN:/usr/lib/x86_64-linux-gnu/cef' \
+		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
+
 	# Create soname symlink
 	ln -s libcef.so.138.0.1 \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138
@@ -1026,7 +1035,8 @@ override_dh_auto_install:
 	fi
 
 	# Install other required libraries from Release directory
-	# Skip system libraries that conflict with Debian packages (libegl1, libgles2, libvulkan1)
+	# Skip libvulkan.so (conflicts with system libvulkan1 package)
+	# Note: libEGL.so and libGLESv2.so are ANGLE libraries (NOT Mesa) - installed separately below
 	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.so*; do \
 		libname="$$(basename $$lib)"; \
 		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
@@ -1036,15 +1046,25 @@ override_dh_auto_install:
 		fi \
 	done
 
-	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
-	# Use for loop to handle glob expansion properly ([ -f ] with glob fails)
-	for icd in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/vk_swiftshader_icd.json; do \
-		if [ -f "$$icd" ]; then \
-			mkdir -p $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
-			cp "$$icd" $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/; \
-			break; \
+	# Install ANGLE libraries (libEGL.so, libGLESv2.so) to CEF-specific directory
+	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
+	# CEF's GPU process requires these specific ANGLE libraries for hardware acceleration.
+	# Installing to /usr/lib/x86_64-linux-gnu/cef/ avoids conflicts with system Mesa (libegl1, libgles2).
+	# Applications using CEF should set LD_LIBRARY_PATH or use rpath to find these.
+	mkdir -p $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/cef/
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libEGL.so \
+	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libGLESv2.so; do \
+		if [ -f "$$lib" ]; then \
+			install -m644 "$$lib" $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/cef/; \
 		fi \
 	done
+
+	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
+	# Generate with absolute path instead of relative path (original has ./libvk_swiftshader.so)
+	# This is needed for Vulkan loader to find the library from any working directory
+	mkdir -p $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/
+	echo '{"file_format_version": "1.0.0", "ICD": {"library_path": "/usr/lib/x86_64-linux-gnu/libvk_swiftshader.so", "api_version": "1.0.5"}}' \
+		> $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
 	# Install chrome-sandbox (needed for CEF process isolation)
 	# Note: This binary requires setuid root to function, but we install it without setuid
