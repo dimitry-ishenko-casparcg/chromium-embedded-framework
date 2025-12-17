@@ -244,9 +244,9 @@ override_dh_auto_build:
 	#   - User clones depot_tools once: git clone https://...depot_tools.git
 	#   - debian/rules clean PRESERVES depot_tools/ (not removed)
 	#   - Works for local development and testing
-	# FUTURE (Phase 2 - see debian/TODO-DEPOT-TOOLS.txt):
-	#   - Option A: Include depot_tools in orig.tar.xz
-	#   - Option B: Package depot_tools separately as Debian package
+	# FUTURE (Phase 2): Include depot_tools in orig.tar.xz
+	#   - Option A: Bundle depot_tools in CEF source package
+	#   - Option B: Package depot_tools separately as Debian package (ideal but blocked by Google's rolling release model)
 	# Network isolation: NO downloads during build - depot_tools must pre-exist
 	@echo "==> Verifying depot_tools is present (bundled dependency)"
 	@if [ ! -d $(CURDIR)/depot_tools ]; then \
@@ -256,7 +256,7 @@ override_dh_auto_build:
 		echo "ERROR:   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools"; \
 		echo "ERROR:"; \
 		echo "ERROR: After setup, depot_tools will be preserved across builds (not removed by 'clean')."; \
-		echo "ERROR: See debian/TODO-DEPOT-TOOLS.txt for packaging plans."; \
+		echo "ERROR: See debian/README.source for packaging details."; \
 		exit 1; \
 	fi
 	@echo "==> depot_tools found (bundled dependency - Phase 1 approach)"
@@ -1095,6 +1095,6 @@ override_dh_auto_clean:
 	# TEMPORARY APPROACH: For official Debian submission, depot_tools must be:
 	#   - Included in orig.tar.xz, OR
 	#   - Packaged separately as debian package
-	# See: debian/TODO-DEPOT-TOOLS.txt for Phase 2 plan
+	# Future: Phase 2 will include depot_tools in orig.tar.xz (see README.source)
 	# DO NOT remove depot_tools/ here - it's part of the source package
 	dh_auto_clean
