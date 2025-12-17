@@ -11,3 +11,5 @@
 0012-add-gn-debian-args-function.cef.patch
 0013-remove-pseudolocales-conditional.cef.patch
 0014-disable-assert-redefinition-cef-logging.cef.patch
+0015-add-debian-cef-rpath-for-angle.cef.patch
+0016-use-full-path-autoninja-dpkg.cef.patch
