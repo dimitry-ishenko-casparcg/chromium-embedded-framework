@@ -1,886 +1,302 @@
 chromium-embedded-framework for Debian
 ======================================
 
-This package has a NON-STANDARD build workflow that requires manual preparation
-and uses BUNDLED DEPENDENCIES for technical reasons documented below.
+This package builds CEF (Chromium Embedded Framework) using Debian's chromium
+source tarball. It requires manual preparation due to the chromium dependency.
 
-CRITICAL: Chromium Source Requirement
---------------------------------------
+================================================================================
+BUILD PREREQUISITES
+================================================================================
 
-CEF (Chromium Embedded Framework) requires Chromium browser source code as a
-build input. Unlike typical Debian packages, this source is NOT included in the
-package's orig.tar.gz and is NOT automatically downloaded during build.
+Three dependencies require MANUAL setup before building:
 
-MANDATORY BUILD PREPARATION
-----------------------------
+    /path/to/workspace/
+    ├── chromium-embedded-framework/          <- This source package
+    │   └── depot_tools/                      <- (3) Clone here ONCE
+    ├── chromium_143.0.7499.40.orig.tar.xz    <- (1) Chromium source
+    └── rust-toolchain.tar.xz                 <- (2) Rust stdlib sources
 
-Before building this package, you MUST manually download the Debian chromium
-source tarball and place it in the parent directory:
+Setup commands (run ONCE before first build):
 
-    # From the parent directory of chromium-embedded-framework/
-    $ apt-get source --download-only chromium
+1. Chromium tarball (~969 MB):
+   $ cd /path/to/workspace/
+   $ apt-get source --download-only chromium
 
-This creates:
-    chromium_143.0.7499.40.orig.tar.xz  (~969 MB)
+   This downloads chromium_VERSION.orig.tar.xz. The CEF branch must match
+   the chromium version - see cef/CHROMIUM_BUILD_COMPATIBILITY.txt after
+   extracting the source package.
 
-The build system (debian/rules) will reference this file at:
-    ../chromium_143.0.7499.40.orig.tar.xz
+2. Rust toolchain tarball (~142 MB):
+   Download from Google Cloud Storage. The URL changes with chromium versions.
 
-Build Workflow
---------------
+   For Chromium 143.x, use:
+   $ wget "https://commondatastorage.googleapis.com/aspect-aspect-build-toolchain/aspect-aspect-build-toolchain-22.1.128/aspect_build_rust_toolchain_for_x86_64-unknown-linux-gnu.tar.xz" \
+          -O rust-toolchain.tar.xz
 
-1. Prepare build environment:
+   For other versions: Extract chromium tarball first, then:
+   $ tar -tf chromium_*.orig.tar.xz | grep -i rust | head -5
+   $ grep -r "aspect.*rust" chromium/src/DEPS 2>/dev/null | head -5
 
-    $ cd /path/to/workspace/
-    $ apt-get source --download-only chromium
-    $ ls -lh chromium_143.0.7499.40.orig.tar.xz
-    # Verify file exists and is ~969 MB
+   Or copy rust-toolchain.tar.xz from a previous successful build.
 
-2. Extract/clone CEF package:
+3. depot_tools (Google's build tools, ~200 MB):
+   $ cd chromium-embedded-framework/
+   $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
 
-    # If using git:
-    $ git clone <salsa-repo-url> chromium-embedded-framework
+   Note: depot_tools is in .gitignore and preserved across builds.
+         Its initialization is handled automatically by debian/rules.
 
-    # If using source package:
-    $ dpkg-source -x chromium-embedded-framework_*.dsc
+4. Build dependencies:
+   $ sudo apt install devscripts
+   $ cd chromium-embedded-framework/
+   $ sudo mk-build-deps -i debian/control
 
-3. Build package:
+   Or manually install packages listed in debian/control Build-Depends.
+
+Build command:
 
     $ cd chromium-embedded-framework/
     $ dpkg-buildpackage -us -uc
 
-The build process will:
-- Step 1: Clone CEF repository (branch 7499) using automate-git.py
-- Step 2: Extract chromium tarball to chromium_src/chromium/
-- Step 3: Apply Debian patches to CEF (using quilt)
-- Step 4: Build CEF binary distribution
-
-Expected build time: 2-3 hours on modern hardware
-Required disk space: ~40 GB total (Chromium ~6GB extracted + CEF build ~34GB)
+Build time: 30-60 minutes (24-core), 2-4 hours (8-core), 12-24 hours (4-core)
+Disk space: ~40 GB
+Network: NOT required during build (only for initial setup above)
 
 ================================================================================
-BUNDLED DEPENDENCIES JUSTIFICATION
+CONFIGURATION DECISIONS
 ================================================================================
 
-This package bundles several components that deviate from standard Debian
-practice. Each bundled dependency is documented below with technical
-justification.
-
-1. LIBC++ (C++ Standard Library)
----------------------------------
-
-Status: SYSTEM (libc++-19-dev) - Build 197+
-Reason: Aligned with Debian Chromium (use_custom_libcxx=false)
-
-CRITICAL DISCOVERY (2025-11-18):
-
-Previous documentation incorrectly stated Debian Chromium uses bundled libc++.
-Reality: Debian Chromium uses SYSTEM libc++ with use_custom_libcxx=false.
-
-Builds 108-113 failed with system libc++ due to missing compiler flags, NOT fundamental incompatibility.
-Build 197+ successfully uses system libc++ with proper configuration.
-
-TECHNICAL DETAILS (Historical - Builds 108-196):
-
-Chromium/CEF uses a custom libc++ build with Chromium-specific ABI settings:
-  - ABI Namespace: std::__Cr:: (Chromium-specific)
-  - ABI Version: 2
-  - Custom configuration flags (ASAN instrumentation, hardening mode, etc.)
-
-Debian's system libc++ (libc++-dev package) uses:
-  - ABI Namespace: std::__1:: (standard LLVM)
-  - ABI Version: 1
-  - Different feature set (wide characters, localization)
-
-ATTEMPTED SOLUTIONS (All Failed):
-
-During package development, we extensively tested system libc++ alternatives:
-
-  Build 108: System libc++ only
-    Result: FAILED at task 78/77621
-    Error: "implicit instantiation of undefined template 'std::basic_ostream'"
-    Cause: ABI namespace mismatch (looking for std::__Cr::, found std::__1::)
-
-  Build 109: Chromium's perfetto __config_site
-    Result: FAILED at task 56/77627 (REGRESSION from Build 108)
-    Error: "_LIBCPP_INSTRUMENTED_WITH_ASAN" empty macro breaks preprocessor
-    Cause: Perfetto config has problematic empty macro definitions
-
-  Build 110: HYBRID - system + namespace override (__1 → __Cr)
-    Result: Reached task 102/77590 (BEST), but FAILED
-    Error: "undefined reference to std::__Cr::setw/setfill"
-    Cause: ABI version mismatch (symbols mangled with v2, config has v1)
-
-  Build 111: HYBRID - system + namespace + version overrides
-    Result: FAILED at task 71/77643 (REGRESSION from Build 110)
-    Cause: Additional overrides created more symbol conflicts
-
-  Build 113: Attempted Build 110 replica
-    Result: FAILED at task 76/77683 with DIFFERENT errors
-    Error: "no type named 'wstring' in namespace 'std'"
-    Cause: System libc++ headers provide only forward declarations,
-           not complete implementations required by Chromium
-
-CONCLUSION:
-
-System libc++ with manual overrides requires 4+ sed commands and still fails
-due to incomplete header implementations. The wstring paradox (Build 113 error
-despite _LIBCPP_HAS_NO_WIDE_CHARACTERS being undefined) proves system headers
-are fundamentally incompatible with Chromium's expectations.
-
-PRECEDENT:
-
-Debian's src:chromium package uses system libc++ (use_custom_libcxx=false). CEF now follows the same approach (Build 197+).
-
-IMPLEMENTATION:
-
-debian/rules copies libc++ configuration from Chromium's perfetto submodule:
-  chromium/src/third_party/perfetto/buildtools/libcxx_config/
-
-Files bundled:
-  - __config_site (ABI configuration)
-  - __assertion_handler (custom assertion behavior)
-
-These are placed at:
-  chromium/src/buildtools/third_party/libc++/
-
-Header files remain in Chromium tarball at:
-  chromium/src/third_party/libc++/src/include/
-
-CRITICAL FIX - Feature Macros (Step 4):
-
-Perfetto's __config_site only UNDEFINES negative feature guards but doesn't
-DEFINE positive equivalents. This causes conditional compilation guards to fail:
-
-  Example: /* #undef _LIBCPP_HAS_NO_THREADS */
-
-Without explicit definition, code checking "#if _LIBCPP_HAS_THREADS" evaluates
-to false (undefined = 0), disabling threading features.
-
-debian/rules Step 4 (lines 247-260) adds positive definitions:
-  - _LIBCPP_HAS_LOCALIZATION 1
-  - _LIBCPP_HAS_MONOTONIC_CLOCK 1
-  - _LIBCPP_HAS_WIDE_CHARACTERS 1
-  - _LIBCPP_HAS_FILESYSTEM 1
-  - _LIBCPP_HAS_THREADS 1
-
-This fix resolved compilation errors across ALL C++ components (abseil-cpp,
-ICU, protobuf, etc.) discovered during Builds 117-123.
-
-LINTIAN OVERRIDE:
-
-This will trigger: embedded-library usr/lib/libcef.so: libc++
-
-Override justified because:
-  - Chromium-specific ABI incompatible with system libc++
-  - Upstream requirement, not packaging choice
-  - Same approach as Debian's chromium package
-  - Extensively tested alternatives (Builds 108-113)
-
-2. DEPOT_TOOLS (Build Automation Tools)
-----------------------------------------
-
-Status: BUNDLED at chromium_embedded_framework/depot_tools/
-Reason: NETWORK ISOLATION and BUILD REPRODUCIBILITY
-
-TECHNICAL DETAILS:
-
-depot_tools is Google's build automation toolkit (git, gclient, ninja, etc.).
-CEF's automate-git.py expects depot_tools in PATH.
-
-ATTEMPTED SOLUTIONS:
-
-  Approach 1: Download depot_tools during build
-    Result: VIOLATES Debian Policy
-    Reason: Builds must be reproducible without network access
-
-  Approach 2: System packages (git, python3, etc.)
-    Result: FAILED - missing gclient, custom git wrappers
-    Reason: depot_tools is not a standard system package
-
-  Approach 3: Bundle depot_tools
-    Result: SUCCESS
-    Benefits:
-      - Offline builds (network isolated)
-      - Version pinned (reproducible)
-      - Matches upstream CEF requirements
-
-IMPLEMENTATION:
-
-Build-time bundling:
-  1. automate-git.py clones depot_tools if not present
-  2. debian/rules PRESERVES depot_tools/ across clean
-  3. Only chromium_src/ is removed during clean
-
-This is Phase 1 approach. Future plans:
-
-  Phase 2 - Include in orig.tar.xz:
-    Bundle depot_tools in CEF source package to eliminate manual setup.
-    Pros: Simpler for builders, fully reproducible.
-    Cons: Larger source package (~50MB), version may drift from upstream.
-
-  Phase 3 - Separate Debian package (ideal):
-    Create dedicated depot-tools Debian package.
-    Blocked by: Google's rolling release model (no stable versions).
-
-DEBIAN POLICY COMPLIANCE:
-
-depot_tools is treated as a BUILD TOOL (like autoconf), not a library.
-It is NOT installed to the system, only used during package build.
-
-Files in binary package come from CEF/Chromium compilation, NOT depot_tools.
-
-3. ROLLUP (JavaScript Bundler)
--------------------------------
-
-Status: USES SYSTEM PACKAGE (rollup)
-Reason: EXAMPLE OF SYSTEM LIBRARY USAGE
-
-This is included as a POSITIVE example - we DO use system libraries when viable.
-
-Chromium expects @rollup/wasm-node (contains pre-compiled WASM binary, stripped
-from Debian tarball per policy). We successfully use system rollup via symlink:
-
-  debian/rules creates:
-    chromium/src/third_party/devtools-frontend/src/node_modules/@rollup/wasm-node/dist/bin/rollup
-    → symlink to /usr/share/nodejs/rollup/dist/bin/rollup
-
-  debian/control:
-    Build-Depends: rollup
-
-Result: BUILD.gn files find system rollup at expected path, no patches needed.
-
-================================================================================
-WHY THIS NON-STANDARD APPROACH?
-================================================================================
-
-Debian Bug #893448 (filed 2018, still open) requests a chromium-source binary
-package to solve the chromium tarball problem. Until that exists, manual setup
-is required.
-
-Alternative approaches were considered and rejected:
-
-❌ Embed chromium in CEF source package:
-   - Would create ~1GB source package (unacceptable for Debian)
-   - Violates Debian Policy: "do not put code where canonical version is elsewhere"
-   - Duplicates Debian's chromium security patches
-
-❌ Download chromium during build:
-   - Violates Debian Policy: builds must be reproducible without network
-   - Source packages must be buildable offline
-
-✅ Current approach (manual chromium tarball):
-   - Uses Debian's official chromium source (includes security patches)
-   - Complies with Debian Policy (no embedded code, no network builds)
-   - Documented workflow for maintainers/builders
-   - Migration path when Bug #893448 is resolved
-
-================================================================================
-MODIFYING AND PATCHING
-================================================================================
-
-CEF-Specific Patches
---------------------
-
-Patches applied to CEF source (not Chromium):
-
-  Location: debian/patches/
-  Format: quilt patch series
-  Applied: During Step 3 of build (after CEF checkout, before compilation)
-
-To modify CEF patches:
-
-  $ cd chromium-embedded-framework/
-  $ dpkg-buildpackage --build=source  # Extract source only
-  $ cd chromium_src/cef/
-  $ export QUILT_PATCHES=../../debian/patches
-  $ quilt push -a    # Apply all patches
-  $ quilt new my-fix.patch
-  $ quilt add path/to/file
-  $ vi path/to/file  # Make changes
-  $ quilt refresh
-  $ quilt header -e  # Add patch description
-  $ cd ../..
-  $ dpkg-source --commit
-
-Chromium Build Configuration
------------------------------
-
-Chromium-specific build settings (not patches to code):
-
-  Location: debian/rules lines 190-270
-  Purpose: Configure libc++, rollup, BUILD.gn stubs
-
-Key configuration sections:
-
-  Lines 197-206: libc++ BUILD.gn stub creation
-  Lines 229-244: libc++ __config_site setup (BUNDLED - see justification above)
-  Lines 250-261: Rollup symlink (SYSTEM - see example above)
-
-To modify libc++ configuration:
-
-  WARNING: See "BUNDLED DEPENDENCIES JUSTIFICATION" section above.
-  System libc++ has been extensively tested and FAILS.
-  Only modify if you have new information about libc++ compatibility.
-
-  If modifying anyway:
-    1. Edit debian/rules lines 229-244
-    2. Document reasoning in debian/changelog
-    3. Reference this README.source section
-    4. Test build thoroughly (expect failures)
-
-To add new system library substitutions:
-
-  PREFERRED: Follow rollup example (lines 250-261)
-    - Create symlink at path BUILD.gn expects
-    - Add Build-Depends in debian/control
-    - Document in this README.source
-
-  AVOID: Patching BUILD.gn files
-    - Requires maintaining patches across upstream updates
-    - Fragile to Chromium version changes
-
-Version Compatibility
----------------------
-
-CEF branch 7499 requires Chromium 143.0.7499.x sources.
-
-The build system includes version compatibility fixes:
-- CEF expects 143.0.7499.110 (upstream Chromium tag)
-- Debian has 143.0.7499.40 (with Debian patches)
-- debian/rules patches CHROMIUM_BUILD_COMPATIBILITY.txt during build
-
-When updating to new CEF/Chromium versions:
-1. Update CEF_BRANCH in debian/rules
-2. Update chromium version in debian/rules --chromium-archive path
-3. Update SHA256 hash in debian/rules --chromium-archive-sha256
-4. Re-test bundled dependency assumptions (libc++ ABI may change)
-
-================================================================================
-ADVANCED BUILD TOPICS
-================================================================================
-
-GBP (git-buildpackage) Workflow
---------------------------------
-
-This package is PARTIALLY compatible with gbp:
-
-    $ gbp buildpackage --git-prebuild="test -f ../chromium_*.orig.tar.xz"
-
-The .gbp.conf file includes a prebuild check to verify chromium tarball exists.
-
-However, standard "gbp import-orig" workflow is NOT supported because:
-- CEF orig.tar.gz contains only CEF source (~50MB)
-- Chromium tarball is a build input, NOT part of the source package
-- No mechanism exists to auto-download build-time source dependencies
-
-pbuilder/sbuild Compatibility
-------------------------------
-
-NOT YET SUPPORTED.
-
-These tools require special setup to make the chromium tarball available inside
-the build chroot. Possible approaches:
-
-1. Copy tarball into chroot before build:
-    $ sudo cp chromium_*.orig.tar.xz /var/cache/pbuilder/build/*/tmp/buildd/*/..
-
-2. Use bind mount to make tarball accessible
-
-3. Wait for Debian Bug #893448 to be resolved (chromium-source package)
-
-Debugging Build Issues
-----------------------
-
-Build log locations:
-- automate-git.py output: shown in dpkg-buildpackage output
-- CEF patch application: shown during Step 3 of build
-- Chromium compilation: shown during Step 4 of build
-
-Common issues:
-
-1. "chromium tarball not found":
-   → Run apt-get source --download-only chromium in parent directory
-
-2. "Patch application failed":
-   → Check debian/patches/series is correct
-   → Verify patches apply: cd chromium_src/cef && quilt push -a
-
-3. "Version mismatch":
-   → Update CHROMIUM_BUILD_COMPATIBILITY.txt patch in debian/rules
-
-4. "Disk space full":
-   → Build requires ~40GB free space
-
-5. "libc++ compilation errors" (std::__1:: vs std::__Cr::):
-   → DO NOT attempt to use system libc++ (see BUNDLED DEPENDENCIES section)
-   → Verify perfetto __config_site is being used (check build log)
-
-6. "depot_tools lockfile errors":
-   → Development issue only (not in clean builds)
-   → Run: rm -f depot_tools/external_bin/gsutil/*.locked
-
-================================================================================
-FUTURE MIGRATION
-================================================================================
-
-When Debian Bug #893448 is resolved and chromium-source package exists:
-
-debian/control will change to:
-    Build-Depends: chromium-source (>= 142.0)
-
-debian/rules will change to:
-    --chromium-archive=/usr/src/chromium/chromium.tar.xz
-
-The manual chromium tarball setup documented in this file will no longer be
-needed.
-
-NOTE: Bundled libc++ will STILL be required even with chromium-source package,
-due to fundamental ABI incompatibility with system libc++.
-
-================================================================================
-INTERIM BUILD DEPENDENCIES (Until Debian Packages Available)
-================================================================================
-
-This section documents workarounds required while waiting for proper Debian
-packages for depot_tools and chromium-source. These are TEMPORARY solutions
-that should be removed once the dependencies are available as Debian packages.
-
-**IMPORTANT**: This package is designed to build WITHOUT network access once
-all required files are in place. The debian/rules file handles all initialization
-automatically - no manual setup should be required beyond placing the tarballs.
-
-5. RUST-TOOLCHAIN TARBALL (Rust Standard Library Sources)
-----------------------------------------------------------
-
-Status: BUNDLED TARBALL (rust-toolchain.tar.xz)
-Reason: Debian's rust-src package (1.90.0) lacks newer stdlib files required by Chromium
-Future: When Debian rust-src matches Chromium's requirements, this can be removed
-
-TECHNICAL DETAILS:
-
-Chromium requires specific Rust standard library source files that are NEWER
-than what Debian's rust-src package (1.90.0) provides. Missing files include:
-  - sync/nonpoison/condvar.rs, rwlock.rs (newer std library features)
-  - Other internal stdlib implementation files
-
-The rust-toolchain.tar.xz contains the EXACT Rust stdlib version that Chromium
-expects. This is extracted from Google Cloud Storage (GCS) during initial setup.
-
-LOCATION AND SETUP:
-
-The tarball MUST be placed in the PARENT directory of the source package:
-
-    /path/to/workspace/
-    ├── chromium-embedded-framework/     <- Source package directory
-    │   ├── debian/
-    │   ├── cef/
-    │   └── ...
-    ├── chromium_143.0.7499.40.orig.tar.xz  <- Chromium source
-    └── rust-toolchain.tar.xz               <- THIS FILE (~142 MB)
-
-HOW TO OBTAIN:
-
-Option 1 - Download from GCS (requires network, one-time):
-
-    # Find the URL in chromium/src/DEPS file, search for "rust-toolchain"
-    # Example URL (version may change):
-    $ wget "https://commondatastorage.googleapis.com/aspect-aspect-build-toolchain/aspect-aspect-build-toolchain-22.1.128/aspect_build_rust_toolchain_for_x86_64-unknown-linux-gnu.tar.xz" \
-           -O rust-toolchain.tar.xz
-
-Option 2 - Copy from existing build:
-
-    If you have a previous successful build, the tarball may be cached:
-    $ cp /path/to/previous/rust-toolchain.tar.xz ../
-
-WHAT debian/rules DOES:
-
-Step 7e in debian/rules extracts ONLY the library/ directory from this tarball:
-  - Destination: third_party/rust-toolchain/lib/rustlib/src/rust/library/
-  - Contains: alloc, core, std, and all stdlib crates at correct versions
-  - Also creates stubs for cross-platform files (cygwin, darwin) that exist
-    only to satisfy Rust's module resolution (never actually used on Linux)
-
-MIGRATION PLAN:
-
-When Debian's rust-src package is updated to include all files Chromium needs:
-  1. Remove rust-toolchain.tar.xz requirement from this documentation
-  2. Update debian/rules to use /usr/src/rustc-*/library/ instead
-  3. Add rust-src to Build-Depends in debian/control
-
-6. LLVM/CLANG VERSION LOCK (Currently LLVM-19)
------------------------------------------------
-
-Status: VERSION-LOCKED to LLVM-19
-Reason: Debian sid currently provides clang-19 as the primary clang version
-Impact: Several paths and patches are hardcoded to llvm-19
-
-AFFECTED FILES:
-
-1. debian/control - Build-Depends:
-     clang-19, clang-format-19:native, lld-19, libclang-rt-19-dev,
-     libc++-19-dev, libc++abi-19-dev
-
-2. debian/rules - CLANG_MVERS variable (line ~33):
-     CLANG_MVERS := 19
-
-   This variable is used throughout debian/rules for:
-     - clang_base_path="/usr/lib/llvm-$(CLANG_MVERS)"
-     - PATH includes /usr/lib/llvm-$(CLANG_MVERS)/bin
-     - LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib
-
-3. debian/patches/chromium/0012-bindgen-libclang-abspath.chromium.patch:
-     Hardcodes: /usr/lib/llvm-19/lib
-
-   This patch fixes bindgen's libclang discovery. The GN build system passes
-   --libclang-path /usr/lib (from rust_bindgen_root="/usr"), but libclang.so
-   is actually at /usr/lib/llvm-19/lib/libclang-19.so.19 on Debian.
-
-   The patch intercepts /usr/lib and replaces it with /usr/lib/llvm-19/lib.
-
-LIBCLANG DEPENDENCY:
-
-The rust-bindgen tool requires libclang.so to parse C++ headers. On Debian:
-  - Package: libclang1-19 (pulled in by clang-19)
-  - Location: /usr/lib/x86_64-linux-gnu/libclang-19.so.19
-  - Symlink: /usr/lib/llvm-19/lib/libclang-19.so.19 -> actual file
-
-WHY THE PATCH IS NEEDED:
-
-Chromium's GN build system uses rust_bindgen_root to determine BOTH:
-  1. bindgen executable path: ${rust_bindgen_root}/bin/bindgen
-  2. libclang library path: ${rust_bindgen_root}/lib
-
-On Debian:
-  - bindgen is at /usr/bin/bindgen (so rust_bindgen_root="/usr" works)
-  - libclang is at /usr/lib/llvm-19/lib (NOT /usr/lib)
-
-The patch in run_bindgen.py detects when libclang_path=="/usr/lib" and
-redirects to /usr/lib/llvm-19/lib where the library actually exists.
-
-UPDATING TO A NEW LLVM VERSION:
-
-When Debian moves to a new LLVM version (e.g., LLVM-20):
-
-1. Update debian/control Build-Depends:
-     sed -i 's/clang-19/clang-20/g; s/llvm-19/llvm-20/g' debian/control
-
-2. Update debian/rules:
-     Change: CLANG_MVERS := 19
-     To:     CLANG_MVERS := 20
-
-3. Update patch 0012-bindgen-libclang-abspath.chromium.patch:
-     Change: /usr/lib/llvm-19/lib
-     To:     /usr/lib/llvm-20/lib
-
-   Or better: Make patch use a more dynamic approach if upstream accepts it.
-
-4. Test build thoroughly - LLVM version changes can introduce new warnings
-   or errors that require additional patches.
-
-7. DEPOT_TOOLS INITIALIZATION (Automatic)
+1. SYSTEM LIBC++ (use_custom_libcxx=false)
 ------------------------------------------
 
-Status: HANDLED AUTOMATICALLY by debian/rules
-Reason: depot_tools requires initialization before first use
+Decision: Use Debian's libc++-19-dev instead of bundled libc++
+Reason: Aligns with Debian Chromium's approach
+Implementation: GN flag use_custom_libcxx=false in debian/rules
 
-WHAT debian/rules DOES:
+2. SYSTEM LLVM/CLANG (clang-19)
+-------------------------------
 
-Step 6.6.0.5 - Initialize depot_tools if needed:
-  - Checks if python3_bin_reldir.txt exists (marker for initialized depot_tools)
-  - If missing, runs: ./update_depot_tools (creates necessary wrapper scripts)
-  - This is needed because bundled depot_tools may not be fully initialized
+Decision: Use Debian's clang-19 toolchain
+Reason: Standard Debian build practice, no bundled compiler
+Implementation: clang_base_path="/usr/lib/llvm-19" in debian/rules
 
-Step 6.6.0.6 - Create Python symlink:
-  - depot_tools expects a bundled Python at specific location
-  - We create a symlink to system Python: /usr/bin/python3
-  - Location: depot_tools/bootstrap-2@*/python3/bin/python3
+Note: LLVM version is locked to 19. When Debian updates to a new LLVM version,
+update CLANG_MVERS in debian/rules and patch 0012 (see "Updating LLVM Version").
 
-WHY THIS IS NEEDED:
+3. DEPOT_TOOLS (Manual Clone Required)
+--------------------------------------
 
-depot_tools was designed to download its own Python from Google's servers.
-In Debian builds (network-isolated), we use system Python instead. The
-symlink makes depot_tools find Python at the path it expects.
+Decision: Require manual clone of Google's depot_tools
+Reason: Not available as Debian package, required by CEF build system
+Implementation: User clones to depot_tools/ directory (in .gitignore)
 
-NO MANUAL ACTION REQUIRED:
+Setup: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
+Note: Clone ONCE, then preserved across builds. Initialization is automatic.
 
-These steps run automatically during build. This documentation exists to
-explain what happens if debugging is needed.
+depot_tools is a BUILD TOOL only - nothing from it is installed in binary packages.
 
-8. AUTONINJA PATH FIX (Patch 0016)
------------------------------------
+Future: When/if depot_tools becomes a Debian package, add to Build-Depends.
 
-Status: PATCHED via 0016-use-full-path-autoninja-dpkg.cef.patch
-Reason: dpkg-buildpackage environment may not have depot_tools in PATH
+4. BUNDLED RUST STDLIB SOURCES
+------------------------------
 
-TECHNICAL DETAILS:
+Decision: Use rust-toolchain.tar.xz for Rust standard library sources
+Reason: Debian's rust-src (1.90.0) lacks files Chromium requires
+Implementation: debian/rules extracts library/ from tarball
 
-CEF's automate-git.py calls 'autoninja' by name, expecting it in PATH.
-During dpkg-buildpackage, PATH setup can be incomplete, causing:
-
-    subprocess.CalledProcessError: Command 'autoninja' not found
-
-SOLUTION:
-
-Patch 0016 modifies automate-git.py to use the full path to autoninja:
-    autoninja_path = os.path.join(depot_tools_dir, 'autoninja')
-
-This ensures autoninja is found regardless of PATH configuration.
+Future: When Debian rust-src includes all required files, switch to system
+rust-src and remove tarball requirement.
 
 ================================================================================
-BUILD ENVIRONMENT DIFFERENCES (Troubleshooting)
+INTERIM DEPENDENCIES DETAILS
 ================================================================================
 
-When moving this package to a new build machine, you may encounter issues
-due to environment differences. This section documents known issues.
+This section provides technical details for the interim workarounds. These
+will become unnecessary when proper Debian packages are available.
 
-ISSUES DISCOVERED DURING MIGRATION:
+Rust Toolchain Tarball
+----------------------
 
-1. depot_tools not initialized
-   Symptom: "python3_bin_reldir.txt not found"
-   Solution: debian/rules Step 6.6.0.5 now handles this automatically
+Location: ../rust-toolchain.tar.xz (parent directory of source package)
+Size: ~142 MB
+Contents: Rust standard library sources matching Chromium's expected version
 
-2. Bundled Python not present
-   Symptom: Python not found in depot_tools/bootstrap-*/
-   Solution: debian/rules Step 6.6.0.6 creates symlink to system Python
+See BUILD PREREQUISITES section for download instructions.
 
-3. autoninja not in PATH
-   Symptom: "Command 'autoninja' returned non-zero exit status 127"
-   Solution: Patch 0016 uses full path to autoninja
+What debian/rules does with it (Step 7e):
+- Extracts ONLY library/ directory to third_party/rust-toolchain/lib/rustlib/src/rust/
+- Creates stubs for cross-platform files (cygwin, darwin) needed for module resolution
 
-4. clang/clang++ not in PATH
-   Symptom: "clang++: command not found"
-   Solution: debian/rules adds /usr/lib/llvm-19/bin to PATH
+LLVM-19 Path Configuration
+--------------------------
 
-5. libclang.so not found by bindgen
-   Symptom: "Unable to find libclang: couldn't find any valid shared libraries"
-   Solution: Patch 0012 redirects /usr/lib to /usr/lib/llvm-19/lib
+Chromium's GN build system uses rust_bindgen_root to find both:
+- bindgen executable: ${rust_bindgen_root}/bin/bindgen
+- libclang library: ${rust_bindgen_root}/lib/libclang.so
 
-6. rust-toolchain.tar.xz missing
-   Symptom: "tar: rust-toolchain.tar.xz: Cannot open: No such file or directory"
-   Solution: Download tarball and place in parent directory (see section 5)
+On Debian:
+- bindgen is at /usr/bin/bindgen (rust_bindgen_root="/usr" works)
+- libclang is at /usr/lib/llvm-19/lib/ (NOT /usr/lib/)
 
-CHECKLIST FOR NEW BUILD MACHINES:
+Solution: Patch 0012-bindgen-libclang-abspath.chromium.patch intercepts
+/usr/lib and redirects to /usr/lib/llvm-19/lib where libclang actually exists.
 
-Before building, verify:
+Files affected by LLVM version:
+- debian/control: clang-19, lld-19, libc++-19-dev, etc.
+- debian/rules: CLANG_MVERS := 19
+- debian/patches/chromium/0012-*: hardcoded /usr/lib/llvm-19/lib
 
-[ ] Chromium tarball exists: ../chromium_143.0.7499.40.orig.tar.xz
-[ ] Rust toolchain exists: ../rust-toolchain.tar.xz
-[ ] Build dependencies installed: sudo apt build-dep chromium-embedded-framework
-[ ] Sufficient disk space: ~40GB free
-[ ] depot_tools directory exists (bundled in source package)
+Depot Tools Initialization
+--------------------------
 
-All other initialization is handled automatically by debian/rules.
+debian/rules automatically handles depot_tools setup:
 
-BUILD TIME EXPECTATIONS:
+Step 6.6.0.5 - Initialize if needed:
+- Checks for python3_bin_reldir.txt (initialization marker)
+- Runs ./update_depot_tools if missing
 
-Hardware significantly affects build time. The build is CPU-bound and highly
-parallelizable - more cores = faster builds. Memory affects parallel job count.
+Step 6.6.0.6 - Python symlink:
+- depot_tools expects bundled Python at bootstrap-2@*/python3/bin/python3
+- Creates symlink to system /usr/bin/python3
 
-| Hardware | Cores | RAM | Expected Time |
-|----------|-------|-----|---------------|
-| High-end desktop (2024, Ryzen 9/i9) | 16-24 | 64GB+ | 30-45 minutes |
-| Mid-range desktop (2022) | 8-12 | 32GB | 1-2 hours |
-| Laptop (2019, i7 quad-core) | 4-8 | 32GB | 12-24 hours |
-| CI/CD standard runner | 2-4 | 8GB | 6-12 hours |
-| CI/CD large runner | 8-16 | 32GB | 2-4 hours |
-| Debian buildd (estimated) | 8-16 | 32GB | 3-6 hours |
+No manual action required - these run automatically during build.
 
-NOTES:
-- GPU does NOT accelerate compilation (CPU-bound workload)
-- ninja uses (cores - 2) parallel jobs by default
-- Low RAM causes swapping, dramatically increasing build time
-- CI/CD runners are often shared/throttled, adding overhead
-- Debian autobuilders vary significantly in hardware specs
+Build Environment Notes
+-----------------------
+
+The build is designed to work WITHOUT network access once tarballs are in place.
+debian/rules handles all environment setup automatically:
+
+- Adds /usr/lib/llvm-19/bin to PATH (for clang discovery)
+- Sets LIBCLANG_PATH=/usr/lib/llvm-19/lib (for bindgen)
+- Initializes depot_tools with system Python
+- Uses full path to autoninja (patch 0016) to avoid PATH issues
+
+================================================================================
+PATCHES
+================================================================================
+
+CEF Patches (debian/patches/*.cef.patch)
+----------------------------------------
+
+Applied via quilt to CEF source before build:
+
+- 0001-debian-patcher-skip-logic: Skip upstream patches already in Debian chromium
+- 0002-use-system-clang: Use system clang instead of downloading
+- 0003-create-reclient-stub: Stub for Google's build cache (not used in Debian)
+- 0004-patch-gn-for-exec-script: Allow CEF's exec_script in GN
+- 0005-skip-gclient-revert-debian: Don't revert Debian's chromium patches
+- 0006-skip-chromium-checkout-debian: Use tarball instead of git checkout
+- 0007-allow-optimize-webui-false: Allow disabling WebUI optimization
+- 0008-add-locale-stub-for-protoc-gen-js: Locale stub for JS proto generation
+- 0010-add-rust-toolchain-stub: Use system Rust instead of downloading
+- 0011-fix-opus-stub-after-gclient: Fix opus configuration
+- 0012-add-gn-debian-args-function: Inject Debian GN args
+- 0013-remove-pseudolocales-conditional: Fix locale generation
+- 0014-disable-assert-redefinition: Avoid macro conflicts with system headers
+- 0015-add-debian-cef-rpath-for-angle: RPATH for ANGLE libraries
+- 0016-use-full-path-autoninja-dpkg: Fix autoninja discovery in build
+
+Chromium Patches (debian/patches/chromium/*.chromium.patch)
+-----------------------------------------------------------
+
+Applied manually via patch -p1 to chromium source:
+
+- 0012-bindgen-libclang-abspath: Fix libclang path for rust-bindgen
+  (redirects /usr/lib to /usr/lib/llvm-19/lib)
+
+See debian/rules for the complete list of chromium patches.
+
+================================================================================
+MAINTENANCE
+================================================================================
+
+Updating CEF Version
+--------------------
+
+1. Update CEF_BRANCH in debian/rules
+2. Update chromium version to match CEF requirements
+3. Test build and fix any new patch conflicts
+
+Updating Chromium Version
+-------------------------
+
+1. Download new chromium tarball: apt-get source --download-only chromium
+2. Update version in debian/rules --chromium-archive path
+3. Test build and fix any patch conflicts
+
+Updating LLVM Version
+---------------------
+
+When Debian moves to a new LLVM version (e.g., 19 -> 20):
+
+1. Update debian/control Build-Depends (clang-19 -> clang-20, etc.)
+2. Update CLANG_MVERS in debian/rules (19 -> 20)
+3. Update debian/patches/chromium/0012-bindgen-libclang-abspath.chromium.patch
+   (change /usr/lib/llvm-19/lib to /usr/lib/llvm-20/lib)
+4. Test build for new compiler warnings/errors
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Common Issues
+-------------
+
+1. "chromium tarball not found"
+   -> Run: apt-get source --download-only chromium (in parent directory)
+
+2. "rust-toolchain.tar.xz not found"
+   -> Download from GCS URL in chromium DEPS file (see BUILD PREREQUISITES)
+
+3. "Unable to find libclang"
+   -> Verify libclang1-19 is installed (pulled in by clang-19)
+   -> Check patch 0012 has correct LLVM version
+
+4. "Command 'autoninja' not found"
+   -> Patch 0016 should fix this; verify it's in debian/patches/series
+
+5. "depot_tools directory not found"
+   -> Clone depot_tools: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
+
+6. Disk space errors
+   -> Build requires ~40GB free space
+
+Checklist for New Build Machines
+--------------------------------
+
+[ ] Chromium tarball: ../chromium_143.0.7499.40.orig.tar.xz
+[ ] Rust toolchain: ../rust-toolchain.tar.xz
+[ ] depot_tools cloned: ./depot_tools/ (git clone once)
+[ ] Build dependencies: apt build-dep chromium-embedded-framework
+[ ] Sufficient disk space (~40GB)
+
+================================================================================
+FUTURE IMPROVEMENTS
+================================================================================
+
+When these Debian packages become available, this package can be simplified:
+
+1. chromium-source package (Bug #893448)
+   -> Remove manual chromium tarball requirement
+
+2. depot-tools package
+   -> Remove bundled depot_tools, add to Build-Depends
+
+3. Updated rust-src package
+   -> Remove rust-toolchain.tar.xz requirement
 
 ================================================================================
 REFERENCES
 ================================================================================
 
 Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
-Bugs: https://bugs.debian.org/chromium-embedded-framework
 Upstream: https://bitbucket.org/chromiumembedded/cef
 
 Related Debian Bugs:
 - #893448: Request for chromium-source binary package
-- #915400: RFP/ITP for chromium-embedded-framework
-- #919382: casparcg-server HTTP support (blocked by lack of CEF)
+- #915400: ITP for chromium-embedded-framework
 
-Build Investigation Logs:
-- See CLAUDE.md in source package for detailed build testing (Builds 108-123)
-- Logs document failed attempts to use system libc++ (Builds 108-113)
-- Logs document libc++ feature macros fix (Builds 117-123)
-- Evidence supports bundled libc++ decision
-
-Upstream References:
-- Chromium libc++ documentation:
-  https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/linux/build_instructions.md
-- CEF build instructions:
-  https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md
-
-================================================================================
-RUST VENDOR CRATE DEPENDENCIES (Build 175+)
-================================================================================
-
-4. RUST VENDOR CRATES (Hybrid Approach)
-----------------------------------------
-
-Status: HYBRID - 67% system packages + 33% bundled crates
-Reason: MAXIMIZE Debian Policy compliance while handling unavailable crates
-
-TECHNICAL DETAILS:
-
-Chromium's Rust standard library build requires 130 vendor crates, normally
-downloaded as part of rust-toolchain GCS tarball (142 MB, blocked in Debian).
-
-ANALYSIS RESULTS (Build 175j - 2025-11-16):
-
-Total vendor crates required: 130
-
-Breakdown:
-  ✅ Exact match in Debian:     11 crates (8%)
-  ⚠️  Version mismatch:          76 crates (58%)  → Tested compatible via semver
-  ❌ Not in Debian:             43 crates (33%)  → Requires bundling
-  ────────────────────────────────────────────
-  System packages available:    87 crates (67%)  ← SIGNIFICANT Debian compliance
-
-IMPLEMENTED SOLUTION - HYBRID APPROACH:
-
-Phase 1: System Packages (87 crates from Debian)
-
-  Source: /usr/share/cargo/registry/
-  Packages: librust-*-dev (see debian/control Build-Depends)
-
-  Key packages:
-    - librust-libc-dev (CRITICAL - tested in Build 175)
-    - librust-object-dev (previous blocker, now resolved)
-    - librust-serde-dev, librust-tokio-dev (common dependencies)
-    - ... (84 more - see generate-build-depends.sh output)
-
-  Implementation:
-    debian/rules creates symlinks from system packages to:
-      third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
-
-Phase 2: Bundled Crates (43 crates NOT in Debian)
-
-  Location: debian/vendor-crates/
-  Source: Extracted from rust-toolchain GCS tarball
-  Size: ~5-8 MB (vs 142 MB for full tarball)
-
-  Categories of bundled crates:
-
-    ICU internationalization (~7 crates):
-      - icu_calendar, icu_calendar_data, icu_collections
-      - icu_locale, icu_locale_core, icu_locale_data, icu_provider
-
-    Temporal/timezone (~4 crates):
-      - temporal_rs, temporal_capi, timezone_provider
-      - calendrical_calculations
-
-    Font/text processing (~3 crates):
-      - font-types, read-fonts, skrifa
-
-    Diplomat FFI (~3 crates):
-      - diplomat, diplomat-core, diplomat-runtime
-
-    Architecture-specific (~5 crates):
-      - arm, powerpc, loongarch64, wasm32, x86
-
-    Audio codecs (~5 crates):
-      - symphonia-*, codec_vendor, typed_codec_vendor
-
-    Other utilities (~16 crates):
-      - See RUST_VENDOR_ANALYSIS_*.md for complete list
-
-  Implementation:
-    debian/rules creates symlinks from debian/vendor-crates/ to:
-      third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
-
-JUSTIFICATION FOR BUNDLING (Debian Policy §4.13 exception):
-
-1. REQUIRED for building: Chromium Rust components depend on these crates
-2. NOT AVAILABLE in Debian: No librust-*-dev packages as of 2025-11-16
-3. DEPENDENCIES of Rust stdlib: Not direct Chromium dependencies
-4. NORMALLY from GCS: Upstream downloads from rust-toolchain tarball (blocked)
-5. MAXIMIZE system packages: We use 87/130 = 67% from Debian (significant compliance)
-6. MINIMIZE bundling: Only 43/130 = 33% bundled (vs 100% if pure bundle approach)
-
-COMPARISON WITH ALTERNATIVES:
-
-| Approach | System Pkgs | Bundled | Policy Compliance | Size |
-|----------|-------------|---------|-------------------|------|
-| Pure System (Option C) | 87 (67%) | 0 (0%) | ✅ Best | 0 MB |
-| HYBRID (Implemented) | 87 (67%) | 43 (33%) | ✅ Good | ~5-8 MB |
-| Pure Bundle (Option A) | 0 (0%) | 130 (100%) | ⚠️ Acceptable | ~15-20 MB |
-
-Pure system approach was attempted but 43 crates simply don't exist in Debian.
-Hybrid achieves 67% policy compliance vs 0% with pure bundle.
-
-MIGRATION PLAN:
-
-As Debian packages become available for bundled crates:
-
-1. Monitor Debian NEW queue for newly packaged Rust crates
-2. Test compatibility with new Debian package versions
-3. Remove crate from debian/vendor-crates/ bundle
-4. Add librust-*-dev to debian/control Build-Depends
-5. Update documentation and statistics
-
-TARGET: Migrate from 67% → 100% system packages over time
-
-VERIFICATION:
-
-To verify Rust vendor coverage after build starts:
-
-  $ cd chromium-embedded-framework/
-  $ ./verify-rust-coverage.sh
-
-Expected output:
-  ✅ 130 crates found (100% coverage)
-  📦 87 from system packages (/usr/share/cargo/registry/)
-  📁 43 from bundled crates (debian/vendor-crates/)
-
-LINTIAN OVERRIDE:
-
-This may trigger: embedded-library (for bundled Rust crates)
-
-Override justified because:
-  - 43 crates NOT available in Debian (verified via cargo-debstatus)
-  - 67% of crates use system packages (significant compliance)
-  - Build-time only dependencies (not in binary package)
-  - Migration plan documented for future Debian package availability
-
-IMPLEMENTATION DETAILS:
-
-debian/rules symlink creation (in override_dh_auto_configure):
-
-  # Phase 1: System packages (87 crates)
-  for pkg in /usr/share/cargo/registry/*; do
-      ln -sf $$pkg third_party/rust-toolchain/.../vendor/$$(basename $$pkg)
-  done
-
-  # Phase 2: Bundled crates (43 crates)
-  for crate in debian/vendor-crates/*; do
-      ln -sf $$(readlink -f $$crate) third_party/rust-toolchain/.../vendor/$$(basename $$crate)
-  done
-
-TOOLS PROVIDED:
-
-  - analyze-rust-vendor-deps.sh: Reanalyze crate availability (reusable)
-  - install-all-rust-deps.sh: Install 87 system packages
-  - create-vendor-bundle.sh: Extract 43 missing crates from rust-toolchain
-  - verify-rust-coverage.sh: Verify 130 crates available during build
-  - generate-build-depends.sh: Generate debian/control Build-Depends entries
-
-PRECEDENT:
-
-Debian's src:chromium package ALSO uses system rustc but includes some
-bundled Rust dependencies for unavailable crates. This is a common pattern
-for large Rust-based projects in Debian.
-
-REFERENCES:
-
-- Analysis report: RUST_VENDOR_ANALYSIS_*.md (in source root)
-- Implementation plan: RUST_DEPS_IMPLEMENTATION_PLAN.md
-- Debian Rust Team: https://wiki.debian.org/Rust/Packaging
-- Cargo debstatus: https://github.com/kpcyrd/cargo-debstatus
+Upstream Documentation:
+- CEF: https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md
+- Chromium: https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/linux/build_instructions.md
