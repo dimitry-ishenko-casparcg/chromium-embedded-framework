@@ -261,6 +261,29 @@ override_dh_auto_build:
 	fi
 	@echo "==> depot_tools found (bundled dependency - Phase 1 approach)"
 
+	# Step 6.6.0.5: Initialize depot_tools if needed (first-time setup)
+	# depot_tools requires initialization to create python3_bin_reldir.txt
+	# This file points to the bundled Python interpreter used by gclient/gn
+	# Without it, gn gen fails with "need to initialize depot_tools"
+	@echo "==> Checking if depot_tools needs initialization"
+	@if [ ! -f $(CURDIR)/depot_tools/python3_bin_reldir.txt ]; then \
+		echo "==> Initializing depot_tools (first-time setup)"; \
+		cd $(CURDIR)/depot_tools && ./update_depot_tools; \
+		echo "==> depot_tools initialization complete"; \
+	else \
+		echo "==> depot_tools already initialized"; \
+	fi
+
+	# Step 6.6.0.6: Use system Python instead of depot_tools bundled Python
+	# depot_tools tries to use a bundled Python from bootstrap directory
+	# For Debian builds, we use system Python3 instead (no network downloads)
+	# Create the expected directory structure and symlink to system python3
+	@echo "==> Setting up depot_tools to use system Python"
+	@PYTHON_REL_DIR=$$(cat $(CURDIR)/depot_tools/python3_bin_reldir.txt); \
+	mkdir -p "$(CURDIR)/depot_tools/$$PYTHON_REL_DIR"; \
+	ln -sf /usr/bin/python3 "$(CURDIR)/depot_tools/$$PYTHON_REL_DIR/python3"; \
+	echo "==> Created symlink: depot_tools/$$PYTHON_REL_DIR/python3 -> /usr/bin/python3"
+
 	# Step 6.6.1: Reset depot_tools to pristine state (since it's preserved across builds)
 	# depot_tools is a git repository, so we can reset it to clean state before patching
 	# Reset to HEAD~1 to undo the "Apply Debian patches" commit from previous build
@@ -962,7 +985,8 @@ override_dh_auto_build:
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
 	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false" && \
-	export PATH=$(CURDIR)/depot_tools:$$PATH && \
+	export PATH=$(CURDIR)/depot_tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
+	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot_tools \

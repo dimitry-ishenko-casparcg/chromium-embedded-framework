@@ -1,12 +1,12 @@
 Description: Fix bindgen libclang path resolution for Debian builds
  Converts relative --libclang-path and --ld-library-path arguments to absolute
  paths before setting environment variables. Also detects when GN passes /usr/lib
- as libclang path and replaces it with /usr/lib/llvm-22/lib where libclang-22.so.22
+ as libclang path and replaces it with /usr/lib/llvm-19/lib where libclang-19.so.19
  actually exists. Creates a copy of os.environ instead of using reference directly.
  .
  Fixes bindgen panic: "Unable to find libclang" when building with system clang/bindgen
  instead of bundled tools. The GN build system passes relative paths which resolve to
- wrong locations (e.g., /usr/lib instead of /usr/lib/llvm-22/lib) when bindgen executes
+ wrong locations (e.g., /usr/lib instead of /usr/lib/llvm-19/lib) when bindgen executes
  from a different working directory.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
@@ -38,9 +38,9 @@ index e35f3ce..5ba9c6e 100755
 +      libclang_path = os.path.abspath(args.libclang_path)
 +      # Debian build: If GN passes /usr/lib, replace with actual libclang location
 +      # GN passes --libclang-path ../../../../../../../../../../../usr/lib
-+      # but libclang-22.so.22 is actually in /usr/lib/llvm-22/lib
++      # but libclang-19.so.19 is actually in /usr/lib/llvm-19/lib
 +      if libclang_path == '/usr/lib':
-+        libclang_path = '/usr/lib/llvm-22/lib'
++        libclang_path = '/usr/lib/llvm-19/lib'
 +      env["LIBCLANG_PATH"] = libclang_path
      try:
        subprocess.check_call([args.exe, *genargs], env=env)

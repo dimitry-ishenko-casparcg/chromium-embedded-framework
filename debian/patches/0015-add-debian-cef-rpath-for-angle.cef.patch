@@ -1,0 +1,32 @@
+Description: Add Debian CEF library path to RPATH for ANGLE libraries
+ CEF's default cmake config sets RPATH to "." (current directory), expecting
+ applications to copy ANGLE libraries (libEGL.so, libGLESv2.so) next to the
+ executable. However, Debian's FHS-compliant layout installs these to
+ /usr/lib/x86_64-linux-gnu/cef/ to avoid conflicts with system Mesa.
+ .
+ This causes CEF's GPU subprocess to load Mesa's libEGL.so instead of ANGLE's,
+ because dlopen("libEGL.so.1") searches RPATH before ldconfig cache, and the
+ executable's RPATH doesn't include Debian's CEF library path.
+ .
+ This patch adds /usr/lib/x86_64-linux-gnu/cef to the RPATH so that applications
+ built with CEF cmake will automatically find the ANGLE libraries. This ensures
+ the GPU subprocess loads the correct ANGLE implementation for hardware-accelerated
+ rendering.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-17
+
+diff --git a/cmake/cef_variables.cmake.in b/cmake/cef_variables.cmake.in
+index 1cd0c6e..c0ac38d 100644
+--- a/cmake/cef_variables.cmake.in
++++ b/cmake/cef_variables.cmake.in
+@@ -135,7 +135,7 @@ if(OS_LINUX)
+     -pthread                        # Use the pthread library
+     -Wl,--disable-new-dtags         # Don't generate new-style dynamic tags in ELF
+     -Wl,--fatal-warnings            # Treat warnings as errors
+-    -Wl,-rpath,.                    # Set rpath so that libraries can be placed next to the executable
++    -Wl,-rpath,.:/usr/lib/x86_64-linux-gnu/cef    # Set rpath for executable directory and Debian CEF library path
+     -Wl,-z,noexecstack              # Mark the stack as non-executable (security feature)
+     -Wl,-z,now                      # Resolve symbols on program start instead of on first use (security feature)
+     -Wl,-z,relro                    # Mark relocation sections as read-only (security feature)

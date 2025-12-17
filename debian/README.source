@@ -439,6 +439,261 @@ NOTE: Bundled libc++ will STILL be required even with chromium-source package,
 due to fundamental ABI incompatibility with system libc++.
 
 ================================================================================
+INTERIM BUILD DEPENDENCIES (Until Debian Packages Available)
+================================================================================
+
+This section documents workarounds required while waiting for proper Debian
+packages for depot_tools and chromium-source. These are TEMPORARY solutions
+that should be removed once the dependencies are available as Debian packages.
+
+**IMPORTANT**: This package is designed to build WITHOUT network access once
+all required files are in place. The debian/rules file handles all initialization
+automatically - no manual setup should be required beyond placing the tarballs.
+
+5. RUST-TOOLCHAIN TARBALL (Rust Standard Library Sources)
+----------------------------------------------------------
+
+Status: BUNDLED TARBALL (rust-toolchain.tar.xz)
+Reason: Debian's rust-src package (1.90.0) lacks newer stdlib files required by Chromium
+Future: When Debian rust-src matches Chromium's requirements, this can be removed
+
+TECHNICAL DETAILS:
+
+Chromium requires specific Rust standard library source files that are NEWER
+than what Debian's rust-src package (1.90.0) provides. Missing files include:
+  - sync/nonpoison/condvar.rs, rwlock.rs (newer std library features)
+  - Other internal stdlib implementation files
+
+The rust-toolchain.tar.xz contains the EXACT Rust stdlib version that Chromium
+expects. This is extracted from Google Cloud Storage (GCS) during initial setup.
+
+LOCATION AND SETUP:
+
+The tarball MUST be placed in the PARENT directory of the source package:
+
+    /path/to/workspace/
+    ├── chromium-embedded-framework/     <- Source package directory
+    │   ├── debian/
+    │   ├── cef/
+    │   └── ...
+    ├── chromium_143.0.7499.40.orig.tar.xz  <- Chromium source
+    └── rust-toolchain.tar.xz               <- THIS FILE (~142 MB)
+
+HOW TO OBTAIN:
+
+Option 1 - Download from GCS (requires network, one-time):
+
+    # Find the URL in chromium/src/DEPS file, search for "rust-toolchain"
+    # Example URL (version may change):
+    $ wget "https://commondatastorage.googleapis.com/aspect-aspect-build-toolchain/aspect-aspect-build-toolchain-22.1.128/aspect_build_rust_toolchain_for_x86_64-unknown-linux-gnu.tar.xz" \
+           -O rust-toolchain.tar.xz
+
+Option 2 - Copy from existing build:
+
+    If you have a previous successful build, the tarball may be cached:
+    $ cp /path/to/previous/rust-toolchain.tar.xz ../
+
+WHAT debian/rules DOES:
+
+Step 7e in debian/rules extracts ONLY the library/ directory from this tarball:
+  - Destination: third_party/rust-toolchain/lib/rustlib/src/rust/library/
+  - Contains: alloc, core, std, and all stdlib crates at correct versions
+  - Also creates stubs for cross-platform files (cygwin, darwin) that exist
+    only to satisfy Rust's module resolution (never actually used on Linux)
+
+MIGRATION PLAN:
+
+When Debian's rust-src package is updated to include all files Chromium needs:
+  1. Remove rust-toolchain.tar.xz requirement from this documentation
+  2. Update debian/rules to use /usr/src/rustc-*/library/ instead
+  3. Add rust-src to Build-Depends in debian/control
+
+6. LLVM/CLANG VERSION LOCK (Currently LLVM-19)
+-----------------------------------------------
+
+Status: VERSION-LOCKED to LLVM-19
+Reason: Debian sid currently provides clang-19 as the primary clang version
+Impact: Several paths and patches are hardcoded to llvm-19
+
+AFFECTED FILES:
+
+1. debian/control - Build-Depends:
+     clang-19, clang-format-19:native, lld-19, libclang-rt-19-dev,
+     libc++-19-dev, libc++abi-19-dev
+
+2. debian/rules - CLANG_MVERS variable (line ~33):
+     CLANG_MVERS := 19
+
+   This variable is used throughout debian/rules for:
+     - clang_base_path="/usr/lib/llvm-$(CLANG_MVERS)"
+     - PATH includes /usr/lib/llvm-$(CLANG_MVERS)/bin
+     - LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib
+
+3. debian/patches/chromium/0012-bindgen-libclang-abspath.chromium.patch:
+     Hardcodes: /usr/lib/llvm-19/lib
+
+   This patch fixes bindgen's libclang discovery. The GN build system passes
+   --libclang-path /usr/lib (from rust_bindgen_root="/usr"), but libclang.so
+   is actually at /usr/lib/llvm-19/lib/libclang-19.so.19 on Debian.
+
+   The patch intercepts /usr/lib and replaces it with /usr/lib/llvm-19/lib.
+
+LIBCLANG DEPENDENCY:
+
+The rust-bindgen tool requires libclang.so to parse C++ headers. On Debian:
+  - Package: libclang1-19 (pulled in by clang-19)
+  - Location: /usr/lib/x86_64-linux-gnu/libclang-19.so.19
+  - Symlink: /usr/lib/llvm-19/lib/libclang-19.so.19 -> actual file
+
+WHY THE PATCH IS NEEDED:
+
+Chromium's GN build system uses rust_bindgen_root to determine BOTH:
+  1. bindgen executable path: ${rust_bindgen_root}/bin/bindgen
+  2. libclang library path: ${rust_bindgen_root}/lib
+
+On Debian:
+  - bindgen is at /usr/bin/bindgen (so rust_bindgen_root="/usr" works)
+  - libclang is at /usr/lib/llvm-19/lib (NOT /usr/lib)
+
+The patch in run_bindgen.py detects when libclang_path=="/usr/lib" and
+redirects to /usr/lib/llvm-19/lib where the library actually exists.
+
+UPDATING TO A NEW LLVM VERSION:
+
+When Debian moves to a new LLVM version (e.g., LLVM-20):
+
+1. Update debian/control Build-Depends:
+     sed -i 's/clang-19/clang-20/g; s/llvm-19/llvm-20/g' debian/control
+
+2. Update debian/rules:
+     Change: CLANG_MVERS := 19
+     To:     CLANG_MVERS := 20
+
+3. Update patch 0012-bindgen-libclang-abspath.chromium.patch:
+     Change: /usr/lib/llvm-19/lib
+     To:     /usr/lib/llvm-20/lib
+
+   Or better: Make patch use a more dynamic approach if upstream accepts it.
+
+4. Test build thoroughly - LLVM version changes can introduce new warnings
+   or errors that require additional patches.
+
+7. DEPOT_TOOLS INITIALIZATION (Automatic)
+------------------------------------------
+
+Status: HANDLED AUTOMATICALLY by debian/rules
+Reason: depot_tools requires initialization before first use
+
+WHAT debian/rules DOES:
+
+Step 6.6.0.5 - Initialize depot_tools if needed:
+  - Checks if python3_bin_reldir.txt exists (marker for initialized depot_tools)
+  - If missing, runs: ./update_depot_tools (creates necessary wrapper scripts)
+  - This is needed because bundled depot_tools may not be fully initialized
+
+Step 6.6.0.6 - Create Python symlink:
+  - depot_tools expects a bundled Python at specific location
+  - We create a symlink to system Python: /usr/bin/python3
+  - Location: depot_tools/bootstrap-2@*/python3/bin/python3
+
+WHY THIS IS NEEDED:
+
+depot_tools was designed to download its own Python from Google's servers.
+In Debian builds (network-isolated), we use system Python instead. The
+symlink makes depot_tools find Python at the path it expects.
+
+NO MANUAL ACTION REQUIRED:
+
+These steps run automatically during build. This documentation exists to
+explain what happens if debugging is needed.
+
+8. AUTONINJA PATH FIX (Patch 0016)
+-----------------------------------
+
+Status: PATCHED via 0016-use-full-path-autoninja-dpkg.cef.patch
+Reason: dpkg-buildpackage environment may not have depot_tools in PATH
+
+TECHNICAL DETAILS:
+
+CEF's automate-git.py calls 'autoninja' by name, expecting it in PATH.
+During dpkg-buildpackage, PATH setup can be incomplete, causing:
+
+    subprocess.CalledProcessError: Command 'autoninja' not found
+
+SOLUTION:
+
+Patch 0016 modifies automate-git.py to use the full path to autoninja:
+    autoninja_path = os.path.join(depot_tools_dir, 'autoninja')
+
+This ensures autoninja is found regardless of PATH configuration.
+
+================================================================================
+BUILD ENVIRONMENT DIFFERENCES (Troubleshooting)
+================================================================================
+
+When moving this package to a new build machine, you may encounter issues
+due to environment differences. This section documents known issues.
+
+ISSUES DISCOVERED DURING MIGRATION:
+
+1. depot_tools not initialized
+   Symptom: "python3_bin_reldir.txt not found"
+   Solution: debian/rules Step 6.6.0.5 now handles this automatically
+
+2. Bundled Python not present
+   Symptom: Python not found in depot_tools/bootstrap-*/
+   Solution: debian/rules Step 6.6.0.6 creates symlink to system Python
+
+3. autoninja not in PATH
+   Symptom: "Command 'autoninja' returned non-zero exit status 127"
+   Solution: Patch 0016 uses full path to autoninja
+
+4. clang/clang++ not in PATH
+   Symptom: "clang++: command not found"
+   Solution: debian/rules adds /usr/lib/llvm-19/bin to PATH
+
+5. libclang.so not found by bindgen
+   Symptom: "Unable to find libclang: couldn't find any valid shared libraries"
+   Solution: Patch 0012 redirects /usr/lib to /usr/lib/llvm-19/lib
+
+6. rust-toolchain.tar.xz missing
+   Symptom: "tar: rust-toolchain.tar.xz: Cannot open: No such file or directory"
+   Solution: Download tarball and place in parent directory (see section 5)
+
+CHECKLIST FOR NEW BUILD MACHINES:
+
+Before building, verify:
+
+[ ] Chromium tarball exists: ../chromium_143.0.7499.40.orig.tar.xz
+[ ] Rust toolchain exists: ../rust-toolchain.tar.xz
+[ ] Build dependencies installed: sudo apt build-dep chromium-embedded-framework
+[ ] Sufficient disk space: ~40GB free
+[ ] depot_tools directory exists (bundled in source package)
+
+All other initialization is handled automatically by debian/rules.
+
+BUILD TIME EXPECTATIONS:
+
+Hardware significantly affects build time. The build is CPU-bound and highly
+parallelizable - more cores = faster builds. Memory affects parallel job count.
+
+| Hardware | Cores | RAM | Expected Time |
+|----------|-------|-----|---------------|
+| High-end desktop (2024, Ryzen 9/i9) | 16-24 | 64GB+ | 30-45 minutes |
+| Mid-range desktop (2022) | 8-12 | 32GB | 1-2 hours |
+| Laptop (2019, i7 quad-core) | 4-8 | 32GB | 12-24 hours |
+| CI/CD standard runner | 2-4 | 8GB | 6-12 hours |
+| CI/CD large runner | 8-16 | 32GB | 2-4 hours |
+| Debian buildd (estimated) | 8-16 | 32GB | 3-6 hours |
+
+NOTES:
+- GPU does NOT accelerate compilation (CPU-bound workload)
+- ninja uses (cores - 2) parallel jobs by default
+- Low RAM causes swapping, dramatically increasing build time
+- CI/CD runners are often shared/throttled, adding overhead
+- Debian autobuilders vary significantly in hardware specs
+
+================================================================================
 REFERENCES
 ================================================================================
 
