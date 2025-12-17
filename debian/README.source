@@ -212,9 +212,16 @@ Build-time bundling:
   2. debian/rules PRESERVES depot_tools/ across clean
   3. Only chromium_src/ is removed during clean
 
-This is Phase 1 approach - see debian/TODO-DEPOT-TOOLS.txt for:
-  - Future Phase 2 (dedicated depot-tools package)
-  - Phase 3 (integration with Debian tooling)
+This is Phase 1 approach. Future plans:
+
+  Phase 2 - Include in orig.tar.xz:
+    Bundle depot_tools in CEF source package to eliminate manual setup.
+    Pros: Simpler for builders, fully reproducible.
+    Cons: Larger source package (~50MB), version may drift from upstream.
+
+  Phase 3 - Separate Debian package (ideal):
+    Create dedicated depot-tools Debian package.
+    Blocked by: Google's rolling release model (no stable versions).
 
 DEBIAN POLICY COMPLIANCE:
 

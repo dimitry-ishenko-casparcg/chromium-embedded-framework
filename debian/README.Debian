@@ -22,6 +22,23 @@ This source package produces three binary packages:
   cef-resources    - Architecture-independent resources (PAK files, locales)
                      Required at runtime by CEF applications
 
+depot_tools Build Dependency
+----------------------------
+
+This package requires Google's depot_tools to build. depot_tools is NOT
+included in the source package and must be cloned manually before building:
+
+  cd chromium-embedded-framework/
+  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+
+depot_tools will be preserved across builds (not removed by 'dh clean').
+
+See debian/README.source section "BUNDLED DEPENDENCIES JUSTIFICATION" for
+technical details on why depot_tools cannot use system packages.
+
+Note: depot_tools is only used during build. No depot_tools files are
+installed to the system in the binary packages.
+
 Package Structure and Chromium Integration
 --------------------------------------------
 
