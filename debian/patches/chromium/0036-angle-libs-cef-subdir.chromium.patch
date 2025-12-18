@@ -1,0 +1,35 @@
+Description: Look for ANGLE libraries in cef/ subdirectory on Linux
+ On Debian, CEF's ANGLE libraries (libEGL.so, libGLESv2.so) are installed in
+ /usr/lib/x86_64-linux-gnu/cef/ subdirectory to avoid conflicts with system
+ GLVND/Mesa libraries at /usr/lib/x86_64-linux-gnu/.
+ .
+ Without this patch, CEF looks for ANGLE in the same directory as libcef.so
+ (DIR_ASSETS = DIR_MODULE), which on Debian is /usr/lib/x86_64-linux-gnu/.
+ This causes CEF to find the system GLVND loader instead of ANGLE, resulting
+ in EGL_BAD_ATTRIBUTE errors because Mesa doesn't support some EGL attributes
+ that CEF requires (e.g., EGL_CONTEXT_OPENGL_NO_ERROR_KHR).
+ .
+ This patch modifies LoadDefaultEGLGLES2Bindings() in egl_util.cc to append
+ "cef" subdirectory to the module path on Linux, allowing CEF to find its
+ private ANGLE libraries at /usr/lib/x86_64-linux-gnu/cef/.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-18
+
+diff --git a/ui/ozone/common/egl_util.cc b/ui/ozone/common/egl_util.cc
+index 63a2305..69a7d86 100644
+--- a/ui/ozone/common/egl_util.cc
++++ b/ui/ozone/common/egl_util.cc
+@@ -151,6 +151,11 @@ bool LoadDefaultEGLGLES2Bindings(
+ #if !BUILDFLAG(IS_FUCHSIA)
+     if (!base::PathService::Get(base::DIR_ASSETS, &module_path))
+       return false;
++#if BUILDFLAG(IS_LINUX)
++    // Debian: ANGLE libraries are installed in cef/ subdirectory to avoid
++    // conflicts with system GLVND/Mesa libraries at /usr/lib/x86_64-linux-gnu/
++    module_path = module_path.Append(FILE_PATH_LITERAL("cef"));
++#endif
+ #endif
+
+     glesv2_path = module_path.Append(kAngleGlesSoname);

@@ -400,6 +400,9 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0046-pulseaudio-assert-fix.chromium.patch
 	# Patch 0047: Fix cookie_util.cc iterator type mismatch for system libc++
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0047-fix-cookie-util-iterator-types.chromium.patch
+	# Patch 0036-angle: Look for ANGLE libs in cef/ subdirectory on Linux
+	# Debian installs ANGLE to /usr/lib/x86_64-linux-gnu/cef/ to avoid GLVND/Mesa conflicts
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-angle-libs-cef-subdir.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
