@@ -1,0 +1,11 @@
+# =============================================================================
+# LINTIAN OVERRIDES FOR LIBCEF-DEV
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# UPSTREAM HEADER DOCUMENTATION
+# -----------------------------------------------------------------------------
+# README-TRANSFER.txt is upstream documentation explaining that some header
+# files were copied from other Chromium source locations. This is useful
+# information for developers and should remain with the headers.
+libcef-dev: package-contains-documentation-outside-usr-share-doc [usr/include/cef/base/internal/README-TRANSFER.txt]

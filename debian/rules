@@ -1025,6 +1025,11 @@ override_dh_auto_install:
 	patchelf --set-rpath '$$ORIGIN:/usr/lib/x86_64-linux-gnu/cef' \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
 
+	# Fix SONAME for proper library versioning (upstream uses unversioned "libcef.so")
+	# This ensures proper library dependency tracking and ldconfig symlink creation
+	patchelf --set-soname libcef.so.138 \
+		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
+
 	# Create soname symlink
 	ln -s libcef.so.138.0.1 \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138
