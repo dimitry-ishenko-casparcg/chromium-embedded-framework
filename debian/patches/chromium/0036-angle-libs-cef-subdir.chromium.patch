@@ -4,26 +4,60 @@ Description: Look for ANGLE libraries in cef/ subdirectory on Linux
  GLVND/Mesa libraries at /usr/lib/x86_64-linux-gnu/.
  .
  Without this patch, CEF looks for ANGLE in the same directory as libcef.so
- (DIR_ASSETS = DIR_MODULE), which on Debian is /usr/lib/x86_64-linux-gnu/.
+ (DIR_MODULE), which on Debian is /usr/lib/x86_64-linux-gnu/.
  This causes CEF to find the system GLVND loader instead of ANGLE, resulting
  in EGL_BAD_ATTRIBUTE errors because Mesa doesn't support some EGL attributes
  that CEF requires (e.g., EGL_CONTEXT_OPENGL_NO_ERROR_KHR).
  .
- This patch modifies LoadDefaultEGLGLES2Bindings() in egl_util.cc to append
- "cef" subdirectory to the module path on Linux, allowing CEF to find its
- private ANGLE libraries at /usr/lib/x86_64-linux-gnu/cef/.
+ This patch includes all changes from CEF's linux_assets_path_1936.patch
+ (DIR_EXE/DIR_MODULE -> DIR_ASSETS) plus the Debian-specific cef/ subdirectory
+ addition for ANGLE libraries.
+ .
+ Files modified (matching CEF's linux_assets_path_1936.patch):
+ - content/browser/child_process_launcher_helper_linux.cc: DIR_EXE -> DIR_ASSETS
+ - sandbox/linux/suid/client/setuid_sandbox_host.cc: DIR_EXE -> DIR_ASSETS
+ - ui/ozone/common/egl_util.cc: DIR_MODULE -> DIR_ASSETS + cef/ subdirectory
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-12-18
+Last-Update: 2025-12-21
 
+diff --git a/content/browser/child_process_launcher_helper_linux.cc b/content/browser/child_process_launcher_helper_linux.cc
+index 75cafbe..337a10d 100644
+--- a/content/browser/child_process_launcher_helper_linux.cc
++++ b/content/browser/child_process_launcher_helper_linux.cc
+@@ -190,7 +190,7 @@ ZygoteCommunication* ChildProcessLauncherHelper::GetZygoteForLaunch() {
+ base::File OpenFileToShare(const base::FilePath& path,
+                            base::MemoryMappedFile::Region* region) {
+   base::FilePath exe_dir;
+-  bool result = base::PathService::Get(base::BasePathKey::DIR_EXE, &exe_dir);
++  bool result = base::PathService::Get(base::BasePathKey::DIR_ASSETS, &exe_dir);
+   DCHECK(result);
+   base::File file(exe_dir.Append(path),
+                   base::File::FLAG_OPEN | base::File::FLAG_READ);
+diff --git a/sandbox/linux/suid/client/setuid_sandbox_host.cc b/sandbox/linux/suid/client/setuid_sandbox_host.cc
+index 5303caf..762bba9 100644
+--- a/sandbox/linux/suid/client/setuid_sandbox_host.cc
++++ b/sandbox/linux/suid/client/setuid_sandbox_host.cc
+@@ -128,7 +128,7 @@ bool SetuidSandboxHost::IsDisabledViaEnvironment() {
+ base::FilePath SetuidSandboxHost::GetSandboxBinaryPath() {
+   base::FilePath sandbox_binary;
+   base::FilePath exe_dir;
+-  if (base::PathService::Get(base::DIR_EXE, &exe_dir)) {
++  if (base::PathService::Get(base::DIR_ASSETS, &exe_dir)) {
+     base::FilePath sandbox_candidate = exe_dir.AppendASCII("chrome-sandbox");
+     if (base::PathExists(sandbox_candidate))
+       sandbox_binary = sandbox_candidate;
 diff --git a/ui/ozone/common/egl_util.cc b/ui/ozone/common/egl_util.cc
-index 63a2305..69a7d86 100644
+index 3226f7c..69a7d86 100644
 --- a/ui/ozone/common/egl_util.cc
 +++ b/ui/ozone/common/egl_util.cc
-@@ -151,6 +151,11 @@ bool LoadDefaultEGLGLES2Bindings(
+@@ -149,8 +149,13 @@ bool LoadDefaultEGLGLES2Bindings(
+ #else
+     base::FilePath module_path;
  #if !BUILDFLAG(IS_FUCHSIA)
-     if (!base::PathService::Get(base::DIR_ASSETS, &module_path))
+-    if (!base::PathService::Get(base::DIR_MODULE, &module_path))
++    if (!base::PathService::Get(base::DIR_ASSETS, &module_path))
        return false;
 +#if BUILDFLAG(IS_LINUX)
 +    // Debian: ANGLE libraries are installed in cef/ subdirectory to avoid

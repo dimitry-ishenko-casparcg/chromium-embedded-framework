@@ -146,6 +146,25 @@ acceleration is unavailable. The Vulkan ICD configuration is installed to:
 
   /usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
+**FFmpeg Codec Support:**
+
+CEF is built with is_component_ffmpeg=true, which means it dynamically loads
+the system's libffmpeg.so for media codec support. This enables:
+
+  - H.264/AVC video decoding (when libavcodec-extra is installed)
+  - AAC audio decoding (when libavcodec-extra is installed)
+  - Other codecs supported by FFmpeg
+
+The package declares: Depends: libavcodec-extra | libavcodec60
+
+If libavcodec-extra is installed (recommended), proprietary codecs like H.264
+and AAC will be available for media playback. If only libavcodec60 is installed,
+only free/open codecs will be available.
+
+For full media playback support (e.g., streaming services), install:
+
+  sudo apt install libavcodec-extra
+
 **Resource Files:**
 
 CEF resource files (PAK files, locales, ICU data) are in the cef-resources
@@ -165,12 +184,12 @@ The relationship is:
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
   CEF 137        7444          142.0.7444.x         previous (142.0.7444.175)
-  CEF 138        7499          143.0.7499.x         testing (143.0.7499.40)
+  CEF 138        7499          143.0.7499.x         current (143.0.7499.169)
 
 **Why This Matters:**
 
 This package (libcef138) was chosen specifically to align with Debian Chromium
-in testing (143.0.7499.40). The CEF branch number (7499) corresponds to the
+in testing (143.0.7499.169). The CEF branch number (7499) corresponds to the
 Chromium build number (143.0.**7499**.x).
 
 **CEF Version Scheme:**
@@ -183,8 +202,8 @@ Chromium build number (143.0.**7499**.x).
 **Upstream CEF Branch in This Package:**
 
   - Git remote: upstream/7499
-  - CHROMIUM_BUILD_COMPATIBILITY.txt: refs/tags/143.0.7499.110
-  - This matches Debian Chromium testing (143.0.7499.40)
+  - CHROMIUM_BUILD_COMPATIBILITY.txt: refs/tags/143.0.7499.169
+  - This matches Debian Chromium (143.0.7499.169)
 
 **Impact on Dependent Packages:**
 
@@ -467,6 +486,62 @@ The series file controls quilt patch application order and contains ONLY CEF
 patches (0001-0010). Chromium patches in chromium/ subdirectory are applied
 manually by debian/rules and are NOT listed in the series file.
 
+GBP Import Workflow Compatibility
+---------------------------------
+
+**STATUS**: NOT compatible with standard gbp import-orig workflow
+
+**Reason**: CEF requires TWO source tarballs:
+  - CEF source (~50MB) - would be orig.tar.gz
+  - Chromium source (~1GB) - build dependency, not part of source package
+
+**Workaround**: Manual build setup required until Bug #893448 (chromium-source
+package) is resolved. Once chromium-source exists, can use Build-Depends.
+
+Debian Package Acceptance Status
+--------------------------------
+
+**Expected Target**: unstable/testing (NOT stable initially)
+
+This packaging approach follows Bug #893448 Option 1: "chromium-source package
+with CEF kept out of stable releases". This allows progress in unstable/testing
+with minimal Security Team overhead.
+
+**Precedents**: Debian already accepts complex packages with extensive build
+requirements:
+  - Firefox ESR / Thunderbird: ~25-36 minute builds, Rust/LLVM dependencies
+  - LibreOffice: 8-24 hour builds, ~20GB space requirements
+  - Chromium itself: ~30 minute builds, ~1GB source tarball
+
+**Justification for FTP Team**:
+  1. Uses ONLY Debian sources (includes security patches from Debian chromium)
+  2. Does NOT embed chromium in CEF source package (follows Debian Policy)
+  3. Thoroughly documented non-standard workflow (debian/README.source)
+  4. Unblocks important reverse dependencies (obs-studio, stremio-gtk, casparcg)
+  5. Provides migration path when Bug #893448 is resolved
+
+**Limitations**:
+  - Manual setup required for builds (documented in debian/README.source)
+  - Not compatible with standard autobuilders (pbuilder/sbuild need special setup)
+  - May be auto-removed from testing if chromium updates break CEF build
+  - Will NOT enter stable until Security Team approves (per Bug #893448)
+
+Future: chromium-source Package
+-------------------------------
+
+When Bug #893448 is resolved and chromium-source package exists:
+
+  # Future debian/control
+  Build-Depends: chromium-source (>= 143.0)
+
+  # Future debian/rules
+  override_dh_auto_build:
+      cd cef && python3 tools/automate/automate-git.py \
+          --chromium-archive=/usr/src/chromium/chromium.tar.xz \
+          ...
+
+This will make the package compatible with standard GBP workflow.
+
 For More Information
 --------------------
 
@@ -475,5 +550,6 @@ For More Information
   - Bug #915400: RFP for CEF
   - Bug #893448: RFP for chromium-source
   - Bug #817285: Per-package security ACLs (IMPLEMENTED)
+  - Bug #919382: casparcg-server HTTP support (blocked by lack of CEF)
 
- -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Wed, 11 Dec 2025 12:00:00 -0400
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 21 Dec 2025 17:00:00 +0000
