@@ -219,12 +219,68 @@ See debian/rules for the complete list of chromium patches.
 MAINTENANCE
 ================================================================================
 
+CEF Source Acquisition
+----------------------
+
+The cef/ directory contains CEF source code. To obtain or update it:
+
+  From Git (recommended for development):
+  $ rm -rf cef
+  $ git clone -b 7499 https://bitbucket.org/chromiumembedded/cef.git cef
+  $ rm -rf cef/.git  # Remove git metadata for source package
+
+  From tarball (for releases):
+  Download from: https://bitbucket.org/chromiumembedded/cef/downloads/
+  Look for: cef_binary_*_linux64_minimal.tar.bz2 or source archives
+
+Branch Selection:
+  - CEF branch number (e.g., 7499) must match Chromium's build number
+  - Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for expected Chromium version
+  - CEF branch 7499 corresponds to Chromium 143.0.7499.x
+
+Version Compatibility:
+  - CEF specifies an exact Chromium tag (e.g., 143.0.7499.110)
+  - Debian Chromium may have a different patch level (e.g., 143.0.7499.169)
+  - Patch-level differences within the same branch are generally compatible
+  - The build number (7499) must match; only patch level can differ
+
+GBP Workflow and Branch Strategy
+--------------------------------
+
+This package does NOT use pristine-tar or upstream branches. Rationale:
+
+1. Multiple source dependencies: CEF needs CEF tarball + Chromium tarball +
+   rust-toolchain + depot_tools. Only CEF would be "orig", making pristine-tar
+   solve only a fraction of the reproducibility problem.
+
+2. Chromium is a build dependency: Unlike qt6-webengine (which bundles Chromium),
+   CEF upstream does NOT bundle Chromium. It's fetched separately at build time,
+   similar to a compiler - not a component tarball.
+
+3. Non-standard workflow: Manual setup is required regardless of git branches.
+   pristine-tar wouldn't eliminate the need to download Chromium, rust-toolchain,
+   and clone depot_tools.
+
+4. Version coupling: CEF versions are tightly coupled to specific Chromium
+   versions. The "upstream" concept is blurry when you need matching versions
+   of two different projects.
+
+Current structure:
+  - master branch: Only debian/ files tracked
+  - External files: chromium_*.tar.xz, rust-toolchain.tar.xz in parent directory
+  - depot_tools/: In .gitignore, manually cloned
+
+Future: When Bug #893448 (chromium-source package) is resolved, the workflow
+simplifies and standard gbp import-orig may become feasible for CEF source.
+
 Updating CEF Version
 --------------------
 
-1. Update CEF_BRANCH in debian/rules
-2. Update chromium version to match CEF requirements
-3. Test build and fix any new patch conflicts
+1. Clone new CEF branch: git clone -b NEWBRANCH https://bitbucket.org/chromiumembedded/cef.git cef
+2. Remove git metadata: rm -rf cef/.git
+3. Update CEF_BRANCH in debian/rules
+4. Update chromium version to match CEF requirements (check CHROMIUM_BUILD_COMPATIBILITY.txt)
+5. Test build and fix any new patch conflicts
 
 Updating Chromium Version
 -------------------------
