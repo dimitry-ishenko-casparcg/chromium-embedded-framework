@@ -13,7 +13,7 @@ Three dependencies require MANUAL setup before building:
     /path/to/workspace/
     ├── chromium-embedded-framework/          <- This source package
     │   └── depot_tools/                      <- (3) Clone here ONCE
-    ├── chromium_143.0.7499.40.orig.tar.xz    <- (1) Chromium source
+    ├── chromium_143.0.7499.169.orig.tar.xz   <- (1) Chromium source
     └── rust-toolchain.tar.xz                 <- (2) Rust stdlib sources
 
 Setup commands (run ONCE before first build):
@@ -80,10 +80,18 @@ Decision: Use Debian's clang-19 toolchain
 Reason: Standard Debian build practice, no bundled compiler
 Implementation: clang_base_path="/usr/lib/llvm-19" in debian/rules
 
+3. SYSTEM FFMPEG (is_component_ffmpeg=true)
+-------------------------------------------
+
+Decision: Use system FFmpeg for media codecs instead of bundled
+Reason: Enables H.264/AAC when user installs libavcodec-extra
+Implementation: GN flag is_component_ffmpeg=true in debian/rules
+Runtime: Depends on libavcodec-extra | libavcodec60
+
 Note: LLVM version is locked to 19. When Debian updates to a new LLVM version,
 update CLANG_MVERS in debian/rules and patch 0012 (see "Updating LLVM Version").
 
-3. DEPOT_TOOLS (Manual Clone Required)
+4. DEPOT_TOOLS (Manual Clone Required)
 --------------------------------------
 
 Decision: Require manual clone of Google's depot_tools
@@ -97,7 +105,7 @@ depot_tools is a BUILD TOOL only - nothing from it is installed in binary packag
 
 Future: When/if depot_tools becomes a Debian package, add to Build-Depends.
 
-4. BUNDLED RUST STDLIB SOURCES
+5. BUNDLED RUST STDLIB SOURCES
 ------------------------------
 
 Decision: Use rust-toolchain.tar.xz for Rust standard library sources
@@ -265,7 +273,7 @@ Common Issues
 Checklist for New Build Machines
 --------------------------------
 
-[ ] Chromium tarball: ../chromium_143.0.7499.40.orig.tar.xz
+[ ] Chromium tarball: ../chromium_143.0.7499.169.orig.tar.xz
 [ ] Rust toolchain: ../rust-toolchain.tar.xz
 [ ] depot_tools cloned: ./depot_tools/ (git clone once)
 [ ] Build dependencies: apt build-dep chromium-embedded-framework
