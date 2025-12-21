@@ -1,2 +1,0 @@
-# Trigger ldconfig after package installation/removal
-activate-noawait ldconfig

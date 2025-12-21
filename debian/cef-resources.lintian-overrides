@@ -1,5 +1,24 @@
-# ICU data symlink is needed in the architecture-specific library directory
-# because CEF loads icudtl.dat relative to libcef.so location before processing
-# command-line switches like --resources-dir-path. This is the only way to make
-# CEF find ICU data when using Debian's split package layout.
+# =============================================================================
+# LINTIAN OVERRIDES FOR CEF-RESOURCES
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ARCHITECTURE-SPECIFIC DIRECTORY IN ARCH:ALL PACKAGE
+# -----------------------------------------------------------------------------
+# CEF loads resources relative to libcef.so BEFORE processing command-line
+# switches like --resources-dir-path. Symlinks in /usr/lib/x86_64-linux-gnu/
+# are needed so CEF can find its resources when using Debian's split layout.
 cef-resources: triplet-dir-and-architecture-mismatch is for amd64 instead of all [usr/lib/x86_64-linux-gnu/]
+
+# -----------------------------------------------------------------------------
+# RESOURCE SYMLINKS (ldconfig-escape)
+# -----------------------------------------------------------------------------
+# These symlinks point from /usr/lib to /usr/share/cef where the actual
+# resource files are installed. ldconfig warns about them but they are
+# intentional and required for CEF initialization.
+cef-resources: ldconfig-escape usr/share/cef/chrome_100_percent.pak [usr/lib/x86_64-linux-gnu/chrome_100_percent.pak]
+cef-resources: ldconfig-escape usr/share/cef/chrome_200_percent.pak [usr/lib/x86_64-linux-gnu/chrome_200_percent.pak]
+cef-resources: ldconfig-escape usr/share/cef/icudtl.dat [usr/lib/x86_64-linux-gnu/icudtl.dat]
+cef-resources: ldconfig-escape usr/share/cef/locales [usr/lib/x86_64-linux-gnu/locales]
+cef-resources: ldconfig-escape usr/share/cef/resources.pak [usr/lib/x86_64-linux-gnu/resources.pak]
+cef-resources: ldconfig-escape usr/share/cef/v8_context_snapshot.bin [usr/lib/x86_64-linux-gnu/v8_context_snapshot.bin]
