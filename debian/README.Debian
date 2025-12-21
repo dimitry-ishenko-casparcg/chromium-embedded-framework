@@ -199,11 +199,17 @@ Chromium build number (143.0.**7499**.x).
   - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 143.0.7499.40)
   - CEF branch 7499 = Chromium 143.0.7499.x
 
-**Upstream CEF Branch in This Package:**
+**Upstream CEF Source in This Package:**
 
-  - Git remote: upstream/7499
-  - CHROMIUM_BUILD_COMPATIBILITY.txt: refs/tags/143.0.7499.169
-  - This matches Debian Chromium (143.0.7499.169)
+  - Upstream URL: https://bitbucket.org/chromiumembedded/cef
+  - Branch: 7499 (CEF 138)
+  - CEF expects (CHROMIUM_BUILD_COMPATIBILITY.txt): refs/tags/143.0.7499.110
+  - Debian Chromium provides: 143.0.7499.169
+
+  Note: CEF specifies the exact Chromium tag it was developed against (143.0.7499.110).
+  Debian Chromium (143.0.7499.169) has a higher patch level but the same branch (7499),
+  so they are compatible. Patch-level differences within the same branch are expected
+  to work since the API surface is stable within a Chromium branch.
 
 **Impact on Dependent Packages:**
 
