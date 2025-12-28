@@ -219,10 +219,10 @@ override_dh_auto_build:
 
 	# Step 6.3: Copy locale stub source to Chromium source tree (Build 175i)
 	# GN action() will compile it after gn gen but before ninja compiles protoc-gen-js
-	# Note: Patch 0008 creates this file in chromium_src/cef/debian/cef_locale_stub.cpp
+	# Note: Patch 0008 creates this file in chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp
 	@echo "==> Copying locale stub source to chromium/src/debian/"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/debian
-	cp $(CURDIR)/chromium_src/cef/debian/cef_locale_stub.cpp $(CURDIR)/chromium_src/chromium/src/debian/
+	cp $(CURDIR)/chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp $(CURDIR)/chromium_src/chromium/src/debian/
 	@echo "==> Locale stub source copied"
 
 	# Step 6.5: Patch Chromium DEPS to disable git submodule checking

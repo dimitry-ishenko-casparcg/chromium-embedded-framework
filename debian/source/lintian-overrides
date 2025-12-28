@@ -1,0 +1,21 @@
+# Lintian overrides for chromium-embedded-framework source package
+#
+# This package has non-standard characteristics due to its dependency on
+# Google's depot_tools and the complexity of CEF/Chromium builds.
+
+# depot_tools contains Windows binaries for cross-platform support.
+# These are part of Google's official toolchain and not used during Linux builds.
+# depot_tools is required as a bundled dependency until it becomes a Debian package.
+chromium-embedded-framework source: source-contains-prebuilt-windows-binary [depot_tools/*]
+
+# depot_tools uses absolute symlinks for Python environment setup.
+# This is how Google's toolchain works and cannot be easily changed.
+chromium-embedded-framework source: absolute-symbolic-link-target-in-source *
+
+# Chromium patches are applied MANUALLY by debian/rules using patch -p1,
+# NOT via quilt during source extraction. This is documented in README.source.
+# The patches target chromium_src/ which doesn't exist until build time.
+chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/chromium/*]
+
+# Patch 0009 is conditionally used and may be disabled in some configurations.
+chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/0009-update-cef-mac-frame-patch.cef.patch]
