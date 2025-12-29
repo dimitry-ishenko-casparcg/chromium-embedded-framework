@@ -11,7 +11,7 @@ chromium-embedded-framework source: source-contains-prebuilt-windows-binary [dep
 # depot_tools uses absolute symlinks for Python environment setup.
 # This is how Google's toolchain works and cannot be easily changed.
 # Note: This warning only appears when depot_tools has been initialized.
-chromium-embedded-framework source: absolute-symbolic-link-target-in-source [depot_tools/*]
+chromium-embedded-framework source: absolute-symbolic-link-target-in-source
 
 # Chromium patches are applied MANUALLY by debian/rules using patch -p1,
 # NOT via quilt during source extraction. This is documented in README.source.
