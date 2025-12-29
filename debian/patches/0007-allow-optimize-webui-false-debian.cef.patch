@@ -1,3 +1,13 @@
+Description: Allow optimize_webui=false for Debian builds
+ Removes optimize_webui from CEF's required GN arguments to align with
+ Debian Chromium policy. Debian uses optimize_webui=false because it
+ requires specific Node.js tooling that differs from Chromium's bundled
+ version. This allows CEF to build with Debian's configuration.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-29
+
 diff --git a/tools/gn_args.py b/tools/gn_args.py
 index 56c83bb..5cec1ab 100644
 --- a/tools/gn_args.py
