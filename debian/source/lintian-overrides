@@ -6,12 +6,16 @@
 # depot_tools contains Windows binaries for cross-platform support.
 # These are part of Google's official toolchain and not used during Linux builds.
 # depot_tools is required as a bundled dependency until it becomes a Debian package.
-chromium-embedded-framework source: source-contains-prebuilt-windows-binary [depot_tools/*]
+chromium-embedded-framework source: source-contains-prebuilt-windows-binary
 
 # depot_tools uses absolute symlinks for Python environment setup.
 # This is how Google's toolchain works and cannot be easily changed.
-# Note: This warning only appears when depot_tools has been initialized.
 chromium-embedded-framework source: absolute-symbolic-link-target-in-source
+
+# depot_tools bundles multiple Python versions with their own setuptools/pip.
+# These use deprecated Python stdlib modules (distutils, aifc, etc.) which
+# we cannot fix as this is Google's upstream code.
+chromium-embedded-framework source: uses-deprecated-python-stdlib
 
 # Chromium patches are applied MANUALLY by debian/rules using patch -p1,
 # NOT via quilt during source extraction. This is documented in README.source.
