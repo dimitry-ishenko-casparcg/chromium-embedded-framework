@@ -1,3 +1,12 @@
+Description: Create stub for reclient_cfgs and remove catapult dependency
+ Creates a stub for reclient_cfgs/configure_reclient_cfgs.py which is
+ missing from Debian's chromium tarball. Also removes the catapult/telemetry
+ dependency from BUILD.gn since Debian unbundles this development tool.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-29
+
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
 index 9f2f932..c107d75 100644
 --- a/tools/automate/automate-git.py

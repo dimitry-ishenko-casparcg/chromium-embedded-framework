@@ -1,3 +1,13 @@
+Description: Patch GN configuration for exec_script whitelist
+ CEF uses exec_script in BUILD.gn (//cef/tools/gypi_to_gn.py) which is
+ security-restricted by GN. This patch adds the exec_script_whitelist to
+ Chromium's .gn file for Debian builds, allowing CEF's build scripts to
+ run. Also reorders gclient sync/runhooks for proper Debian build flow.
+Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2025-12-29
+
 diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
 index c107d75..04a801b 100644
 --- a/tools/automate/automate-git.py
