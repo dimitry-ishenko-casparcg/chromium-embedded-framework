@@ -15,10 +15,6 @@ chromium-embedded-framework source: source-contains-prebuilt-windows-binary
 # toolchain binaries without available source in the package.
 chromium-embedded-framework source: source-is-missing
 
-# depot_tools creates absolute symlinks after initialization (Python env setup).
-# This warning only appears on systems where depot_tools has been run.
-chromium-embedded-framework source: absolute-symbolic-link-target-in-source
-
 # Chromium patches are applied MANUALLY by debian/rules using patch -p1,
 # NOT via quilt during source extraction. This is documented in README.source.
 # The patches target chromium_src/ which doesn't exist until build time.
