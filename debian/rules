@@ -152,15 +152,14 @@ override_dh_auto_build:
 	sed -i "s/143\.0\.7499\.[0-9]*/143.0.7499.169/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
-	# Step 5: Extract Debian chromium source tarball
-	@echo "==> Extracting Debian chromium source"
-	tar -xf $(CURDIR)/../chromium_143.0.7499.169.orig.tar.xz \
-		-C $(CURDIR)/chromium_src
-	mkdir -p $(CURDIR)/chromium_src/chromium
-	@if [ -d $(CURDIR)/chromium_src/chromium-* ]; then \
-		mv $(CURDIR)/chromium_src/chromium-* $(CURDIR)/chromium_src/chromium/src 2>/dev/null || true; \
+	# Step 5: Copy Chromium source from MUT-extracted directory
+	# MUT (Multiple Upstream Tarball) extracts orig-chromium.tar.xz to chromium/
+	@echo "==> Copying Chromium source from MUT-extracted directory"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src
+	@if [ -d $(CURDIR)/chromium/chromium-* ]; then \
+		cp -a $(CURDIR)/chromium/chromium-*/* $(CURDIR)/chromium_src/chromium/src/ 2>/dev/null || true; \
 	fi
-	@echo "==> Chromium extracted successfully"
+	@echo "==> Chromium copied successfully"
 
 	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
 	# Source: debian/rules lines 186-191 from Debian Chromium package
@@ -252,8 +251,8 @@ override_dh_auto_build:
 	#   - Option B: Package depot_tools separately as Debian package (ideal but blocked by Google's rolling release model)
 	# Network isolation: NO downloads during build - depot_tools must pre-exist
 	@echo "==> Verifying depot_tools is present (bundled dependency)"
-	@if [ ! -d $(CURDIR)/depot_tools ]; then \
-		echo "ERROR: depot_tools directory not found at $(CURDIR)/depot_tools"; \
+	@if [ ! -d $(CURDIR)/depot-tools ]; then \
+		echo "ERROR: depot_tools directory not found at $(CURDIR)/depot-tools"; \
 		echo "ERROR:"; \
 		echo "ERROR: FIRST-TIME SETUP REQUIRED:"; \
 		echo "ERROR:   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools"; \
@@ -269,9 +268,9 @@ override_dh_auto_build:
 	# This file points to the bundled Python interpreter used by gclient/gn
 	# Without it, gn gen fails with "need to initialize depot_tools"
 	@echo "==> Checking if depot_tools needs initialization"
-	@if [ ! -f $(CURDIR)/depot_tools/python3_bin_reldir.txt ]; then \
+	@if [ ! -f $(CURDIR)/depot-tools/python3_bin_reldir.txt ]; then \
 		echo "==> Initializing depot_tools (first-time setup)"; \
-		cd $(CURDIR)/depot_tools && ./update_depot_tools; \
+		cd $(CURDIR)/depot-tools && ./update_depot_tools; \
 		echo "==> depot_tools initialization complete"; \
 	else \
 		echo "==> depot_tools already initialized"; \
@@ -282,16 +281,16 @@ override_dh_auto_build:
 	# For Debian builds, we use system Python3 instead (no network downloads)
 	# Create the expected directory structure and symlink to system python3
 	@echo "==> Setting up depot_tools to use system Python"
-	@PYTHON_REL_DIR=$$(cat $(CURDIR)/depot_tools/python3_bin_reldir.txt); \
-	mkdir -p "$(CURDIR)/depot_tools/$$PYTHON_REL_DIR"; \
-	ln -sf /usr/bin/python3 "$(CURDIR)/depot_tools/$$PYTHON_REL_DIR/python3"; \
+	@PYTHON_REL_DIR=$$(cat $(CURDIR)/depot-tools/python3_bin_reldir.txt); \
+	mkdir -p "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR"; \
+	ln -sf /usr/bin/python3 "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR/python3"; \
 	echo "==> Created symlink: depot_tools/$$PYTHON_REL_DIR/python3 -> /usr/bin/python3"
 
 	# Step 6.6.1: Reset depot_tools to pristine state (since it's preserved across builds)
 	# depot_tools is a git repository, so we can reset it to clean state before patching
 	# Reset to HEAD~1 to undo the "Apply Debian patches" commit from previous build
 	@echo "==> Resetting depot_tools to pristine state (undoing previous Debian patches commit)"
-	cd $(CURDIR)/depot_tools && git reset --hard HEAD~1 && git clean -fd
+	cd $(CURDIR)/depot-tools && git reset --hard HEAD~1 && git clean -fd
 	@echo "==> depot_tools reset complete"
 
 	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
@@ -301,9 +300,9 @@ override_dh_auto_build:
 	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
 	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0001-debian-tarball-deps.chromium.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
-	patch -p1 -d $(CURDIR)/depot_tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
+	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
+	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
+	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-make-siso-import-optional.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-skip-test-fonts.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-disable-warning-suppression-mappings.chromium.patch
@@ -311,7 +310,7 @@ override_dh_auto_build:
 	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
 	# and refuses to checkout when update_depot_tools tries to switch commits
 	@echo "==> Committing depot_tools patches to avoid git conflicts"
-	cd $(CURDIR)/depot_tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004)" --allow-empty
+	cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004)" --allow-empty
 	@echo "==> depot_tools patches committed"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0008-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-remove-rust-nightly-flags-debian.chromium.patch
@@ -873,27 +872,25 @@ override_dh_auto_build:
 	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
 	@echo "==> Node.js symlink created successfully"
 
-	## Step 7e: Extract complete Rust std library from rust-toolchain tarball
+	## Step 7e: Copy complete Rust std library from MUT-extracted directory
 	## Why: Chromium requires NEWER Rust std library than Debian 1.90.0 provides
 	## Debian's rust-src (1.90.0) is missing files like:
 	##   - sync/nonpoison/condvar.rs, rwlock.rs (newer std library features)
 	##   - cross-platform files (cygwin/net.rs, darwin/objc.rs - these we'll stub)
-	## Solution: Extract COMPLETE std library from rust-toolchain.tar.xz (bundled dependency)
-	## This tarball contains the exact Rust version Chromium expects (matches DEPS)
-	@echo "==> Extracting complete Rust std library from rust-toolchain tarball"
-	@if [ ! -f $(CURDIR)/../rust-toolchain.tar.xz ]; then \
-		echo "❌ ERROR: rust-toolchain.tar.xz not found"; \
-		echo "Expected location: $(CURDIR)/../rust-toolchain.tar.xz"; \
+	## Solution: Use rust std library from MUT-extracted rust/ directory
+	## MUT extracts orig-rust.tar.xz to rust/
+	@echo "==> Copying complete Rust std library from MUT-extracted directory"
+	@if [ ! -d $(CURDIR)/rust/lib/rustlib/src/rust/library ]; then \
+		echo "❌ ERROR: MUT-extracted rust directory not found"; \
+		echo "Expected location: $(CURDIR)/rust/lib/rustlib/src/rust/library"; \
 		exit 1; \
 	fi
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/
-	# Extract ONLY the library/ directory from rust-toolchain tarball
+	# Copy the library/ directory from MUT-extracted rust/
 	# This contains ALL std library crates (alloc, core, std, etc.) at correct versions
-	tar -xf $(CURDIR)/../rust-toolchain.tar.xz \
-		-C $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/ \
-		--strip-components=4 \
-		lib/rustlib/src/rust/library
-	@echo "==> Complete Rust std library extracted from rust-toolchain tarball"
+	cp -a $(CURDIR)/rust/lib/rustlib/src/rust/library \
+		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/
+	@echo "==> Complete Rust std library copied from MUT-extracted directory"
 	@# Verify critical files exist (condvar.rs was missing in Debian 1.90.0)
 	@if [ -f $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs ]; then \
 		echo "✅ Verified: condvar.rs exists (was missing in Debian rust-src 1.90.0)"; \
@@ -991,13 +988,13 @@ override_dh_auto_build:
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
 	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false" && \
-	export PATH=$(CURDIR)/depot_tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
+	export PATH=$(CURDIR)/depot-tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
-		--depot-tools-dir=$(CURDIR)/depot_tools \
+		--depot-tools-dir=$(CURDIR)/depot-tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium_143.0.7499.169.orig.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_138.0.1.orig-chromium.tar.xz \
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \
