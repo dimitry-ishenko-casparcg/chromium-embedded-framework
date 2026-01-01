@@ -1,0 +1,20 @@
+version=4
+
+# CEF releases from Bitbucket
+# Note: uscan cannot easily track CEF as releases are tagged by Chromium version
+# The primary version is the CEF version (e.g., 138.0.1) not the Chromium version
+#
+# CEF release naming: cef_binary_VERSION+CHROMIUM_VERSION+COMMIT_linux64.tar.bz2
+# Example: cef_binary_138.0.4+gb2ac72b+chromium-143.0.7499.130_linux64.tar.bz2
+#
+# For manual tracking:
+# https://bitbucket.org/chromiumembedded/cef/downloads/?tab=branches
+
+opts="mode=git,pgpmode=none" \
+  https://bitbucket.org/chromiumembedded/cef.git \
+  refs/tags/(\d+\.\d+)
+
+# Note: Additional MUT components require manual updates:
+# - orig-chromium.tar.xz: Tracks Debian Chromium package version
+# - orig-depot_tools.tar.xz: Bundled with CEF source
+# - orig-rust.tar.xz: Tracks Chromium's expected Rust version (see DEPS)

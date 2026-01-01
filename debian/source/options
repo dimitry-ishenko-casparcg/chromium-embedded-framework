@@ -1,0 +1,3 @@
+# Ignore MUT component directories in diff comparison
+# These are extracted from separate orig-*.tar.xz tarballs
+extend-diff-ignore = "^depot-tools/|^chromium/|^rust/"
