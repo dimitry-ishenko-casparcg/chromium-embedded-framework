@@ -1,66 +1,78 @@
 chromium-embedded-framework for Debian
 ======================================
 
-This package builds CEF (Chromium Embedded Framework) using Debian's chromium
-source tarball. It requires manual preparation due to the chromium dependency.
+This package uses Multiple Upstream Tarballs (MUT) format with 3.0 (quilt)
+source format. All source components are distributed as separate tarballs.
 
 ================================================================================
-BUILD PREREQUISITES
+SOURCE PACKAGE STRUCTURE (MUT)
 ================================================================================
 
-Three dependencies require MANUAL setup before building:
+The source package consists of 4 tarballs:
 
-    /path/to/workspace/
-    ├── chromium-embedded-framework/          <- This source package
-    │   └── depot_tools/                      <- (3) Clone here ONCE
-    ├── chromium_143.0.7499.169.orig.tar.xz   <- (1) Chromium source
-    └── rust-toolchain.tar.xz                 <- (2) Rust stdlib sources
+    chromium-embedded-framework_VERSION.orig.tar.xz
+        CEF source code (main upstream tarball)
 
-Setup commands (run ONCE before first build):
+    chromium-embedded-framework_VERSION.orig-chromium.tar.xz
+        Chromium browser source (from Debian chromium package)
 
-1. Chromium tarball (~969 MB):
-   $ cd /path/to/workspace/
-   $ apt-get source --download-only chromium
+    chromium-embedded-framework_VERSION.orig-depot-tools.tar.xz
+        Google's depot_tools build system
 
-   This downloads chromium_VERSION.orig.tar.xz. The CEF branch must match
-   the chromium version - see cef/CHROMIUM_BUILD_COMPATIBILITY.txt after
-   extracting the source package.
+    chromium-embedded-framework_VERSION.orig-rust.tar.xz
+        Rust standard library sources (interim bundled dependency)
 
-2. Rust toolchain tarball (~142 MB):
-   Download from Google Cloud Storage. The URL changes with chromium versions.
+When extracted with dpkg-source -x, these create:
 
-   For Chromium 143.x, use:
-   $ wget "https://commondatastorage.googleapis.com/aspect-aspect-build-toolchain/aspect-aspect-build-toolchain-22.1.128/aspect_build_rust_toolchain_for_x86_64-unknown-linux-gnu.tar.xz" \
-          -O rust-toolchain.tar.xz
+    chromium-embedded-framework-VERSION/
+    ├── debian/                 <- Packaging files
+    ├── [CEF source files]      <- From orig.tar.xz
+    ├── chromium/               <- From orig-chromium.tar.xz
+    ├── depot-tools/            <- From orig-depot-tools.tar.xz
+    └── rust/                   <- From orig-rust.tar.xz
 
-   For other versions: Extract chromium tarball first, then:
-   $ tar -tf chromium_*.orig.tar.xz | grep -i rust | head -5
-   $ grep -r "aspect.*rust" chromium/src/DEPS 2>/dev/null | head -5
+================================================================================
+BUILD INSTRUCTIONS
+================================================================================
 
-   Or copy rust-toolchain.tar.xz from a previous successful build.
+Standard Build (from source package):
 
-3. depot_tools (Google's build tools, ~200 MB):
-   $ cd chromium-embedded-framework/
-   $ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
-
-   Note: depot_tools is in .gitignore and preserved across builds.
-         Its initialization is handled automatically by debian/rules.
-
-4. Build dependencies:
-   $ sudo apt install devscripts
-   $ cd chromium-embedded-framework/
-   $ sudo mk-build-deps -i debian/control
-
-   Or manually install packages listed in debian/control Build-Depends.
-
-Build command:
-
-    $ cd chromium-embedded-framework/
+    $ dpkg-source -x chromium-embedded-framework_*.dsc
+    $ cd chromium-embedded-framework-*/
     $ dpkg-buildpackage -us -uc
 
-Build time: 30-60 minutes (24-core), 2-4 hours (8-core), 12-24 hours (4-core)
-Disk space: ~40 GB
-Network: NOT required during build (only for initial setup above)
+The MUT components are automatically extracted by dpkg-source -x.
+
+Build Time: ~7+ hours (depends on hardware)
+Disk Space: ~40 GB required
+
+================================================================================
+COMPONENT TARBALLS
+================================================================================
+
+1. CEF Source (orig.tar.xz)
+---------------------------
+Obtained from: https://bitbucket.org/chromiumembedded/cef
+Branch: Must match Chromium's build number (e.g., branch 7499 for Chromium 143.x)
+
+2. Chromium Source (orig-chromium.tar.xz)
+-----------------------------------------
+Obtained from: Debian chromium package source
+Command: apt-get source --download-only chromium
+Rename: mv chromium_*.orig.tar.xz chromium-embedded-framework_VERSION.orig-chromium.tar.xz
+
+3. depot-tools (orig-depot-tools.tar.xz)
+----------------------------------------
+Obtained from: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+This tarball is cleaned of binary files (.cipd*, *.exe, *.dll, etc.)
+
+4. Rust Standard Library (orig-rust.tar.xz)
+-------------------------------------------
+Interim bundled dependency. Required because Debian rust-src is missing files
+that Chromium's build system expects (sync/nonpoison/condvar.rs, rwlock.rs).
+
+This component can be removed when Debian rust-src catches up to Chromium's
+expected Rust version.
 
 ================================================================================
 CONFIGURATION DECISIONS
@@ -68,117 +80,17 @@ CONFIGURATION DECISIONS
 
 1. SYSTEM LIBC++ (use_custom_libcxx=false)
 ------------------------------------------
-
-Decision: Use Debian's libc++-19-dev instead of bundled libc++
-Reason: Aligns with Debian Chromium's approach
-Implementation: GN flag use_custom_libcxx=false in debian/rules
+Uses Debian's libc++-19-dev instead of bundled libc++.
+Aligns with Debian Chromium's approach.
 
 2. SYSTEM LLVM/CLANG (clang-19)
 -------------------------------
-
-Decision: Use Debian's clang-19 toolchain
-Reason: Standard Debian build practice, no bundled compiler
-Implementation: clang_base_path="/usr/lib/llvm-19" in debian/rules
+Uses Debian's clang-19 toolchain. No bundled compiler.
 
 3. SYSTEM FFMPEG (is_component_ffmpeg=true)
 -------------------------------------------
-
-Decision: Use system FFmpeg for media codecs instead of bundled
-Reason: Enables H.264/AAC when user installs libavcodec-extra
-Implementation: GN flag is_component_ffmpeg=true in debian/rules
-Runtime: Depends on libavcodec-extra | libavcodec60
-
-Note: LLVM version is locked to 19. When Debian updates to a new LLVM version,
-update CLANG_MVERS in debian/rules and patch 0012 (see "Updating LLVM Version").
-
-4. DEPOT_TOOLS (Manual Clone Required)
---------------------------------------
-
-Decision: Require manual clone of Google's depot_tools
-Reason: Not available as Debian package, required by CEF build system
-Implementation: User clones to depot_tools/ directory (in .gitignore)
-
-Setup: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
-Note: Clone ONCE, then preserved across builds. Initialization is automatic.
-
-depot_tools is a BUILD TOOL only - nothing from it is installed in binary packages.
-
-Future: When/if depot_tools becomes a Debian package, add to Build-Depends.
-
-5. BUNDLED RUST STDLIB SOURCES
-------------------------------
-
-Decision: Use rust-toolchain.tar.xz for Rust standard library sources
-Reason: Debian's rust-src (1.90.0) lacks files Chromium requires
-Implementation: debian/rules extracts library/ from tarball
-
-Future: When Debian rust-src includes all required files, switch to system
-rust-src and remove tarball requirement.
-
-================================================================================
-INTERIM DEPENDENCIES DETAILS
-================================================================================
-
-This section provides technical details for the interim workarounds. These
-will become unnecessary when proper Debian packages are available.
-
-Rust Toolchain Tarball
-----------------------
-
-Location: ../rust-toolchain.tar.xz (parent directory of source package)
-Size: ~142 MB
-Contents: Rust standard library sources matching Chromium's expected version
-
-See BUILD PREREQUISITES section for download instructions.
-
-What debian/rules does with it (Step 7e):
-- Extracts ONLY library/ directory to third_party/rust-toolchain/lib/rustlib/src/rust/
-- Creates stubs for cross-platform files (cygwin, darwin) needed for module resolution
-
-LLVM-19 Path Configuration
---------------------------
-
-Chromium's GN build system uses rust_bindgen_root to find both:
-- bindgen executable: ${rust_bindgen_root}/bin/bindgen
-- libclang library: ${rust_bindgen_root}/lib/libclang.so
-
-On Debian:
-- bindgen is at /usr/bin/bindgen (rust_bindgen_root="/usr" works)
-- libclang is at /usr/lib/llvm-19/lib/ (NOT /usr/lib/)
-
-Solution: Patch 0012-bindgen-libclang-abspath.chromium.patch intercepts
-/usr/lib and redirects to /usr/lib/llvm-19/lib where libclang actually exists.
-
-Files affected by LLVM version:
-- debian/control: clang-19, lld-19, libc++-19-dev, etc.
-- debian/rules: CLANG_MVERS := 19
-- debian/patches/chromium/0012-*: hardcoded /usr/lib/llvm-19/lib
-
-Depot Tools Initialization
---------------------------
-
-debian/rules automatically handles depot_tools setup:
-
-Step 6.6.0.5 - Initialize if needed:
-- Checks for python3_bin_reldir.txt (initialization marker)
-- Runs ./update_depot_tools if missing
-
-Step 6.6.0.6 - Python symlink:
-- depot_tools expects bundled Python at bootstrap-2@*/python3/bin/python3
-- Creates symlink to system /usr/bin/python3
-
-No manual action required - these run automatically during build.
-
-Build Environment Notes
------------------------
-
-The build is designed to work WITHOUT network access once tarballs are in place.
-debian/rules handles all environment setup automatically:
-
-- Adds /usr/lib/llvm-19/bin to PATH (for clang discovery)
-- Sets LIBCLANG_PATH=/usr/lib/llvm-19/lib (for bindgen)
-- Initializes depot_tools with system Python
-- Uses full path to autoninja (patch 0016) to avoid PATH issues
+Uses system FFmpeg for media codecs.
+Enables H.264/AAC when user installs libavcodec-extra.
 
 ================================================================================
 PATCHES
@@ -186,169 +98,33 @@ PATCHES
 
 CEF Patches (debian/patches/*.cef.patch)
 ----------------------------------------
-
-Applied via quilt to CEF source before build:
-
-- 0001-debian-patcher-skip-logic: Skip upstream patches already in Debian chromium
-- 0002-use-system-clang: Use system clang instead of downloading
-- 0003-create-reclient-stub: Stub for Google's build cache (not used in Debian)
-- 0004-patch-gn-for-exec-script: Allow CEF's exec_script in GN
-- 0005-skip-gclient-revert-debian: Don't revert Debian's chromium patches
-- 0006-skip-chromium-checkout-debian: Use tarball instead of git checkout
-- 0007-allow-optimize-webui-false: Allow disabling WebUI optimization
-- 0008-add-locale-stub-for-protoc-gen-js: Locale stub for JS proto generation
-- 0010-add-rust-toolchain-stub: Use system Rust instead of downloading
-- 0011-fix-opus-stub-after-gclient: Fix opus configuration
-- 0012-add-gn-debian-args-function: Inject Debian GN args
-- 0013-remove-pseudolocales-conditional: Fix locale generation
-- 0014-disable-assert-redefinition: Avoid macro conflicts with system headers
-- 0015-add-debian-cef-rpath-for-angle: RPATH for ANGLE libraries
-- 0016-use-full-path-autoninja-dpkg: Fix autoninja discovery in build
+Applied via quilt to CEF source. See debian/patches/series.
 
 Chromium Patches (debian/patches/chromium/*.chromium.patch)
 -----------------------------------------------------------
-
-Applied manually via patch -p1 to chromium source:
-
-- 0012-bindgen-libclang-abspath: Fix libclang path for rust-bindgen
-  (redirects /usr/lib to /usr/lib/llvm-19/lib)
-
-See debian/rules for the complete list of chromium patches.
+Applied manually via patch -p1 in debian/rules.
+These patches modify Chromium source, not CEF source.
 
 ================================================================================
 MAINTENANCE
 ================================================================================
 
-CEF Source Acquisition
-----------------------
+Updating CEF Version:
+1. Update CEF source in orig.tar.xz
+2. Update CEF_BRANCH in debian/rules
+3. Update chromium version to match CEF requirements
+4. Regenerate orig-chromium.tar.xz from new Debian chromium
+5. Test build and fix any patch conflicts
 
-The cef/ directory contains CEF source code. To obtain or update it:
+Updating Chromium Version:
+1. apt-get source --download-only chromium
+2. Rename and replace orig-chromium.tar.xz
+3. Test build and fix patch conflicts
 
-  From Git (recommended for development):
-  $ rm -rf cef
-  $ git clone -b 7499 https://bitbucket.org/chromiumembedded/cef.git cef
-  $ rm -rf cef/.git  # Remove git metadata for source package
-
-  From tarball (for releases):
-  Download from: https://bitbucket.org/chromiumembedded/cef/downloads/
-  Look for: cef_binary_*_linux64_minimal.tar.bz2 or source archives
-
-Branch Selection:
-  - CEF branch number (e.g., 7499) must match Chromium's build number
-  - Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for expected Chromium version
-  - CEF branch 7499 corresponds to Chromium 143.0.7499.x
-
-Version Compatibility:
-  - CEF specifies an exact Chromium tag (e.g., 143.0.7499.110)
-  - Debian Chromium may have a different patch level (e.g., 143.0.7499.169)
-  - Patch-level differences within the same branch are generally compatible
-  - The build number (7499) must match; only patch level can differ
-
-GBP Workflow and Branch Strategy
---------------------------------
-
-This package does NOT use pristine-tar or upstream branches. Rationale:
-
-1. Multiple source dependencies: CEF needs CEF tarball + Chromium tarball +
-   rust-toolchain + depot_tools. Only CEF would be "orig", making pristine-tar
-   solve only a fraction of the reproducibility problem.
-
-2. Chromium is a build dependency: Unlike qt6-webengine (which bundles Chromium),
-   CEF upstream does NOT bundle Chromium. It's fetched separately at build time,
-   similar to a compiler - not a component tarball.
-
-3. Non-standard workflow: Manual setup is required regardless of git branches.
-   pristine-tar wouldn't eliminate the need to download Chromium, rust-toolchain,
-   and clone depot_tools.
-
-4. Version coupling: CEF versions are tightly coupled to specific Chromium
-   versions. The "upstream" concept is blurry when you need matching versions
-   of two different projects.
-
-Current structure:
-  - master branch: Only debian/ files tracked
-  - External files: chromium_*.tar.xz, rust-toolchain.tar.xz in parent directory
-  - depot_tools/: In .gitignore, manually cloned
-
-Future: When Bug #893448 (chromium-source package) is resolved, the workflow
-simplifies and standard gbp import-orig may become feasible for CEF source.
-
-Updating CEF Version
---------------------
-
-1. Clone new CEF branch: git clone -b NEWBRANCH https://bitbucket.org/chromiumembedded/cef.git cef
-2. Remove git metadata: rm -rf cef/.git
-3. Update CEF_BRANCH in debian/rules
-4. Update chromium version to match CEF requirements (check CHROMIUM_BUILD_COMPATIBILITY.txt)
-5. Test build and fix any new patch conflicts
-
-Updating Chromium Version
--------------------------
-
-1. Download new chromium tarball: apt-get source --download-only chromium
-2. Update version in debian/rules --chromium-archive path
-3. Test build and fix any patch conflicts
-
-Updating LLVM Version
----------------------
-
-When Debian moves to a new LLVM version (e.g., 19 -> 20):
-
-1. Update debian/control Build-Depends (clang-19 -> clang-20, etc.)
-2. Update CLANG_MVERS in debian/rules (19 -> 20)
-3. Update debian/patches/chromium/0012-bindgen-libclang-abspath.chromium.patch
-   (change /usr/lib/llvm-19/lib to /usr/lib/llvm-20/lib)
-4. Test build for new compiler warnings/errors
-
-================================================================================
-TROUBLESHOOTING
-================================================================================
-
-Common Issues
--------------
-
-1. "chromium tarball not found"
-   -> Run: apt-get source --download-only chromium (in parent directory)
-
-2. "rust-toolchain.tar.xz not found"
-   -> Download from GCS URL in chromium DEPS file (see BUILD PREREQUISITES)
-
-3. "Unable to find libclang"
-   -> Verify libclang1-19 is installed (pulled in by clang-19)
-   -> Check patch 0012 has correct LLVM version
-
-4. "Command 'autoninja' not found"
-   -> Patch 0016 should fix this; verify it's in debian/patches/series
-
-5. "depot_tools directory not found"
-   -> Clone depot_tools: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools
-
-6. Disk space errors
-   -> Build requires ~40GB free space
-
-Checklist for New Build Machines
---------------------------------
-
-[ ] Chromium tarball: ../chromium_143.0.7499.169.orig.tar.xz
-[ ] Rust toolchain: ../rust-toolchain.tar.xz
-[ ] depot_tools cloned: ./depot_tools/ (git clone once)
-[ ] Build dependencies: apt build-dep chromium-embedded-framework
-[ ] Sufficient disk space (~40GB)
-
-================================================================================
-FUTURE IMPROVEMENTS
-================================================================================
-
-When these Debian packages become available, this package can be simplified:
-
-1. chromium-source package (Bug #893448)
-   -> Remove manual chromium tarball requirement
-
-2. depot-tools package
-   -> Remove bundled depot_tools, add to Build-Depends
-
-3. Updated rust-src package
-   -> Remove rust-toolchain.tar.xz requirement
+Updating LLVM Version:
+1. Update Build-Depends in debian/control
+2. Update CLANG_MVERS in debian/rules
+3. Update patch 0012-bindgen-libclang-abspath.chromium.patch
 
 ================================================================================
 REFERENCES
@@ -361,6 +137,6 @@ Related Debian Bugs:
 - #893448: Request for chromium-source binary package
 - #915400: ITP for chromium-embedded-framework
 
-Upstream Documentation:
+Documentation:
 - CEF: https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md
-- Chromium: https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/linux/build_instructions.md
+- Chromium: https://chromium.googlesource.com/chromium/src/+/main/docs/linux/build_instructions.md
