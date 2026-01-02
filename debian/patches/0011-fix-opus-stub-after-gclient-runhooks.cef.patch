@@ -16,10 +16,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-23
 
-diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
+diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
 index b6c0b3f..c3e8a4a 100644
---- a/tools/automate/automate-git.py
-+++ b/tools/automate/automate-git.py
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
 @@ -1689,6 +1689,38 @@ apply_runhooks_patch()
  # Runs hooks for files that have been modified in the local working copy.
  run("gclient runhooks", chromium_dir)

@@ -15,10 +15,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-18
 
-diff --git a/tools/gn_args.py b/tools/gn_args.py
+diff --git a/cef/tools/gn_args.py b/cef/tools/gn_args.py
 index 5cec1ab..9b84916 100644
---- a/tools/gn_args.py
-+++ b/tools/gn_args.py
+--- a/cef/tools/gn_args.py
++++ b/cef/tools/gn_args.py
 @@ -348,6 +348,35 @@ def GetGNEnvArgs():
    return ParseNameValueList(ShlexEnv('GN_DEFINES'))
 

@@ -1,3 +1,4 @@
 # Ignore MUT component directories in diff comparison
 # These are extracted from separate orig-*.tar.xz tarballs
-extend-diff-ignore = "^depot-tools/|^chromium/|^rust/"
+# Also ignore build artifacts and git-buildpackage config
+extend-diff-ignore = "^depot-tools/|^depot_tools/|^chromium/|^chromium_src/|^rust/|^third_party/|^cef/|^tools/|^\\.gbp\\.conf$"

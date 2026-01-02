@@ -129,23 +129,26 @@ override_dh_dwz:
 
 override_dh_auto_build:
 	## Step 1: Copy CEF source to build directory
+	## NOTE: With MUT + quilt format, dpkg-source -x already applies CEF patches
+	## The cef/ directory has patches already applied when we copy it
 	mkdir -p $(CURDIR)/chromium_src
 	cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/
 
-	# Step 2: Remove old quilt state that would confuse patch application
+	# Step 2: Remove quilt .pc directory from copied source (cleanup only)
+	# dpkg-source creates .pc in the source root, not in cef/, but clean just in case
 	rm -rf $(CURDIR)/chromium_src/cef/.pc
 
-	# Step 3: Apply Debian patches to CEF source
-	cd $(CURDIR)/chromium_src/cef && \
-		QUILT_PATCHES=$(CURDIR)/debian/patches quilt push -a || \
-		(echo "ERROR: Failed to apply Debian patches"; exit 1)
+	# Step 3: SKIPPED - CEF patches already applied by dpkg-source during extraction
+	# With MUT + quilt format (debian/source/format = "3.0 (quilt)"), patches in
+	# debian/patches/series are automatically applied when running dpkg-source -x
+	# The cef/ directory we copied in Step 1 already has all patches applied.
 
 	# Step 3.5: Initialize CEF directory as git repository (required by automate-git.py)
 	@echo "==> Initializing git repository in CEF source"
 	cd $(CURDIR)/chromium_src/cef && \
 		git init && \
 		git add . && \
-		git commit -m "CEF source with Debian patches applied"
+		(git commit -m "CEF source with Debian patches applied" || true)
 	@echo "==> CEF git repository initialized"
 
 	# Step 4: Fix version mismatch (CEF expects specific tag, Debian has different point release)
@@ -154,11 +157,12 @@ override_dh_auto_build:
 
 	# Step 5: Copy Chromium source from MUT-extracted directory
 	# MUT (Multiple Upstream Tarball) extracts orig-chromium.tar.xz to chromium/
+	# The tarball has source at root level (base/, build/, chrome/, etc.)
+	# CEF expects: chromium_src/chromium/src/ (see automate-git.py line 1227)
+	# NOTE: Use "chromium/." to include hidden files like .gn, .gitignore
 	@echo "==> Copying Chromium source from MUT-extracted directory"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src
-	@if [ -d $(CURDIR)/chromium/chromium-* ]; then \
-		cp -a $(CURDIR)/chromium/chromium-*/* $(CURDIR)/chromium_src/chromium/src/ 2>/dev/null || true; \
-	fi
+	cp -a $(CURDIR)/chromium/. $(CURDIR)/chromium_src/chromium/src/
 	@echo "==> Chromium copied successfully"
 
 	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
@@ -173,26 +177,12 @@ override_dh_auto_build:
 		ln -s /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3
 	@echo "==> Node.js and rollup3 symlink created"
 
-	# Step 5.5: Apply Debian Chromium patches to vanilla source
-	# Extract Debian Chromium packaging (includes patches and build configuration)
-	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../chromium_143.0.7499.169-1.debian.tar.xz \
-		-C $(CURDIR)/chromium_src/chromium/
-	# Apply debianization patches (system libraries, build fixes, security patches)
-	@cd $(CURDIR)/chromium_src/chromium/src && \
-		for patch_dir in debianization fixes system; do \
-			if [ -d "../debian/patches/$$patch_dir" ]; then \
-				for patch in ../debian/patches/$$patch_dir/*.patch; do \
-					[ -f "$$patch" ] && { \
-						echo "Applying $$patch"; \
-						patch -p1 < "$$patch" || { \
-							echo "WARNING: Patch $$patch failed, continuing..."; \
-						}; \
-					}; \
-				done; \
-			fi; \
-		done
-	@echo "==> Debian Chromium patches applied successfully"
+	# Step 5.5: NOT NEEDED - Chromium tarball is pre-patched
+	# The MUT orig-chromium.tar.xz contains Debian Chromium source with all
+	# Debian patches (debianization, fixes, system, etc.) already applied.
+	# This is a temporary approach until Debian Chromium provides proper
+	# source packages for CEF to depend on.
+	# See: 033_PLAN_mut-format-migration.md for details.
 
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
 	@echo "==> Initializing git repository in chromium source"
@@ -303,6 +293,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
+	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0048-fix-ninja-py-depot-tools-hyphen.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-make-siso-import-optional.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-skip-test-fonts.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-disable-warning-suppression-mappings.chromium.patch
@@ -310,7 +301,7 @@ override_dh_auto_build:
 	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
 	# and refuses to checkout when update_depot_tools tries to switch commits
 	@echo "==> Committing depot_tools patches to avoid git conflicts"
-	cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004)" --allow-empty
+	cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004, 0048)" --allow-empty
 	@echo "==> depot_tools patches committed"
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0008-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-remove-rust-nightly-flags-debian.chromium.patch
@@ -323,10 +314,14 @@ override_dh_auto_build:
 	# but GN still tries to load buildtools/third_party/libc++/BUILD.gn during parse phase
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-add-stub-libcxx-build-gn.chromium.patch
 	# Patch 0015: Remove GCC libstdc++ optional header for system libc++ compatibility
-	# The Chromium source tarball contains a file 'optional' at the root directory which is a GCC header
+	# The upstream Chromium tarball contains a file 'optional' which is a GCC libstdc++ header
 	# This header includes <bits/version.h> (GCC-specific, doesn't exist in libc++)
-	# Must be removed AFTER gclient sync (which extracts tarball) but BEFORE compilation
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0015-remove-libstdcxx-optional-header.chromium.patch
+	# The Debian Chromium tarball has already removed this file, so we only apply if it exists
+	@if [ -f "$(CURDIR)/chromium_src/chromium/src/optional" ]; then \
+		patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0015-remove-libstdcxx-optional-header.chromium.patch; \
+	else \
+		echo "==> Skipping patch 0015: optional file already absent (Debian Chromium tarball)"; \
+	fi
 	# Patch 0016: Fix Clang 19 warning flag names to eliminate warning spam
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-fix-clang-19-warning-flags.chromium.patch
 	# Patch 0017: Handle SwiftShader reactor conditional target (for subzero-disabled builds)

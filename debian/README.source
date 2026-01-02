@@ -25,11 +25,14 @@ The source package consists of 4 tarballs:
 When extracted with dpkg-source -x, these create:
 
     chromium-embedded-framework-VERSION/
-    ├── debian/                 <- Packaging files
-    ├── [CEF source files]      <- From orig.tar.xz
+    ├── cef/                    <- CEF source (from orig.tar.xz)
     ├── chromium/               <- From orig-chromium.tar.xz
-    ├── depot-tools/            <- From orig-depot-tools.tar.xz
-    └── rust/                   <- From orig-rust.tar.xz
+    ├── depot-tools/            <- From orig-depot-tools.tar.xz (note: hyphen)
+    ├── rust/                   <- From orig-rust.tar.xz
+    └── debian/                 <- Packaging files
+
+NOTE: MUT component names use HYPHENS (depot-tools), not underscores.
+The main tarball contains CEF source in a cef/ subdirectory.
 
 ================================================================================
 BUILD INSTRUCTIONS
@@ -98,7 +101,9 @@ PATCHES
 
 CEF Patches (debian/patches/*.cef.patch)
 ----------------------------------------
-Applied via quilt to CEF source. See debian/patches/series.
+Applied via quilt during dpkg-source extraction.
+Patch paths have cef/ prefix (e.g., cef/tools/automate/automate-git.py).
+See debian/patches/series for the order.
 
 Chromium Patches (debian/patches/chromium/*.chromium.patch)
 -----------------------------------------------------------

@@ -10,10 +10,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-17
 
-diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
+diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
 index 5289992..0828a90 100644
---- a/tools/automate/automate-git.py
-+++ b/tools/automate/automate-git.py
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
 @@ -1796,7 +1796,9 @@ if not options.nobuild and (chromium_checkout_changed or \
    run('%s %s' % (python_exe, tool), cef_src_dir)
 

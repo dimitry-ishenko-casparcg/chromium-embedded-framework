@@ -1,0 +1,28 @@
+Description: Fix depot-tools ninja.py to recognize hyphen directory name
+ The MUT (Multiple Upstream Tarball) format extracts depot-tools with
+ a hyphen (depot-tools/) instead of underscore (depot_tools/). The
+ ninja.py script has a hardcoded check for "depot_tools" to avoid
+ infinite recursion when searching PATH for ninja. When the directory
+ is named "depot-tools", this check fails, causing ninja.py to call
+ itself infinitely, spawning 100+ stuck Python processes.
+ .
+ This patch adds "depot-tools" (hyphen) to the check alongside the
+ existing "depot_tools" (underscore) check.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-01-02
+
+diff --git a/ninja.py b/ninja.py
+index ede7cca..c3aefd8 100755
+--- a/ninja.py
++++ b/ninja.py
+@@ -24,7 +24,7 @@ def find_ninja_in_path():
+         exe += ".exe"
+     for bin_dir in env_path.split(os.pathsep):
+         bin_dir = bin_dir.rstrip(os.sep)
+-        if os.path.basename(bin_dir) == "depot_tools":
++        if os.path.basename(bin_dir) in ("depot_tools", "depot-tools"):
+             # skip depot_tools to avoid calling ninja.py infinitely.
+             continue
+         ninja_path = os.path.join(bin_dir, exe)

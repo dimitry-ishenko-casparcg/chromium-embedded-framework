@@ -17,10 +17,10 @@ Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Forwarded: not-needed
 Last-Update: 2025-11-04
 
-diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
+diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
 index fa96f28..3c55265 100644
---- a/tools/automate/automate-git.py
-+++ b/tools/automate/automate-git.py
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
 @@ -1533,6 +1533,13 @@ else:
    else:
      chromium_checkout_changed = options.dryrun

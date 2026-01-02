@@ -10,10 +10,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-04
 
-diff --git a/libcef/resources/cef_strings.grd b/libcef/resources/cef_strings.grd
+diff --git a/cef/libcef/resources/cef_strings.grd b/cef/libcef/resources/cef_strings.grd
 index a3d59a2..22e4780 100644
---- a/libcef/resources/cef_strings.grd
-+++ b/libcef/resources/cef_strings.grd
+--- a/cef/libcef/resources/cef_strings.grd
++++ b/cef/libcef/resources/cef_strings.grd
 @@ -105,10 +105,6 @@ need to be translated for each locale.-->
      <output filename="cef_strings_vi.pak" type="data_package" lang="vi" />
      <output filename="cef_strings_zh-CN.pak" type="data_package" lang="zh-CN" />
