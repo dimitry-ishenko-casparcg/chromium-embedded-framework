@@ -14,8 +14,8 @@ Author: Debian CEF Maintainers
 Forwarded: not-needed
 Last-Update: 2025-11-15
 
---- a/patch/patches/chrome_browser_frame_mac.patch
-+++ b/patch/patches/chrome_browser_frame_mac.patch
+--- a/cef/patch/patches/chrome_browser_frame_mac.patch
++++ b/cef/patch/patches/chrome_browser_frame_mac.patch
 @@ -1,97 +1,106 @@
 -diff --git chrome/browser/ui/views/frame/browser_native_widget_mac.h chrome/browser/ui/views/frame/browser_native_widget_mac.h
 -index 1423d061aa00c5e8c58bceb09f36d517821f8d06..dd7e20ed4850153fe5e1cc2d69acfd5299bc2693 100644

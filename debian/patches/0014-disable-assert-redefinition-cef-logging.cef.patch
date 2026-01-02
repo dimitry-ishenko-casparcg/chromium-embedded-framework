@@ -14,10 +14,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-05
 
-diff --git a/include/base/cef_logging.h b/include/base/cef_logging.h
+diff --git a/cef/include/base/cef_logging.h b/cef/include/base/cef_logging.h
 index 9ca4ae1..cce45d1 100644
---- a/include/base/cef_logging.h
-+++ b/include/base/cef_logging.h
+--- a/cef/include/base/cef_logging.h
++++ b/cef/include/base/cef_logging.h
 @@ -667,9 +667,11 @@ const LogSeverity LOG_DCHECK = LOG_INFO;
 
  #define NOTREACHED() DCHECK(false)

@@ -17,10 +17,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-17
 
-diff --git a/cmake/cef_variables.cmake.in b/cmake/cef_variables.cmake.in
+diff --git a/cef/cmake/cef_variables.cmake.in b/cef/cmake/cef_variables.cmake.in
 index 1cd0c6e..c0ac38d 100644
---- a/cmake/cef_variables.cmake.in
-+++ b/cmake/cef_variables.cmake.in
+--- a/cef/cmake/cef_variables.cmake.in
++++ b/cef/cmake/cef_variables.cmake.in
 @@ -135,7 +135,7 @@ if(OS_LINUX)
      -pthread                        # Use the pthread library
      -Wl,--disable-new-dtags         # Don't generate new-style dynamic tags in ELF

@@ -26,11 +26,11 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-15
 
-diff --git a/tools/debian_stubs/cef_locale_stub.cpp b/tools/debian_stubs/cef_locale_stub.cpp
+diff --git a/cef/tools/debian_stubs/cef_locale_stub.cpp b/cef/tools/debian_stubs/cef_locale_stub.cpp
 new file mode 100644
 index 0000000..3bc971b
 --- /dev/null
-+++ b/tools/debian_stubs/cef_locale_stub.cpp
++++ b/cef/tools/debian_stubs/cef_locale_stub.cpp
 @@ -0,0 +1,85 @@
 +// Debian: Minimal locale stub for protoc-gen-js linking
 +// Build 177: Mangled symbol approach (proven to work in Build 175h)

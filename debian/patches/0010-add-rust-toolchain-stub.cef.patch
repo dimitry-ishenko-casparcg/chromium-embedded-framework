@@ -16,10 +16,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-16
 
-diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
+diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
 index 3c55265..c607c9a 100644
---- a/tools/automate/automate-git.py
-+++ b/tools/automate/automate-git.py
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
 @@ -1648,6 +1648,41 @@ if 'DEBIAN_BUILD' in os.environ:
    run("gclient sync --nohooks", chromium_dir)
    msg('Debian: gclient sync completed')

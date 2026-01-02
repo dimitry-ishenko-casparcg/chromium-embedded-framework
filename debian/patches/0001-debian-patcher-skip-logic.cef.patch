@@ -12,10 +12,10 @@ Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Forwarded: not-needed
 Last-Update: 2025-12-21
 
-diff --git a/tools/patcher.py b/tools/patcher.py
+diff --git a/cef/tools/patcher.py b/cef/tools/patcher.py
 index 9877ad7..5b0d899 100644
---- a/tools/patcher.py
-+++ b/tools/patcher.py
+--- a/cef/tools/patcher.py
++++ b/cef/tools/patcher.py
 @@ -47,6 +47,25 @@ def apply_patch_file(patch_file, patch_dir):
 
    result = git_apply_patch_file(patch_path, patch_dir)

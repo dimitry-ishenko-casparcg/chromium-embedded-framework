@@ -7,10 +7,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-29
 
-diff --git a/tools/automate/automate-git.py b/tools/automate/automate-git.py
+diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
 index 9f2f932..c107d75 100644
---- a/tools/automate/automate-git.py
-+++ b/tools/automate/automate-git.py
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
 @@ -1584,6 +1584,29 @@ if chromium_checkout_changed:
    # Patch the Chromium runhooks scripts if necessary.
    apply_runhooks_patch()

@@ -8,10 +8,10 @@ Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-29
 
-diff --git a/tools/gn_args.py b/tools/gn_args.py
+diff --git a/cef/tools/gn_args.py b/cef/tools/gn_args.py
 index 56c83bb..5cec1ab 100644
---- a/tools/gn_args.py
-+++ b/tools/gn_args.py
+--- a/cef/tools/gn_args.py
++++ b/cef/tools/gn_args.py
 @@ -353,7 +353,9 @@ def GetRequiredArgs():
    Return required GN args. Also enforced by assert() in //cef/BUILD.gn.
    """
