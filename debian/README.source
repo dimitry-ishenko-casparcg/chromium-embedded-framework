@@ -78,6 +78,54 @@ This component can be removed when Debian rust-src catches up to Chromium's
 expected Rust version.
 
 ================================================================================
+DESIGN DECISIONS
+================================================================================
+
+1. WHY FULL CHROMIUM SOURCE (not just headers)
+----------------------------------------------
+CEF uses internal Chromium APIs, not just the public API. For example:
+
+- CEF includes 43+ headers from content/browser/ (internal implementation)
+  rather than content/public/browser/ (stable public API)
+- libcef/browser/browser_host_base.cc includes internal headers like
+  content/browser/renderer_host/render_frame_host_impl.h
+- CEF's off-screen rendering extends content::RenderWidgetHostViewBase
+  from content/browser/renderer_host/render_widget_host_view_base.h
+
+These internal classes don't have stable ABIs and their implementation can
+change between Chromium versions. CEF hooks into Chromium's internal browser
+infrastructure, requiring source-level integration with a matching Chromium
+version. A headers-only approach (chromium-headers package) would not work
+because the ninja build targets depend on compiled Chromium object files.
+
+2. WHY DEPOT_TOOLS IS BUNDLED
+-----------------------------
+depot_tools is Google's build infrastructure for Chromium-based projects.
+CEF's automate-git.py script expects depot_tools for:
+- gclient: Dependency management and configuration
+- gn: Build file generation
+- autoninja: Parallel compilation wrapper
+
+NETWORK ISOLATION: This package does NOT access the internet during build.
+- Patch 0003-network-isolation-disable-google-storage-downloads makes
+  download_from_google_storage.py a no-op
+- The --no-depot-tools-update flag prevents upstream pulls
+- All source is bundled in the MUT tarballs
+
+The git clone commands in debian/rules error messages only explain how to
+obtain depot_tools if missing - they don't execute during normal builds.
+
+3. LOCAL GIT INITIALIZATION
+---------------------------
+debian/rules creates local git repositories with git init && git commit.
+This satisfies CEF's automate-git.py which expects git repositories for
+source directories. This is completely network-free but unusual for Debian.
+
+A cleaner approach would be patching automate-git.py to remove git
+requirements entirely, though the necessary changes would be complex
+for limited benefit.
+
+================================================================================
 CONFIGURATION DECISIONS
 ================================================================================
 

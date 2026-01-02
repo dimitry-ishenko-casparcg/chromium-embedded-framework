@@ -1,20 +1,39 @@
 version=4
 
-# CEF releases from Bitbucket
-# Note: uscan cannot easily track CEF as releases are tagged by Chromium version
-# The primary version is the CEF version (e.g., 138.0.1) not the Chromium version
+# CEF releases from Bitbucket git repository
+# CEF uses branch-based releases aligned with Chromium versions
+# Branch naming: e.g., branch 7499 corresponds to Chromium 143.x
 #
-# CEF release naming: cef_binary_VERSION+CHROMIUM_VERSION+COMMIT_linux64.tar.bz2
+# CEF version format: MAJOR.MINOR.PATCH (e.g., 138.0.1)
+# where MAJOR matches the Chromium milestone number
+#
+# CEF binary naming convention:
+# cef_binary_VERSION+gCOMMIT+chromium-CHROMIUM_VERSION_linux64.tar.bz2
 # Example: cef_binary_138.0.4+gb2ac72b+chromium-143.0.7499.130_linux64.tar.bz2
 #
-# For manual tracking:
-# https://bitbucket.org/chromiumembedded/cef/downloads/?tab=branches
+# Manual tracking resources:
+# - Branches: https://bitbucket.org/chromiumembedded/cef/branches/
+# - Downloads: https://bitbucket.org/chromiumembedded/cef/downloads/
+# - Spotify builds: https://cef-builds.spotifycdn.com/index.html
 
 opts="mode=git,pgpmode=none" \
   https://bitbucket.org/chromiumembedded/cef.git \
-  refs/tags/(\d+\.\d+)
+  refs/tags/(\d+\.\d+\.\d+)
 
-# Note: Additional MUT components require manual updates:
-# - orig-chromium.tar.xz: Tracks Debian Chromium package version
-# - orig-depot_tools.tar.xz: Bundled with CEF source
-# - orig-rust.tar.xz: Tracks Chromium's expected Rust version (see DEPS)
+# MUT Component Tracking:
+#
+# orig-chromium.tar.xz:
+#   Tracks Debian chromium package version
+#   Source: apt source chromium (pre-patched with Debian patches)
+#   Update when: Debian uploads new chromium version matching CEF branch
+#
+# orig-depot-tools.tar.xz:
+#   Google's depot_tools build system
+#   Source: https://chromium.googlesource.com/chromium/tools/depot_tools
+#   Update when: CEF requires newer depot_tools features
+#
+# orig-rust.tar.xz:
+#   Rust standard library source (interim bundled dependency)
+#   Source: https://github.com/nickel-lang/nickel (Chromium's Rust deps)
+#   Update when: Chromium updates its expected Rust version
+#   Can be removed when: Debian rust-src provides required files
