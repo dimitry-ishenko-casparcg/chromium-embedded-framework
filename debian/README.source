@@ -46,7 +46,7 @@ Standard Build (from source package):
 
 The MUT components are automatically extracted by dpkg-source -x.
 
-Build Time: ~7+ hours (depends on hardware)
+Build Time: ~2-7 hours (depends on hardware; 2h on modern 24-core, 7h+ on older systems)
 Disk Space: ~40 GB required
 
 ================================================================================
@@ -63,6 +63,11 @@ Branch: Must match Chromium's build number (e.g., branch 7499 for Chromium 143.x
 Obtained from: Debian chromium package source
 Command: apt-get source --download-only chromium
 Rename: mv chromium_*.orig.tar.xz chromium-embedded-framework_VERSION.orig-chromium.tar.xz
+
+NOTE: This tarball contains vanilla Chromium source. The Debian Chromium patches
+(from chromium_*.debian.tar.xz) are applied during the build in Step 5.5 of
+debian/rules. This ensures CEF builds with the same system integration patches
+that Debian Chromium uses (libc++, system libraries, build fixes, etc.).
 
 3. depot-tools (orig-depot-tools.tar.xz)
 ----------------------------------------
@@ -129,16 +134,68 @@ for limited benefit.
 CONFIGURATION DECISIONS
 ================================================================================
 
-1. SYSTEM LIBC++ (use_custom_libcxx=false)
+1. RAM-BASED PARALLEL JOB LIMITING
+----------------------------------
+CEF/Chromium compilation requires ~3GB RAM per parallel job. The build system
+automatically limits ninja parallelism based on available RAM to prevent OOM
+killer from terminating the build.
+
+Implementation in debian/rules:
+- Respects DEB_BUILD_OPTIONS=parallel=N if set (never increases beyond it)
+- Calculates safe jobs based on available RAM (~3GB per job)
+- Uses minimum of requested and RAM-safe values
+- Considers cgroup memory limits for containerized builds (buildds)
+
+Example behavior:
+| Machine         | RAM   | CPUs | DEB_BUILD_OPTIONS | Resulting Jobs |
+|-----------------|-------|------|-------------------|----------------|
+| Dev workstation | 64GB  | 24   | (none)            | 21 (64/3)      |
+| Dev workstation | 64GB  | 24   | parallel=8        | 8              |
+| Small buildd    | 16GB  | 8    | parallel=8        | 5 (16/3)       |
+| Large buildd    | 128GB | 64   | parallel=64       | 42 (128/3)     |
+
+This follows established Debian patterns:
+- llvm-toolchain-19: https://sources.debian.org/src/llvm-toolchain-19/1:19.1.4-1/debian/rules/#L92
+- polymake (4GB/job): https://sources.debian.org/src/polymake/4.12-3/debian/rules/?hl=15#L15
+- Pending debhelper MR: https://salsa.debian.org/debian/debhelper/-/merge_requests/128
+
+2. DISTRIBUTION CONFIGURATION (--minimal-distrib-only)
+------------------------------------------------------
+CEF's automate-git.py can create multiple distribution types (standard, minimal,
+client, sandbox, tools). This package uses --minimal-distrib-only to create
+only the minimal distribution.
+
+Why minimal-only:
+- Creates only 1 distribution command (vs 2+ with --minimal-distrib)
+- Avoids parallel execution of make_distrib.py processes
+- Skips doxygen documentation generation (saves 1-2GB memory)
+- Prevents OOM during distribution phase on memory-constrained systems
+- Minimal distribution contains everything needed for Debian packages:
+  * libcef.so (Release build)
+  * Headers (include/)
+  * CMake configuration files
+  * Resources (PAK files, locales, ICU data)
+  * ANGLE libraries (libEGL.so, libGLESv2.so)
+
+What minimal excludes (not needed for Debian packages):
+- Debug build (libcef.so with debug symbols - we use dh_strip instead)
+- Test applications (cefclient, ceftests)
+- Doxygen documentation
+
+IMPORTANT: The --minimal-distrib flag (without -only) creates BOTH standard
+and minimal distributions, which can trigger parallel execution and OOM.
+Always use --minimal-distrib-only for single-distribution builds.
+
+3. SYSTEM LIBC++ (use_custom_libcxx=false)
 ------------------------------------------
 Uses Debian's libc++-19-dev instead of bundled libc++.
 Aligns with Debian Chromium's approach.
 
-2. SYSTEM LLVM/CLANG (clang-19)
+4. SYSTEM LLVM/CLANG (clang-19)
 -------------------------------
 Uses Debian's clang-19 toolchain. No bundled compiler.
 
-3. SYSTEM FFMPEG (is_component_ffmpeg=true)
+5. SYSTEM FFMPEG (is_component_ffmpeg=true)
 -------------------------------------------
 Uses system FFmpeg for media codecs.
 Enables H.264/AAC when user installs libavcodec-extra.
@@ -152,6 +209,12 @@ CEF Patches (debian/patches/*.cef.patch)
 Applied via quilt during dpkg-source extraction.
 Patch paths have cef/ prefix (e.g., cef/tools/automate/automate-git.py).
 See debian/patches/series for the order.
+
+Key patches:
+- 0017-sequential-distribution-commands.cef.patch: Forces sequential execution
+  of make_distrib.py even when multiple distribution types are requested.
+  This prevents OOM by avoiding parallel file copying operations. With
+  --minimal-distrib-only this patch is redundant but provides a safety net.
 
 Chromium Patches (debian/patches/chromium/*.chromium.patch)
 -----------------------------------------------------------
@@ -178,6 +241,46 @@ Updating LLVM Version:
 1. Update Build-Depends in debian/control
 2. Update CLANG_MVERS in debian/rules
 3. Update patch 0012-bindgen-libclang-abspath.chromium.patch
+
+================================================================================
+FUTURE MIGRATION (When chromium-source package exists)
+================================================================================
+
+When the Debian Chromium team provides a chromium-source binary package:
+
+Migration Steps:
+1. Remove `orig-chromium.tar.xz` from MUT tarballs
+2. Add `Build-Depends: chromium-source` to debian/control
+3. Modify Step 5 in debian/rules to copy from /usr/src/chromium/ (or wherever
+   the chromium-source package installs the source)
+4. Adjust Step 5.5 based on the source package format (see below)
+
+Handling Different Source Formats:
+---------------------------------
+
+The chromium-source package may provide source in two formats:
+
+A) VANILLA SOURCE (pristine upstream):
+   - Keep Step 5.5 to apply Debian Chromium patches during build
+   - Extract patches from the chromium-source package or debian.tar.xz
+   - This is identical to our current approach
+
+B) PRE-PATCHED SOURCE (Debian patches already applied):
+   - Remove or disable Step 5.5 (patches already in source)
+   - Update this documentation to note patches are pre-applied
+   - Verify all expected patches are included
+
+Detection: Check the chromium-source package documentation or test by:
+   grep -l "libcxx" /usr/src/chromium/build/config/BUILDCONFIG.gn
+   - If found: source is VANILLA (needs Step 5.5)
+   - If not found: source is PRE-PATCHED (skip Step 5.5)
+
+Why Migration is Straightforward:
+---------------------------------
+- Our Step 5.5 patch infrastructure handles both scenarios
+- All Debian Chromium patches are applied visibly during build
+- debian/rules already handles system library integration
+- No hidden modifications in our tarballs
 
 ================================================================================
 REFERENCES

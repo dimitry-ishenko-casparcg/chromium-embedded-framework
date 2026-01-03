@@ -3,8 +3,91 @@
 # Align with Debian Chromium configuration (chromium_143.0.7499.169-1.debian.tar.xz)
 # Reference: /tmp/chromium-debian-reference/debian/rules
 
+include /usr/share/dpkg/buildopts.mk
+
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEBIAN_BUILD = 1
+
+## ============================================================================
+## RAM-BASED PARALLEL JOB LIMITING
+## ============================================================================
+## CEF/Chromium compilation requires ~3GB RAM per parallel job. Without limiting,
+## ninja uses all CPU cores which can exhaust RAM and trigger OOM killer.
+##
+## This follows established Debian patterns:
+## - llvm-toolchain-19: https://sources.debian.org/src/llvm-toolchain-19/1:19.1.4-1/debian/rules/#L92
+## - polymake (4GB/job): https://sources.debian.org/src/polymake/4.12-3/debian/rules/?hl=15#L15
+## - Pending debhelper MR: https://salsa.debian.org/debian/debhelper/-/merge_requests/128
+##
+## Behavior:
+## - Respects DEB_BUILD_OPTIONS=parallel=N if set (never increases beyond it)
+## - Calculates safe jobs based on available RAM (~3GB per job)
+## - Uses the minimum of requested and RAM-safe values
+## - Considers cgroup memory limits for containerized builds (buildds)
+## ============================================================================
+
+# RAM required per compilation job (in MB) - conservative estimate for Chromium
+# Increased to 4GB to account for linking phases (libcef.so linking needs ~8GB alone)
+# and to leave headroom for system processes to avoid OOM killer
+CEF_RAM_PER_JOB_MB := 4096
+
+# Get requested parallelism from DEB_BUILD_OPTIONS (via buildopts.mk) or nproc
+ifdef DEB_BUILD_OPTION_PARALLEL
+    REQUESTED_JOBS := $(DEB_BUILD_OPTION_PARALLEL)
+else
+    REQUESTED_JOBS := $(shell nproc 2>/dev/null || echo 1)
+endif
+
+# Calculate RAM-based limit, considering cgroup limits for containerized builds
+# Check cgroup v2 first, then v1, then fall back to /proc/meminfo
+MEM_LIMIT_BYTES := $(shell cat /sys/fs/cgroup/memory.max 2>/dev/null | grep -v max || \
+                          cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || \
+                          echo 0)
+MEM_TOTAL_KB := $(shell awk '/MemTotal/ {print $$2}' /proc/meminfo 2>/dev/null || echo 0)
+
+# Reserved memory for system processes (kernel, desktop, Claude, etc.)
+# This prevents OOM killer from terminating unrelated processes during build
+CEF_SYSTEM_RESERVE_MB := 8192
+
+# Use cgroup limit if set and smaller than total RAM, otherwise use total RAM
+# Convert to MB for calculation, then subtract system reserve
+RAM_AVAILABLE_MB := $(shell \
+    cgroup_mb=$$(($(MEM_LIMIT_BYTES) / 1024 / 1024)); \
+    total_mb=$$(($(MEM_TOTAL_KB) / 1024)); \
+    reserve=$(CEF_SYSTEM_RESERVE_MB); \
+    if [ "$$cgroup_mb" -gt 0 ] && [ "$$cgroup_mb" -lt "$$total_mb" ] 2>/dev/null; then \
+        available=$$((cgroup_mb - reserve)); \
+    else \
+        available=$$((total_mb - reserve)); \
+    fi; \
+    [ "$$available" -lt 4096 ] && available=4096; \
+    echo "$$available")
+
+# Calculate safe number of jobs based on RAM
+RAM_SAFE_JOBS := $(shell \
+    jobs=$$(($(RAM_AVAILABLE_MB) / $(CEF_RAM_PER_JOB_MB))); \
+    [ "$$jobs" -lt 1 ] && jobs=1; \
+    echo "$$jobs")
+
+# Use the lesser of requested and RAM-safe (never increase beyond requested)
+NINJA_JOBS := $(shell \
+    if [ "$(REQUESTED_JOBS)" -lt "$(RAM_SAFE_JOBS)" ] 2>/dev/null; then \
+        echo "$(REQUESTED_JOBS)"; \
+    else \
+        echo "$(RAM_SAFE_JOBS)"; \
+    fi)
+
+# Calculate the offset needed for autoninja's NINJA_CORE_ADDITION
+# autoninja.py calculates: j_value = num_cores + NINJA_CORE_ADDITION (default +2)
+# We want: j_value = NINJA_JOBS (our RAM-safe value)
+# So: NINJA_CORE_ADDITION = NINJA_JOBS - num_cores
+# Note: nproc is from coreutils (Essential package, always available)
+NUM_CORES := $(shell nproc 2>/dev/null || echo 1)
+CORE_ADDITION := $(shell echo $$(($(NINJA_JOBS) - $(NUM_CORES))))
+export NINJA_CORE_ADDITION := $(CORE_ADDITION)
+
+# Debug output (visible in build logs)
+$(info CEF Build: RAM=$(RAM_AVAILABLE_MB)MB, Requested=$(REQUESTED_JOBS) jobs, RAM-safe=$(RAM_SAFE_JOBS) jobs, Using=$(NINJA_JOBS) jobs, NINJA_CORE_ADDITION=$(CORE_ADDITION))
 
 # Enable unstable Rust features with stable rustc (from Debian chromium line 67)
 # Chromium uses -Z flags (nightly-only) but Debian only provides stable rustc
@@ -19,6 +102,8 @@ export CC = clang-19
 export CXX = clang++-19
 
 # Debian hardening flags (from Debian Chromium lines 39-42)
+# Strip -g from both CFLAGS and CXXFLAGS to avoid debug info bloating libcef.so
+export DEB_CFLAGS_MAINT_STRIP=-g
 export DEB_CXXFLAGS_MAINT_STRIP=-g
 
 # Standard build flags with system libc++ support
@@ -155,15 +240,16 @@ override_dh_auto_build:
 	sed -i "s/143\.0\.7499\.[0-9]*/143.0.7499.169/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
-	# Step 5: Copy Chromium source from MUT-extracted directory
+	# Step 5: Move Chromium source from MUT-extracted directory
 	# MUT (Multiple Upstream Tarball) extracts orig-chromium.tar.xz to chromium/
 	# The tarball has source at root level (base/, build/, chrome/, etc.)
 	# CEF expects: chromium_src/chromium/src/ (see automate-git.py line 1227)
-	# NOTE: Use "chromium/." to include hidden files like .gn, .gitignore
-	@echo "==> Copying Chromium source from MUT-extracted directory"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src
-	cp -a $(CURDIR)/chromium/. $(CURDIR)/chromium_src/chromium/src/
-	@echo "==> Chromium copied successfully"
+	# Use mv (not cp -a) to avoid reading/writing 5.6GB which fills page cache
+	# Pre-MUT used tar -xf + mv approach; this matches that behavior
+	@echo "==> Moving Chromium source from MUT-extracted directory"
+	mkdir -p $(CURDIR)/chromium_src/chromium
+	mv $(CURDIR)/chromium $(CURDIR)/chromium_src/chromium/src
+	@echo "==> Chromium moved successfully"
 
 	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
 	# Source: debian/rules lines 186-191 from Debian Chromium package
@@ -177,12 +263,27 @@ override_dh_auto_build:
 		ln -s /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3
 	@echo "==> Node.js and rollup3 symlink created"
 
-	# Step 5.5: NOT NEEDED - Chromium tarball is pre-patched
-	# The MUT orig-chromium.tar.xz contains Debian Chromium source with all
-	# Debian patches (debianization, fixes, system, etc.) already applied.
-	# This is a temporary approach until Debian Chromium provides proper
-	# source packages for CEF to depend on.
-	# See: 033_PLAN_mut-format-migration.md for details.
+	# Step 5.5: Apply Debian Chromium patches to vanilla source
+	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
+	# Extract Debian Chromium packaging (includes patches and build configuration)
+	@echo "==> Applying Debian Chromium patches for system integration"
+	tar -xf $(CURDIR)/../chromium_143.0.7499.169-1.debian.tar.xz \
+		-C $(CURDIR)/chromium_src/chromium/
+	# Apply debianization patches (system libraries, build fixes, security patches)
+	@cd $(CURDIR)/chromium_src/chromium/src && \
+		for patch_dir in debianization fixes system; do \
+			if [ -d "../debian/patches/$$patch_dir" ]; then \
+				for patch in ../debian/patches/$$patch_dir/*.patch; do \
+					[ -f "$$patch" ] && { \
+						echo "Applying $$patch"; \
+						patch -p1 < "$$patch" || { \
+							echo "WARNING: Patch $$patch failed, continuing..."; \
+						}; \
+					}; \
+				done; \
+			fi; \
+		done
+	@echo "==> Debian Chromium patches applied successfully"
 
 	# Step 6: Initialize git repository in chromium (required by automate-git.py)
 	@echo "==> Initializing git repository in chromium source"
@@ -996,7 +1097,7 @@ override_dh_auto_build:
 		--x64-build \
 		--no-debug-build \
 		--no-distrib-archive \
-		--minimal-distrib
+		--minimal-distrib-only
 
 override_dh_auto_install:
 	# Create package directories first
@@ -1004,8 +1105,8 @@ override_dh_auto_install:
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include
 	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef
 
-	# Install libcef.so (use _linux64 pattern to exclude _linux64_minimal)
-	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libcef.so \
+	# Install libcef.so (use _linux64_minimal pattern for minimal-only distribution)
+	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libcef.so \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
 
 	# Add RPATH for CEF's private ANGLE libraries (libEGL.so, libGLESv2.so)
@@ -1026,45 +1127,45 @@ override_dh_auto_install:
 	ln -s libcef.so.138.0.1 \
 		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138
 
-	# Install headers (use _linux64 pattern to exclude _linux64_minimal)
+	# Install headers (use _linux64_minimal pattern for minimal-only distribution)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
-	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/include \
+	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/include \
 		$(CURDIR)/debian/libcef-dev/usr/include/cef
 
-	# Install cmake config files if they exist (use _linux64 pattern)
-	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/cmake ]; then \
+	# Install cmake config files if they exist (use _linux64_minimal pattern)
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/cmake ]; then \
 		mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
-		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/cmake/* \
+		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/cmake/* \
 			$(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
 	fi
 
-	# Install resources (PAK files) - use _linux64 pattern
+	# Install resources (PAK files) - use _linux64_minimal pattern
 	# PAK files are in Resources/ directory, NOT Release/
 	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/*.pak \
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/*.pak \
 		$(CURDIR)/debian/cef-resources/usr/share/cef/
 
-	# Install ICU data file (CRITICAL for internationalization) - use _linux64 pattern
+	# Install ICU data file (CRITICAL for internationalization) - use _linux64_minimal pattern
 	# icudtl.dat is in Resources/ directory, NOT Release/
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/icudtl.dat \
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/icudtl.dat \
 		$(CURDIR)/debian/cef-resources/usr/share/cef/
 
-	# Install V8 context snapshot (CRITICAL for JavaScript) - use _linux64 pattern
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/v8_context_snapshot.bin \
+	# Install V8 context snapshot (CRITICAL for JavaScript) - use _linux64_minimal pattern
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/v8_context_snapshot.bin \
 		$(CURDIR)/debian/cef-resources/usr/share/cef/ || true
 
-	# Install locales - use _linux64 pattern
+	# Install locales - use _linux64_minimal pattern
 	# Locales are in Resources/ directory, NOT Release/
-	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/locales ]; then \
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/locales ]; then \
 		mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
-		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Resources/locales/*.pak \
+		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/locales/*.pak \
 			$(CURDIR)/debian/cef-resources/usr/share/cef/locales/; \
 	fi
 
 	# Install other required libraries from Release directory
 	# Skip libvulkan.so (conflicts with system libvulkan1 package)
 	# Note: libEGL.so and libGLESv2.so are ANGLE libraries (NOT Mesa) - installed separately below
-	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*/Release/*.so*; do \
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/*.so*; do \
 		libname="$$(basename $$lib)"; \
 		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
 		   ! echo "$$libname" | grep -qE '^lib(EGL|GLESv2|vulkan)\.so'; then \
@@ -1079,8 +1180,8 @@ override_dh_auto_install:
 	# Installing to /usr/lib/x86_64-linux-gnu/cef/ avoids conflicts with system Mesa (libegl1, libgles2).
 	# Applications using CEF should set LD_LIBRARY_PATH or use rpath to find these.
 	mkdir -p $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/cef/
-	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libEGL.so \
-	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/libGLESv2.so; do \
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libEGL.so \
+	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libGLESv2.so; do \
 		if [ -f "$$lib" ]; then \
 			install -m644 "$$lib" $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/cef/; \
 		fi \
@@ -1098,7 +1199,7 @@ override_dh_auto_install:
 	# for security. Users who need sandbox support should either:
 	# - Run the application with --no-sandbox flag, OR
 	# - Configure setuid permissions manually: sudo chown root:root /usr/lib/cef/chrome-sandbox && sudo chmod 4755 /usr/lib/cef/chrome-sandbox
-	for sandbox in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64/Release/chrome-sandbox; do \
+	for sandbox in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/chrome-sandbox; do \
 		if [ -f "$$sandbox" ]; then \
 			mkdir -p $(CURDIR)/debian/libcef138/usr/lib/cef/; \
 			install -m755 "$$sandbox" $(CURDIR)/debian/libcef138/usr/lib/cef/chrome-sandbox; \

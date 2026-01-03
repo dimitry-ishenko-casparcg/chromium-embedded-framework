@@ -1,0 +1,29 @@
+Description: Run distribution commands sequentially instead of in parallel
+ This prevents OOM killer from terminating the build during the distribution
+ phase on memory-constrained systems. Parallel execution of make_distrib.py
+ can exhaust memory when copying large files like libcef.so (467MB+).
+ .
+ The sequential execution runs one distribution command at a time, reducing
+ peak memory usage at the cost of slightly longer build times.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-01-03
+
+diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
+index 0828a90..9ce3557 100644
+--- a/cef/tools/automate/automate-git.py
++++ b/cef/tools/automate/automate-git.py
+@@ -1998,7 +1998,8 @@ if not options.nodistrib and (chromium_checkout_changed or \
+     command = commands[0]
+     run(command[0], command[1])
+   elif commands_ct > 1:
+-    success_ct = run_parallel(commands)
+-    if success_ct != commands_ct:
+-      print(_stderr_msg(f'ERROR {commands_ct-success_ct} of {commands_ct} commands failed!'))
+-      sys.exit(1)
++    # Run distributions sequentially to avoid memory pressure during file copying.
++    # Parallel execution (run_parallel) can trigger OOM killer on memory-constrained
++    # systems when copying large files like libcef.so (467MB+).
++    for command in commands:
++      run(command[0], command[1])
