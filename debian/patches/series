@@ -13,3 +13,4 @@
 0014-disable-assert-redefinition-cef-logging.cef.patch
 0015-add-debian-cef-rpath-for-angle.cef.patch
 0016-use-full-path-autoninja-dpkg.cef.patch
+0017-sequential-distribution-commands.cef.patch
