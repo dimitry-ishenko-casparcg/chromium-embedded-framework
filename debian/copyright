@@ -2,12 +2,6 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: Chromium Embedded Framework
 Upstream-Contact: Marshall A. Greenblatt <magreenblatt@gmail.com>
 Source: https://bitbucket.org/chromiumembedded/cef
-Comment: This package uses Multiple Upstream Tarballs (MUT) format with components:
- - Main tarball: CEF source
- - chromium component: Chromium browser source (from Debian chromium package)
- - depot-tools component: Google's build tools
- - rust component: Rust standard library source (interim bundled dependency)
-
 Files-Excluded:
  depot-tools/*.exe
  depot-tools/win_tools*
@@ -18,8 +12,12 @@ Files-Excluded:
  *.wasm
  *.jar
  *.apk
+Comment: This package uses Multiple Upstream Tarballs (MUT) format with components:
+ - Main tarball: CEF source
+ - chromium component: Chromium browser source (from Debian chromium package)
+ - depot-tools component: Google's build tools
+ - rust component: Rust standard library source (interim bundled dependency)
 
-# === CEF Source (main tarball) ===
 Files: *
 Copyright: 2008-2025 The Chromium Embedded Framework Authors
            2006-2009 Google Inc.
@@ -30,7 +28,6 @@ Copyright: 2008-2025 The Chromium Embedded Framework Authors
            2006-2009 Google Inc.
 License: BSD-3-Clause
 
-# === Chromium Component ===
 Files: chromium/*
 Copyright: The Chromium Authors
 License: BSD-3-Clause
@@ -39,8 +36,10 @@ Comment: Chromium source from Debian chromium package.
  applied. For complete third-party licensing details, see the chromium
  package's copyright file (/usr/share/doc/chromium/copyright).
 
-# Chromium third-party: boto library (AWS SDK for Python)
-# Located in: chromium/third_party/depot_tools/external_bin/gsutil/gslib/vendored/boto/
+Files: chromium/third_party/depot_tools/external_bin/gsutil/*
+Copyright: Google Inc.
+License: Apache-2.0
+
 Files: chromium/third_party/depot_tools/external_bin/gsutil/*/gslib/vendored/boto/*
 Copyright: 2006-2016 Mitch Garnaat <mitch@garnaat.org>
            2008-2011 Chris Moyer <cmoyer@newstex.com>
@@ -50,12 +49,6 @@ Copyright: 2006-2016 Mitch Garnaat <mitch@garnaat.org>
            2011 Blue Pines Technologies LLC, Brad Carleton
 License: MIT
 
-# Chromium third-party: gsutil (Google Cloud Storage utility)
-Files: chromium/third_party/depot_tools/external_bin/gsutil/*
-Copyright: Google Inc.
-License: Apache-2.0
-
-# === depot-tools Component ===
 Files: depot-tools/*
 Copyright: 2009-2025 The Chromium Authors
 License: BSD-3-Clause
@@ -72,7 +65,6 @@ Files: depot-tools/third_party/repo/*
 Copyright: 2008 The Android Open Source Project
 License: Apache-2.0
 
-# === Rust Component (interim bundled dependency) ===
 Files: rust/*
 Copyright: The Rust Project Developers
 License: Apache-2.0 or MIT
@@ -81,13 +73,11 @@ Comment: Bundled Rust standard library source. Required because Debian rust-src
  (sync/nonpoison/condvar.rs, rwlock.rs). This component can be removed when
  Debian rust-src provides these files.
 
-# Rust vendored crates: Windows API bindings
 Files: rust/lib/rustlib/src/rust/library/vendor/windows-targets-*/*
        rust/lib/rustlib/src/rust/library/vendor/windows_*/*
 Copyright: Microsoft Corporation
 License: Apache-2.0 or MIT
 
-# Rust vendored crates: Core utilities by Alex Crichton
 Files: rust/lib/rustlib/src/rust/library/vendor/cfg-if-*/*
        rust/lib/rustlib/src/rust/library/vendor/cc-*/*
        rust/lib/rustlib/src/rust/library/vendor/dlmalloc-*/*
@@ -96,7 +86,6 @@ Files: rust/lib/rustlib/src/rust/library/vendor/cfg-if-*/*
 Copyright: 2014 Alex Crichton
 License: Apache-2.0 or MIT
 
-# Rust vendored crates: memchr (fast byte searching)
 Files: rust/lib/rustlib/src/rust/library/vendor/memchr-*/*
        rust/lib/rustlib/src/rust/library/core/src/slice/memchr.rs
 Copyright: 2015 Andrew Gallant
@@ -104,37 +93,30 @@ Copyright: 2015 Andrew Gallant
            2015 Nicolas Koch
 License: MIT
 
-# Rust compiler-builtins: libm math functions
 Files: rust/lib/rustlib/src/rust/library/compiler-builtins/libm/*
 Copyright: 1993, 2004 Sun Microsystems, Inc.
 License: MIT
 Comment: Mathematical functions derived from Sun's fdlibm library.
  See rust/lib/rustlib/src/rust/library/compiler-builtins/libm/LICENSE.txt
 
-# Rust vendored crates: miniz_oxide (compression library)
 Files: rust/lib/rustlib/src/rust/library/vendor/miniz_oxide-*/*
 Copyright: 2017-2024 oyvindln
            2013-2014 RAD Game Tools and Valve Software
            2010-2014 Rich Geldreich and Tenacious Software LLC
 License: Apache-2.0 or MIT
 
-# Rust vendored crates: rand (random number generation)
 Files: rust/lib/rustlib/src/rust/library/vendor/rand-*/*
        rust/lib/rustlib/src/rust/library/vendor/rand_core-*/*
 Copyright: 2018 Developers of the Rand project
 License: Apache-2.0 or MIT
 
-# Rust vendored crates: gimli (DWARF debugging format parser)
 Files: rust/lib/rustlib/src/rust/library/vendor/gimli-*/*
 Copyright: 2015-2018 The gimli Developers
 License: Apache-2.0 or MIT
 
-# === Debian Packaging ===
 Files: debian/*
 Copyright: 2025-2026 Juan Manuel Méndez Rey <vejeta@gmail.com>
 License: BSD-3-Clause
-
-# === License Texts ===
 
 License: BSD-3-Clause
  Redistribution and use in source and binary forms, with or without

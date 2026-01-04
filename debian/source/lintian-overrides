@@ -22,3 +22,29 @@ chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-seri
 
 # Patch 0009 is conditionally used and may be disabled in some configurations.
 chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/0009-update-cef-mac-frame-patch.cef.patch]
+
+# =============================================================================
+# CHROMIUM BUNDLED THIRD-PARTY LICENSE ISSUES
+# =============================================================================
+# These files are part of Chromium's bundled third-party code. The same issues
+# exist in the Debian chromium package. We cannot modify upstream Chromium
+# source to fix these licensing concerns.
+
+# ConvertUTF code has a restrictive Unicode license that lintian flags.
+# This is bundled in Chromium's breakpad and SwiftShader LLVM copy.
+# Same issue exists in Debian chromium package.
+chromium-embedded-framework source: license-problem-convert-utf-code [chromium/third_party/breakpad/breakpad/src/common/convert_UTF.cc]
+chromium-embedded-framework source: license-problem-convert-utf-code [chromium/third_party/swiftshader/third_party/llvm-16.0/llvm/lib/Support/ConvertUTF.cpp]
+
+# IETF RFC test files have BCP78 license restrictions.
+# These are test fixtures in Chromium's readability library, not shipped in binary.
+chromium-embedded-framework source: license-problem-non-free-RFC-BCP78 [chromium/third_party/readability/src/test/test-pages/ietf-1/expected.html]
+chromium-embedded-framework source: license-problem-non-free-RFC-BCP78 [chromium/third_party/readability/src/test/test-pages/ietf-1/source.html]
+
+# GTK demo appdata files declare CC0-1.0 license in their metadata, but our
+# debian/copyright lists chromium/* as BSD-3-Clause. These are Chromium bundled
+# wayland-protocols demos, not shipped in the binary package.
+chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/gtk-demo/org.gtk.Demo4.appdata.xml]
+chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/icon-browser/org.gtk.IconBrowser4.appdata.xml]
+chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/print-editor/org.gtk.PrintEditor4.appdata.xml]
+chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/widget-factory/org.gtk.WidgetFactory4.appdata.xml]
