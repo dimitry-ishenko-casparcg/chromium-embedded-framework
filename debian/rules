@@ -968,30 +968,31 @@ override_dh_auto_build:
 	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
 	@echo "==> Node.js symlink created successfully"
 
-	## Step 7e: Copy complete Rust std library from MUT-extracted directory
-	## Why: Chromium requires NEWER Rust std library than Debian 1.90.0 provides
-	## Debian's rust-src (1.90.0) is missing files like:
-	##   - sync/nonpoison/condvar.rs, rwlock.rs (newer std library features)
+	## Step 7e: Copy Rust std library from system rust-src package
+	## Why: Chromium requires Rust std library source for compilation
+	## Debian rust-src (1.91.1+) now includes all required files:
+	##   - sync/nonpoison/condvar.rs, rwlock.rs (added in 1.91.x)
 	##   - cross-platform files (cygwin/net.rs, darwin/objc.rs - these we'll stub)
-	## Solution: Use rust std library from MUT-extracted rust/ directory
-	## MUT extracts orig-rust.tar.xz to rust/
-	@echo "==> Copying complete Rust std library from MUT-extracted directory"
-	@if [ ! -d $(CURDIR)/rust/lib/rustlib/src/rust/library ]; then \
-		echo "❌ ERROR: MUT-extracted rust directory not found"; \
-		echo "Expected location: $(CURDIR)/rust/lib/rustlib/src/rust/library"; \
+	## Solution: Use system rust-src from /usr/src/rustc-*/library/
+	## Build-Depends: rust-src (ensures package is installed)
+	@echo "==> Copying Rust std library from system rust-src package"
+	@# Find system rust-src library directory dynamically
+	@RUST_SRC_LIB=$$(ls -d /usr/src/rustc-*/library 2>/dev/null | tail -1); \
+	if [ -z "$$RUST_SRC_LIB" ] || [ ! -d "$$RUST_SRC_LIB" ]; then \
+		echo "❌ ERROR: System rust-src not found"; \
+		echo "Please install rust-src package: apt install rust-src"; \
 		exit 1; \
-	fi
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/
-	# Copy the library/ directory from MUT-extracted rust/
-	# This contains ALL std library crates (alloc, core, std, etc.) at correct versions
-	cp -a $(CURDIR)/rust/lib/rustlib/src/rust/library \
-		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/
-	@echo "==> Complete Rust std library copied from MUT-extracted directory"
-	@# Verify critical files exist (condvar.rs was missing in Debian 1.90.0)
-	@if [ -f $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs ]; then \
-		echo "✅ Verified: condvar.rs exists (was missing in Debian rust-src 1.90.0)"; \
+	fi; \
+	echo "Found system rust-src at: $$RUST_SRC_LIB"; \
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/; \
+	cp -a "$$RUST_SRC_LIB" \
+		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/; \
+	echo "==> Rust std library copied from system rust-src"; \
+	if [ -f $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs ]; then \
+		echo "✅ Verified: condvar.rs exists (requires rust-src >= 1.91.1)"; \
 	else \
-		echo "❌ ERROR: condvar.rs still missing after extraction"; \
+		echo "❌ ERROR: condvar.rs missing - rust-src version too old"; \
+		echo "Required: rust-src >= 1.91.1"; \
 		exit 1; \
 	fi
 	@echo "==> Creating symlink to system rustc in third_party/rust-toolchain/bin/"

@@ -16,7 +16,6 @@ Comment: This package uses Multiple Upstream Tarballs (MUT) format with componen
  - Main tarball: CEF source
  - chromium component: Chromium browser source (from Debian chromium package)
  - depot-tools component: Google's build tools
- - rust component: Rust standard library source (interim bundled dependency)
 
 Files: *
 Copyright: 2008-2025 The Chromium Embedded Framework Authors
@@ -64,55 +63,6 @@ License: MIT
 Files: depot-tools/third_party/repo/*
 Copyright: 2008 The Android Open Source Project
 License: Apache-2.0
-
-Files: rust/*
-Copyright: The Rust Project Developers
-License: Apache-2.0 or MIT
-Comment: Bundled Rust standard library source. Required because Debian rust-src
- 1.90.0 is missing files that Chromium's build system expects
- (sync/nonpoison/condvar.rs, rwlock.rs). This component can be removed when
- Debian rust-src provides these files.
-
-Files: rust/lib/rustlib/src/rust/library/vendor/windows-targets-*/*
-       rust/lib/rustlib/src/rust/library/vendor/windows_*/*
-Copyright: Microsoft Corporation
-License: Apache-2.0 or MIT
-
-Files: rust/lib/rustlib/src/rust/library/vendor/cfg-if-*/*
-       rust/lib/rustlib/src/rust/library/vendor/cc-*/*
-       rust/lib/rustlib/src/rust/library/vendor/dlmalloc-*/*
-       rust/lib/rustlib/src/rust/library/vendor/rustc-demangle-*/*
-       rust/lib/rustlib/src/rust/library/backtrace/*
-Copyright: 2014 Alex Crichton
-License: Apache-2.0 or MIT
-
-Files: rust/lib/rustlib/src/rust/library/vendor/memchr-*/*
-       rust/lib/rustlib/src/rust/library/core/src/slice/memchr.rs
-Copyright: 2015 Andrew Gallant
-           2015 bluss
-           2015 Nicolas Koch
-License: MIT
-
-Files: rust/lib/rustlib/src/rust/library/compiler-builtins/libm/*
-Copyright: 1993, 2004 Sun Microsystems, Inc.
-License: MIT
-Comment: Mathematical functions derived from Sun's fdlibm library.
- See rust/lib/rustlib/src/rust/library/compiler-builtins/libm/LICENSE.txt
-
-Files: rust/lib/rustlib/src/rust/library/vendor/miniz_oxide-*/*
-Copyright: 2017-2024 oyvindln
-           2013-2014 RAD Game Tools and Valve Software
-           2010-2014 Rich Geldreich and Tenacious Software LLC
-License: Apache-2.0 or MIT
-
-Files: rust/lib/rustlib/src/rust/library/vendor/rand-*/*
-       rust/lib/rustlib/src/rust/library/vendor/rand_core-*/*
-Copyright: 2018 Developers of the Rand project
-License: Apache-2.0 or MIT
-
-Files: rust/lib/rustlib/src/rust/library/vendor/gimli-*/*
-Copyright: 2015-2018 The gimli Developers
-License: Apache-2.0 or MIT
 
 Files: debian/*
 Copyright: 2025-2026 Juan Manuel Méndez Rey <vejeta@gmail.com>
