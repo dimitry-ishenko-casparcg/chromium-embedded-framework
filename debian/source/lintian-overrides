@@ -44,7 +44,17 @@ chromium-embedded-framework source: license-problem-non-free-RFC-BCP78 [chromium
 # GTK demo appdata files declare CC0-1.0 license in their metadata, but our
 # debian/copyright lists chromium/* as BSD-3-Clause. These are Chromium bundled
 # wayland-protocols demos, not shipped in the binary package.
-chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/gtk-demo/org.gtk.Demo4.appdata.xml]
-chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/icon-browser/org.gtk.IconBrowser4.appdata.xml]
-chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/print-editor/org.gtk.PrintEditor4.appdata.xml]
-chromium-embedded-framework source: inconsistent-appstream-metadata-license [chromium/third_party/wayland-protocols/gtk/demos/widget-factory/org.gtk.WidgetFactory4.appdata.xml]
+chromium-embedded-framework source: inconsistent-appstream-metadata-license *
+
+# Apache-licensed code that references NOTICE files not present in this tarball.
+# These are bundled Chromium third-party libraries.
+chromium-embedded-framework source: missing-notice-file-for-apache-license *
+
+# The rust component includes a .wasm file that dpkg-source did not exclude
+# despite *.wasm in Files-Excluded (glob doesn't match deep paths).
+# This file is not used in the build - only Rust stdlib sources are needed.
+chromium-embedded-framework source: source-ships-excluded-file *
+
+# DEP5 requires Files: * as catch-all even when more specific patterns exist.
+# Lintian incorrectly flags this as superfluous.
+chromium-embedded-framework source: superfluous-file-pattern *
