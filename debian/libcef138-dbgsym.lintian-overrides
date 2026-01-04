@@ -12,4 +12,5 @@
 # actual debug symbols because the original binaries were stripped upstream.
 # We cannot add debug info for these as it would require rebuilding ANGLE
 # with different flags, which is outside the scope of CEF packaging.
-libcef138-dbgsym: debug-file-with-no-debug-symbols [usr/lib/debug/.build-id/*]
+# Use wildcard to match all build-id paths like usr/lib/debug/.build-id/XX/hash.debug
+libcef138-dbgsym: debug-file-with-no-debug-symbols *
