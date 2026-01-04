@@ -10,85 +10,76 @@ It is NOT intended for stable releases at this time.
 Binary Packages
 ---------------
 
-This source package produces three binary packages:
+This source package produces four binary packages:
 
   libcef138        - CEF shared library (libcef.so.138)
                      The version number (138) is the CEF major version.
                      See "CEF and Chromium Version Alignment" section below.
 
-  libcef-dev       - Development files (headers, static libraries)
+  libcef138-dbgsym - Debug symbols for libcef138 (auto-generated)
+
+  libcef-dev       - Development files (headers, CMake configuration)
                      Depends on libcef138
 
   cef-resources    - Architecture-independent resources (PAK files, locales)
                      Required at runtime by CEF applications
 
-depot_tools Build Dependency
-----------------------------
+Source Package Structure (MUT)
+------------------------------
 
-This package requires Google's depot_tools to build. depot_tools is NOT
-included in the source package and must be cloned manually before building:
+This package uses Multiple Upstream Tarballs (MUT) format. All components
+are distributed as separate tarballs and automatically extracted by
+dpkg-source:
 
-  cd chromium-embedded-framework/
-  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+  orig.tar.xz           - CEF source code (main tarball)
+  orig-chromium.tar.xz  - Chromium browser source
+  orig-depot-tools.tar.xz - Google's depot_tools build system
+  orig-rust.tar.xz      - Rust standard library sources
 
-depot_tools will be preserved across builds (not removed by 'dh clean').
+When extracted with `dpkg-source -x`, these create:
 
-See debian/README.source section "BUNDLED DEPENDENCIES JUSTIFICATION" for
-technical details on why depot_tools cannot use system packages.
+  chromium-embedded-framework-VERSION/
+  ├── cef/           <- CEF source
+  ├── chromium/      <- Chromium source
+  ├── depot-tools/   <- Google's build tools
+  ├── rust/          <- Rust stdlib
+  └── debian/        <- Packaging files
 
-Note: depot_tools is only used during build. No depot_tools files are
-installed to the system in the binary packages.
+**No manual setup required** - all components are included in the source
+package. See debian/README.source for detailed MUT documentation.
 
-Package Structure and Chromium Integration
---------------------------------------------
+**Note on Bundled Components:**
 
-**CEF Source Structure:**
+These components are bundled as MUT tarballs as an interim solution:
 
-This package maintains CEF source files in the cef/ subdirectory, NOT at
-the package root:
+  - chromium: Will migrate to chromium-source package when Bug #893448
+    is resolved. This will allow automatic version tracking with Debian's
+    Chromium security updates.
 
-  chromium-embedded-framework/
-  ├── debian/              # Debian packaging files
-  ├── cef/                 # CEF source code
-  │   ├── tools/
-  │   ├── include/
-  │   └── ...
-  └── chromium_*.orig.tar.xz  # Chromium tarball (parent directory)
+  - depot-tools: Could migrate to a Debian package if one is ever created.
+    Currently bundled because depot_tools has no stable releases and
+    requires specific commit alignment with Chromium versions.
 
-**Why chromium is NOT bundled:**
+  - rust: Bundled because Debian's rust-src package is missing files
+    that Chromium's build system expects. Will be removed when rust-src
+    becomes compatible.
 
-Unlike qt6-webengine (which bundles Chromium in src/3rdparty/chromium/
-because Qt upstream ships it that way), CEF upstream does NOT bundle
-Chromium sources. CEF's build system expects to extract Chromium
-separately at build time.
+Build Instructions
+------------------
 
-Therefore, chromium is a BUILD DEPENDENCY, not a component tarball.
+Standard build from source package:
 
-**Build Process:**
+    $ dpkg-source -x chromium-embedded-framework_*.dsc
+    $ cd chromium-embedded-framework-*/
+    $ dpkg-buildpackage -us -uc
 
-This package uses Debian's chromium source tarball as input to CEF's
-automate-git.py script. Build requirements:
+Build requirements:
+  - 40 GB disk space
+  - 8 GB RAM minimum (16+ GB recommended)
+  - Build time: 2-7 hours depending on hardware
 
-  - 40GB disk space
-  - 8GB RAM minimum
-  - ~2 hours build time
-  - Debian chromium tarball (chromium_*.orig.tar.xz)
-
-**Development vs Final Packaging Modes:**
-
-  Development mode (current):
-    - Uses cached chromium tarball (../chromium_*.orig.tar.xz)
-    - Enables rapid iteration without repeated downloads
-    - debian/rules contains cache optimization logic
-
-  Final mode (when Bug #893448 is resolved):
-    - Will use chromium-source binary package
-    - Automatic dependency resolution via apt
-    - Cache logic removed from debian/rules
-
-The packaging has been designed to make this migration straightforward -
-only debian/rules needs updating to use chromium-source instead of the
-local chromium tarball.
+The build system automatically limits parallelism based on available RAM
+to prevent OOM conditions. See debian/README.source for details.
 
 Packages Enabled
 ----------------
@@ -157,10 +148,6 @@ the system's libffmpeg.so for media codec support. This enables:
 
 The package declares: Depends: libavcodec-extra | libavcodec60
 
-If libavcodec-extra is installed (recommended), proprietary codecs like H.264
-and AAC will be available for media playback. If only libavcodec60 is installed,
-only free/open codecs will be available.
-
 For full media playback support (e.g., streaming services), install:
 
   sudo apt install libavcodec-extra
@@ -183,7 +170,7 @@ The relationship is:
 
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
-  CEF 137        7444          142.0.7444.x         previous (142.0.7444.175)
+  CEF 137        7444          142.0.7444.x         previous
   CEF 138        7499          143.0.7499.x         current (143.0.7499.169)
 
 **Why This Matters:**
@@ -199,363 +186,76 @@ Chromium build number (143.0.**7499**.x).
   - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 143.0.7499.40)
   - CEF branch 7499 = Chromium 143.0.7499.x
 
-**Upstream CEF Source in This Package:**
+**Upstream CEF Source:**
 
   - Upstream URL: https://bitbucket.org/chromiumembedded/cef
   - Branch: 7499 (CEF 138)
-  - CEF expects (CHROMIUM_BUILD_COMPATIBILITY.txt): refs/tags/143.0.7499.110
+  - CEF expects: refs/tags/143.0.7499.110
   - Debian Chromium provides: 143.0.7499.169
 
-  Note: CEF specifies the exact Chromium tag it was developed against (143.0.7499.110).
-  Debian Chromium (143.0.7499.169) has a higher patch level but the same branch (7499),
-  so they are compatible. Patch-level differences within the same branch are expected
-  to work since the API surface is stable within a Chromium branch.
+Note: CEF specifies the exact Chromium tag it was developed against.
+Debian Chromium has a higher patch level but the same branch (7499),
+so they are compatible. Patch-level differences within the same branch
+are expected to work since the API surface is stable within a branch.
 
-**Impact on Dependent Packages:**
+Future Migration: Debian Package Dependencies
+----------------------------------------------
 
-Applications that depend on CEF should specify the CEF version they require:
-  - stremio-gtk (uses libcef138) - now packagable with Chromium 143
-  - obs-studio - compatible with libcef138
+The MUT tarballs are an interim solution. When Debian provides the following
+packages, this source package will be updated to use them as Build-Depends:
 
-To update to a newer CEF version, both the CEF source and Chromium tarballs
-must be updated to matching versions.
+**chromium-source (Bug #893448):**
+
+When the Debian Chromium team provides a chromium-source binary package:
+
+  - Remove orig-chromium.tar.xz from MUT
+  - Add Build-Depends: chromium-source
+  - Update debian/rules to copy from /usr/src/chromium/
+  - Benefits: Automatic security updates, reduced source package size
+
+**depot-tools (hypothetical):**
+
+If a depot-tools Debian package is ever created:
+
+  - Remove orig-depot-tools.tar.xz from MUT
+  - Add Build-Depends: depot-tools
+  - Benefits: Shared maintenance, automatic updates
+
+**rust-src compatibility:**
+
+When Debian's rust-src package includes all files Chromium expects:
+
+  - Remove orig-rust.tar.xz from MUT
+  - Use system rust-src via existing Build-Depends
+  - Benefits: Proper Rust ecosystem integration
+
+The packaging has been designed to make these migrations straightforward.
+See debian/README.source for implementation details.
 
 Security Updates
 ----------------
 
 See README.security for the security update policy.
 
-Debian Chromium Patch Integration
-----------------------------------
-
-This package applies Debian's Chromium patches to vanilla Chromium sources
-before CEF uses them. This is a fundamental architectural decision.
-
-**Why We Use Debian Chromium Patches:**
-
-1. **System Integration**: Debian applies 300+ patches for system library
-   integration (use_custom_libcxx=false, system LLVM, Node.js, etc.)
-
-2. **Build Compatibility**: Fixes build issues with Debian's toolchain
-   (GCC 14, LLVM 19, C++23 standard, SwiftShader compatibility)
-
-**LLVM Usage Clarification - Two Different LLVM Purposes:**
-
-This package uses LLVM in two completely separate contexts:
-
-  1. **Compiler Toolchain (System LLVM-19)**
-     - Used for *compiling* all Chromium/CEF C++ code
-     - Provided by Debian's clang-19 package
-     - Set via: clang_base_path="/usr/lib/llvm-19" in args.gn
-     - This is the unbundled system LLVM
-
-  2. **SwiftShader JIT (Bundled LLVM-16.0)**
-     - Used by SwiftShader's Reactor library for *runtime JIT compilation*
-     - Located at: third_party/swiftshader/third_party/llvm-16.0
-     - This is a separate LLVM copy bundled inside Chromium's tarball
-     - NOT related to system LLVM-19
-     - The swiftshader-use-llvm-16.patch simply changes the path from
-       the older bundled llvm-10.0 to the newer bundled llvm-16.0
-
-  These are independent - system LLVM-19 compiles the code, while bundled
-  LLVM-16.0 provides the JIT backend for SwiftShader's GPU emulation
-
-3. **Security and Stability**: Includes Debian's security fixes and stability
-   improvements
-
-4. **Maintenance**: Avoids recreating Debian's work and ensures compatibility
-   with Debian's Chromium package
-
-**Required Tarballs:**
-
-Both tarballs must be for the SAME Chromium version (e.g., 142.0.7444.162-1):
-
-  - chromium_VERSION.orig.tar.xz (vanilla upstream Chromium)
-  - chromium_VERSION-REVISION.debian.tar.xz (Debian packaging and patches)
-
-**Patch Application Order in debian/rules:**
-
-1. Extract vanilla Chromium tarball
-2. Extract Debian Chromium packaging tarball
-3. Apply Debian patches (debianization/, fixes/, system/)
-4. Apply CEF patches (debian/patches/*.cef.patch via quilt)
-5. Run CEF automate-git.py with pre-patched Chromium
-
-**Key Debian Chromium Patches Applied:**
-
-  - use_custom_libcxx=false (use system libc++ instead of bundled)
-  - swiftshader-use-llvm-16.patch (LLVM compatibility)
-  - absl-optional.patch (workaround for Clang bug #50248 with system libstdc++)
-  - System library integration (Node.js, LLVM, toolchain)
-  - C++23 standard compliance fixes
-
-**Version Synchronization:**
-
-CEF and Chromium versions must match. When updating Chromium:
-1. Update both .orig.tar.xz and .debian.tar.xz to same version
-2. Update debian/rules tarball extraction paths
-3. Test patch application (Debian patches may need updates)
-4. Test CEF build with new Chromium version
-
 Patch Documentation
 -------------------
 
-This section documents all patches applied during the build process, grouped
-by category and application order.
-
-**Patch Application Order:**
-
-1. CEF Patches (applied via quilt to CEF source - debian/patches/*.cef.patch)
-2. Debian Chromium Patches (extracted from chromium_*.debian.tar.xz)
-3. CEF Chromium Patches (applied manually to Chromium source - debian/patches/chromium/*.chromium.patch)
-
-**CEF Patches (debian/patches/):**
-
-Applied via quilt to CEF source files before Chromium extraction:
-
-  0001-debian-patcher-skip-logic.cef.patch
-    Skips CEF's patch application logic when DEBIAN_BUILD=1 environment
-    variable is set. Allows Debian packaging to handle patch management.
-
-  0002-use-system-clang.cef.patch
-    Configures CEF to use Debian's system clang instead of downloading
-    bundled LLVM/Clang toolchain.
-
-  0003-create-reclient-stub.cef.patch
-    Creates empty stub for reclient (remote execution tool) since Debian
-    builds locally without Google's distributed build infrastructure.
-
-  0004-patch-gn-for-exec-script.cef.patch
-    Patches GN configuration to handle exec_script() calls correctly in
-    Debian build environment.
-
-  0005-skip-gclient-revert-debian.cef.patch
-    Prevents gclient from reverting local modifications made by Debian
-    patches during sync operations.
-
-  0006-skip-chromium-checkout-debian.cef.patch
-    Skips Chromium source checkout from Git (uses Debian tarball instead)
-    when DEBIAN_BUILD=1 is set.
-
-  0007-allow-optimize-webui-false-debian.cef.patch
-    Allows optimize_webui=false GN argument to work correctly (needed
-    because Debian's Node.js configuration differs from Chromium's bundled).
-
-  0008-add-locale-stub-for-protoc-gen-js.cef.patch
-    Creates minimal std::locale stub implementation to work around linking
-    issues with protoc-gen-js when using system libc++.
-
-  0009-update-cef-mac-frame-patch.cef.patch
-    Updates CEF's macOS frame handling patch to apply correctly against
-    Debian's pre-patched Chromium source.
-
-  0010-add-rust-toolchain-stub.cef.patch
-    Creates stub third_party/rust-toolchain/VERSION file after gclient sync
-    to satisfy rust.gni requirements when using Debian's system rustc.
-
-**CEF Chromium Patches (debian/patches/chromium/):**
-
-Applied manually to Chromium source after extraction:
-
-  0007-debian-tarball-deps.chromium.patch
-    Disables gclient hooks that query Git history (lastchange, gpu_lists_version,
-    etc.) by adding 'condition': 'not source_tarball' guards. Git metadata
-    doesn't exist in Debian tarballs.
-
-  0008-debian-tarball-gclient-toplevel.chromium.patch
-    Modifies gclient configuration to work with Debian tarball structure
-    (no top-level .gclient file).
-
-  0009-disable-optimize-images-when-optimize-webui-false.chromium.patch
-    Ensures optimize_images follows optimize_webui setting (both must be
-    false when using Debian's Node.js).
-
-  0010-fix-dri-pkg-config-debian.chromium.patch
-    Fixes pkg-config detection for DRI/Mesa libraries in Debian's multi-arch
-    environment.
-
-  0013-remove-rust-nightly-flags-debian.chromium.patch
-    Removes -Zallow-features flag and other nightly-only Rust compiler flags
-    that are incompatible with Debian's stable rustc.
-
-  0015-network-isolation-disable-google-storage-downloads.chromium.patch
-    Disables automatic downloads from Google Cloud Storage for network
-    isolation resources during Debian builds.
-
-  0016-skip-protoc-gen-js.chromium.patch
-    Modifies protoc-gen-js BUILD.gn to add --undefined linker flags for
-    missing std::locale symbols (works with stub from patch 0008).
-
-  0016-protoc-gen-js-gn-action-stub.chromium.patch
-    Alternative approach: stubs out protoc-gen-js GN action entirely
-    (not currently used).
-
-  0017-disable-panic-immediate-abort.chromium.patch
-    Disables panic=immediate-abort Rust flag that's incompatible with Debian's
-    rustc panic runtime configuration.
-
-  0017-make-siso-import-optional.chromium.patch
-    Makes siso (Google's build system) import optional to prevent errors when
-    not available in Debian environment.
-
-  0018-rust-clanglib.chromium.patch
-    Patches build/rust/rust_bindgen.gni to use system clang's resource directory
-    for bindgen operations. Fixes libclang detection issues.
-    NOTE: Also present in Debian Chromium's fixes/ (duplicate).
-
-  0018-skip-gcs-deps-when-source-tarball.chromium.patch
-    Skips dependency downloads from Google Cloud Storage when building from
-    source tarballs (identified by 'source_tarball' condition).
-
-  0019-bindgen-libclang-abspath.chromium.patch
-    Sets absolute path to system libclang for bindgen, ensuring correct
-    library detection in Debian's multi-arch environment.
-
-  0019-skip-test-fonts.chromium.patch
-    Skips test_fonts download hook (fonts would be downloaded from GCS,
-    not needed for Debian builds).
-
-  0020-skip-nodejs-version-check.chromium.patch
-    Disables strict Node.js version check to allow Debian's system Node.js
-    version (may differ from Chromium's pinned version).
-
-  0021-disable-warning-suppression-mappings.chromium.patch
-    Disables Chromium's warning suppression file mappings to prevent build
-    system from creating CLANG_MVERS symlinks (conflicts with Debian's
-    system clang setup).
-
-  0022-libcpp-headers.chromium.patch
-    Removes references to bundled libc++ headers from BUILDCONFIG.gn since
-    we use system libc++ (use_custom_libcxx=false).
-    NOTE: Similar to Debian Chromium's debianization/libcpp.patch (duplicate).
-
-**Debian Chromium Patches (from chromium_*.debian.tar.xz):**
-
-Extracted and applied automatically by debian/rules during build. These patches
-are maintained by the Debian Chromium team and grouped into three categories:
-
-  debianization/ (6 patches)
-    Patches to adapt Chromium build system for Debian packaging:
-    - master-preferences (default browser settings)
-    - manpage (manual page generation)
-    - optimization (build optimization flags)
-    - quic (QUIC protocol Debian-specific config)
-    - libcpp.patch (use system libc++ headers)
-    - etc.
-
-  fixes/ (20 patches)
-    Bug fixes and compatibility patches:
-    - C++23 standard compliance fixes
-    - GCC 14 compatibility
-    - absl-optional.patch (workaround Clang bug #50248 with system libstdc++)
-    - LLVM/Clang compatibility fixes
-    - rust-clanglib.patch (DUPLICATE of CEF's 0018-rust-clanglib.chromium.patch)
-    - Architecture-specific fixes (ppc64el, riscv64, etc.)
-    - etc.
-
-  system/ (6 patches)
-    System library integration patches:
-    - zlib, libpng, freetype, harfbuzz, lcms2, openjpeg2
-    - Replaces bundled libraries with Debian's system libraries
-
-  Total: ~32 patches maintained by Debian Chromium team
-
-**Duplicate Patch Handling:**
-
-Two patches exist in BOTH Debian Chromium and CEF:
-
-  1. rust-clanglib.patch (Debian Chromium fixes/) ==
-     0018-rust-clanglib.chromium.patch (CEF)
-
-     Both patch build/rust/rust_bindgen.gni to fix bindgen libclang detection.
-     CEF's version is applied AFTER Debian's, so CEF's version takes precedence
-     if they differ.
-
-  2. libcpp.patch (Debian Chromium debianization/) ~=
-     0022-libcpp-headers.chromium.patch (CEF)
-
-     Both remove bundled libc++ header references. Similar purpose but
-     different implementations. Both are applied (Debian first, then CEF).
-
-These duplicates are maintained to ensure CEF builds correctly even if Debian
-Chromium's patches change or are removed in future versions.
-
-**Patch File Organization:**
-
-  debian/patches/
-  ├── 0001-0010*.cef.patch       (CEF patches, applied via quilt)
-  ├── chromium/                  (CEF Chromium patches, applied manually)
-  │   └── 00XX-*.chromium.patch
-  └── series                     (lists CEF patches only, not chromium/)
-
-The series file controls quilt patch application order and contains ONLY CEF
-patches (0001-0010). Chromium patches in chromium/ subdirectory are applied
-manually by debian/rules and are NOT listed in the series file.
-
-GBP Import Workflow Compatibility
----------------------------------
-
-**STATUS**: NOT compatible with standard gbp import-orig workflow
-
-**Reason**: CEF requires TWO source tarballs:
-  - CEF source (~50MB) - would be orig.tar.gz
-  - Chromium source (~1GB) - build dependency, not part of source package
-
-**Workaround**: Manual build setup required until Bug #893448 (chromium-source
-package) is resolved. Once chromium-source exists, can use Build-Depends.
-
-Debian Package Acceptance Status
---------------------------------
-
-**Expected Target**: unstable/testing (NOT stable initially)
-
-This packaging approach follows Bug #893448 Option 1: "chromium-source package
-with CEF kept out of stable releases". This allows progress in unstable/testing
-with minimal Security Team overhead.
-
-**Precedents**: Debian already accepts complex packages with extensive build
-requirements:
-  - Firefox ESR / Thunderbird: ~25-36 minute builds, Rust/LLVM dependencies
-  - LibreOffice: 8-24 hour builds, ~20GB space requirements
-  - Chromium itself: ~30 minute builds, ~1GB source tarball
-
-**Justification for FTP Team**:
-  1. Uses ONLY Debian sources (includes security patches from Debian chromium)
-  2. Does NOT embed chromium in CEF source package (follows Debian Policy)
-  3. Thoroughly documented non-standard workflow (debian/README.source)
-  4. Unblocks important reverse dependencies (obs-studio, stremio-gtk, casparcg)
-  5. Provides migration path when Bug #893448 is resolved
-
-**Limitations**:
-  - Manual setup required for builds (documented in debian/README.source)
-  - Not compatible with standard autobuilders (pbuilder/sbuild need special setup)
-  - May be auto-removed from testing if chromium updates break CEF build
-  - Will NOT enter stable until Security Team approves (per Bug #893448)
-
-Future: chromium-source Package
--------------------------------
-
-When Bug #893448 is resolved and chromium-source package exists:
-
-  # Future debian/control
-  Build-Depends: chromium-source (>= 143.0)
-
-  # Future debian/rules
-  override_dh_auto_build:
-      cd cef && python3 tools/automate/automate-git.py \
-          --chromium-archive=/usr/src/chromium/chromium.tar.xz \
-          ...
-
-This will make the package compatible with standard GBP workflow.
+See debian/README.source for comprehensive patch documentation including:
+
+  - CEF patches (applied via quilt)
+  - Chromium patches (applied manually)
+  - Debian Chromium patches (from debian.tar.xz)
+  - MUT build configuration
+  - clang-format handling for MUT builds
 
 For More Information
 --------------------
 
   - CEF Project: https://bitbucket.org/chromiumembedded/cef
   - Debian Chromium: https://sources.debian.org/src/chromium/
-  - Bug #915400: RFP for CEF
+  - Bug #915400: ITP for CEF
   - Bug #893448: RFP for chromium-source
   - Bug #817285: Per-package security ACLs (IMPLEMENTED)
   - Bug #919382: casparcg-server HTTP support (blocked by lack of CEF)
 
- -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 21 Dec 2025 17:00:00 +0000
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 04 Jan 2026 04:00:00 +0100

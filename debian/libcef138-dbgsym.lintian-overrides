@@ -1,0 +1,15 @@
+# =============================================================================
+# LINTIAN OVERRIDES FOR LIBCEF138-DBGSYM
+# =============================================================================
+# Debug symbols package for CEF (Chromium Embedded Framework)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# ANGLE LIBRARIES WITHOUT DEBUG SYMBOLS
+# -----------------------------------------------------------------------------
+# ANGLE libraries (libEGL.so, libGLESv2.so) are built by CEF's upstream build
+# system without debug information. The debug files exist but contain no
+# actual debug symbols because the original binaries were stripped upstream.
+# We cannot add debug info for these as it would require rebuilding ANGLE
+# with different flags, which is outside the scope of CEF packaging.
+libcef138-dbgsym: debug-file-with-no-debug-symbols [usr/lib/debug/.build-id/*]
