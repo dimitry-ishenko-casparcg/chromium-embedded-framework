@@ -34,7 +34,6 @@ dpkg-source:
   orig.tar.xz           - CEF source code (main tarball)
   orig-chromium.tar.xz  - Chromium browser source
   orig-depot-tools.tar.xz - Google's depot_tools build system
-  orig-rust.tar.xz      - Rust standard library sources
 
 When extracted with `dpkg-source -x`, these create:
 
@@ -42,7 +41,6 @@ When extracted with `dpkg-source -x`, these create:
   ├── cef/           <- CEF source
   ├── chromium/      <- Chromium source
   ├── depot-tools/   <- Google's build tools
-  ├── rust/          <- Rust stdlib
   └── debian/        <- Packaging files
 
 **No manual setup required** - all components are included in the source
@@ -59,10 +57,6 @@ These components are bundled as MUT tarballs as an interim solution:
   - depot-tools: Could migrate to a Debian package if one is ever created.
     Currently bundled because depot_tools has no stable releases and
     requires specific commit alignment with Chromium versions.
-
-  - rust: Bundled because Debian's rust-src package is missing files
-    that Chromium's build system expects. Will be removed when rust-src
-    becomes compatible.
 
 Build Instructions
 ------------------
@@ -221,13 +215,11 @@ If a depot-tools Debian package is ever created:
   - Add Build-Depends: depot-tools
   - Benefits: Shared maintenance, automatic updates
 
-**rust-src compatibility:**
+**rust-src:**
 
-When Debian's rust-src package includes all files Chromium expects:
-
-  - Remove orig-rust.tar.xz from MUT
-  - Use system rust-src via existing Build-Depends
-  - Benefits: Proper Rust ecosystem integration
+Debian rust-src 1.91.1+ now provides all files Chromium's build system requires
+(including sync/nonpoison/condvar.rs, rwlock.rs). The build uses system rust-src
+via Build-Depends: rust-src. No bundled Rust tarball is needed.
 
 The packaging has been designed to make these migrations straightforward.
 See debian/README.source for implementation details.

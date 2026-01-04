@@ -8,7 +8,7 @@ source format. All source components are distributed as separate tarballs.
 SOURCE PACKAGE STRUCTURE (MUT)
 ================================================================================
 
-The source package consists of 4 tarballs:
+The source package consists of 3 tarballs:
 
     chromium-embedded-framework_VERSION.orig.tar.xz
         CEF source code (main upstream tarball)
@@ -19,16 +19,12 @@ The source package consists of 4 tarballs:
     chromium-embedded-framework_VERSION.orig-depot-tools.tar.xz
         Google's depot_tools build system
 
-    chromium-embedded-framework_VERSION.orig-rust.tar.xz
-        Rust standard library sources (interim bundled dependency)
-
 When extracted with dpkg-source -x, these create:
 
     chromium-embedded-framework-VERSION/
     ├── cef/                    <- CEF source (from orig.tar.xz)
     ├── chromium/               <- From orig-chromium.tar.xz
     ├── depot-tools/            <- From orig-depot-tools.tar.xz (note: hyphen)
-    ├── rust/                   <- From orig-rust.tar.xz
     └── debian/                 <- Packaging files
 
 NOTE: MUT component names use HYPHENS (depot-tools), not underscores.
@@ -74,13 +70,13 @@ that Debian Chromium uses (libc++, system libraries, build fixes, etc.).
 Obtained from: https://chromium.googlesource.com/chromium/tools/depot_tools.git
 This tarball is cleaned of binary files (.cipd*, *.exe, *.dll, etc.)
 
-4. Rust Standard Library (orig-rust.tar.xz)
--------------------------------------------
-Interim bundled dependency. Required because Debian rust-src is missing files
-that Chromium's build system expects (sync/nonpoison/condvar.rs, rwlock.rs).
+4. Rust Standard Library (system rust-src)
+------------------------------------------
+The build uses system rust-src package (Build-Depends: rust-src).
 
-This component can be removed when Debian rust-src catches up to Chromium's
-expected Rust version.
+Debian rust-src 1.91.1+ provides all files required by Chromium's build system,
+including sync/nonpoison/condvar.rs and rwlock.rs that were missing in earlier
+versions. No bundled Rust tarball is needed.
 
 ================================================================================
 DESIGN DECISIONS
