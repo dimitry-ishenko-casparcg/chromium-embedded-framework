@@ -14,3 +14,4 @@
 0015-add-debian-cef-rpath-for-angle.cef.patch
 0016-use-full-path-autoninja-dpkg.cef.patch
 0017-sequential-distribution-commands.cef.patch
+0018-disable-distrib-clang-format.cef.patch

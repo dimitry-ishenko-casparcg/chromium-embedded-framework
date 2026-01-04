@@ -216,10 +216,70 @@ Key patches:
   This prevents OOM by avoiding parallel file copying operations. With
   --minimal-distrib-only this patch is redundant but provides a safety net.
 
+- 0018-disable-distrib-clang-format.cef.patch: Disables clang-format during
+  distribution phase. See "CLANG-FORMAT AND MUT BUILDS" section below.
+
 Chromium Patches (debian/patches/chromium/*.chromium.patch)
 -----------------------------------------------------------
 Applied manually via patch -p1 in debian/rules.
 These patches modify Chromium source, not CEF source.
+
+================================================================================
+CLANG-FORMAT AND MUT BUILDS
+================================================================================
+
+The distribution phase (make_distrib.py) formats C/C++ headers using clang-format.
+This causes problems specific to MUT tarball builds that don't occur with git-cloned
+depot_tools.
+
+The Problem:
+-----------
+When make_distrib.py copies header files, it calls clang_format_inplace() for each
+C/C++ file (~16,000 headers). This resolves to depot-tools/clang_format.py, a Python
+wrapper that:
+
+1. Tries FindClangFormatToolInChromiumTree() - searches for bundled clang-format
+2. Calls gclient_paths.GetPrimarySolutionPath() - searches for .gclient file
+3. Runs 'git rev-parse --show-toplevel' subprocess when .gclient not found
+4. Falls back to FindClangFormatInPath() - searches PATH for clang-format
+
+Each header file spawns a NEW Python process with its own empty LRU cache, so:
+- 16,000+ Python processes (~20MB each)
+- 16,000+ git subprocesses
+- ~320GB virtual memory demand → OOM killer triggered
+
+Why MUT Builds Are Affected:
+---------------------------
+Git-cloned depot_tools (pre-MUT):
+- Contains .cipd_bin/ with downloaded clang-format binary
+- Has cached state from previous gclient runs
+- clang_format.py finds the binary quickly
+
+Tarball-extracted depot-tools (MUT):
+- Clean extraction without .cipd/ or .cipd_bin/
+- No downloaded binaries (tarballs are static)
+- clang_format.py takes the slow search path for every file
+
+Why Not Just Add clang-format Build-Dep:
+---------------------------------------
+Even with system clang-format installed, the slow path still executes first:
+1. Each process still calls FindClangFormatToolInChromiumTree()
+2. Still runs gclient_paths searches and git subprocesses
+3. Eventually finds /usr/bin/clang-format and succeeds
+4. But still spawns 16,000+ Python processes with git subprocesses
+
+The Solution:
+------------
+Patch 0018 adds --no-format to the make_distrib.py invocation, which:
+- Skips clang_format_inplace() entirely
+- Zero Python wrapper processes spawned
+- Zero git subprocesses
+- Distribution completes in seconds instead of OOM
+
+This is safe because:
+- Headers are already properly formatted by upstream CEF
+- Distribution headers are read-only for end users
+- clang-format is purely cosmetic, doesn't affect functionality
 
 ================================================================================
 MAINTENANCE
