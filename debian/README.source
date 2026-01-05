@@ -45,6 +45,23 @@ The MUT components are automatically extracted by dpkg-source -x.
 Build Time: ~2-7 hours (depends on hardware; 2h on modern 24-core, 7h+ on older systems)
 Disk Space: ~40 GB required
 
+Obtaining Source Tarballs:
+
+Once the package is in the Debian archive, use:
+
+    $ apt-get source chromium-embedded-framework
+
+Or download with dget:
+
+    $ dget https://deb.debian.org/debian/pool/.../chromium-embedded-framework_VERSION.dsc
+
+To recreate tarballs from upstream sources (e.g., for initial packaging):
+
+    $ ./debian/scripts/get-orig-tarballs.sh [VERSION] [CEF_BRANCH]
+
+This script downloads CEF from Bitbucket, Chromium from Debian's archive,
+and depot-tools from Google, then creates properly named MUT tarballs.
+
 ================================================================================
 COMPONENT TARBALLS
 ================================================================================
