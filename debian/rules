@@ -377,12 +377,15 @@ override_dh_auto_build:
 	ln -sf /usr/bin/python3 "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR/python3"; \
 	echo "==> Created symlink: depot_tools/$$PYTHON_REL_DIR/python3 -> /usr/bin/python3"
 
-	# Step 6.6.1: Reset depot_tools to pristine state (since it's preserved across builds)
-	# depot_tools is a git repository, so we can reset it to clean state before patching
-	# Reset to HEAD~1 to undo the "Apply Debian patches" commit from previous build
-	@echo "==> Resetting depot_tools to pristine state (undoing previous Debian patches commit)"
-	cd $(CURDIR)/depot-tools && git reset --hard HEAD~1 && git clean -fd
-	@echo "==> depot_tools reset complete"
+	# Step 6.6.1: Reset depot_tools to pristine state (if git repository exists)
+	# Git-clone mode: depot_tools is a git repository, reset to undo previous patches
+	# MUT tarball mode: no .git directory, tarball is already pristine
+	@if [ -d "$(CURDIR)/depot-tools/.git" ]; then \
+		echo "==> Resetting depot_tools to pristine state (git-clone mode)"; \
+		cd $(CURDIR)/depot-tools && git reset --hard HEAD~1 && git clean -fd; \
+	else \
+		echo "==> Skipping depot_tools reset (MUT tarball mode - no .git)"; \
+	fi
 
 	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
@@ -399,11 +402,14 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-skip-test-fonts.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-disable-warning-suppression-mappings.chromium.patch
 	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
-	# Without this, git sees gclient.py and download_from_google_storage.py as "local changes"
-	# and refuses to checkout when update_depot_tools tries to switch commits
-	@echo "==> Committing depot_tools patches to avoid git conflicts"
-	cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004, 0048)" --allow-empty
-	@echo "==> depot_tools patches committed"
+	# Git-clone mode: commit patches so git doesn't see them as "local changes"
+	# MUT tarball mode: no .git, so no conflicts possible
+	@if [ -d "$(CURDIR)/depot-tools/.git" ]; then \
+		echo "==> Committing depot_tools patches (git-clone mode)"; \
+		cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004, 0048)" --allow-empty; \
+	else \
+		echo "==> Skipping depot_tools commit (MUT tarball mode - no .git)"; \
+	fi
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0008-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-remove-rust-nightly-flags-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0010-protoc-gen-js-gn-action-stub.chromium.patch
