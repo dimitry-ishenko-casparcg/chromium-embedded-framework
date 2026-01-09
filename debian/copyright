@@ -9,6 +9,7 @@ Files-Excluded:
  depot-tools/.cipd_bin/*.exe
  depot-tools/.cipd_bin/*.dll
  depot-tools/.cipd_bin/*/lib/python*/site-packages/*
+ chromium/third_party/node/linux/*
  *.wasm
  *.jar
  *.apk
