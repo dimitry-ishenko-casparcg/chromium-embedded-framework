@@ -1,4 +1,4 @@
-version=4
+Version: 5
 
 # CEF releases from Bitbucket git repository
 # CEF uses branch-based releases aligned with Chromium versions
@@ -7,33 +7,45 @@ version=4
 # CEF version format: MAJOR.MINOR.PATCH (e.g., 138.0.1)
 # where MAJOR matches the Chromium milestone number
 #
-# CEF binary naming convention:
-# cef_binary_VERSION+gCOMMIT+chromium-CHROMIUM_VERSION_linux64.tar.bz2
-# Example: cef_binary_138.0.4+gb2ac72b+chromium-143.0.7499.130_linux64.tar.bz2
-#
 # Manual tracking resources:
 # - Branches: https://bitbucket.org/chromiumembedded/cef/branches/
 # - Downloads: https://bitbucket.org/chromiumembedded/cef/downloads/
 # - Spotify builds: https://cef-builds.spotifycdn.com/index.html
 
-opts="mode=git,pgpmode=none" \
-  https://bitbucket.org/chromiumembedded/cef.git \
-  refs/tags/(\d+\.\d+\.\d+)
+Mode: git
+Source: https://bitbucket.org/chromiumembedded/cef.git
+Matching-Pattern: refs/tags/(\d+\.\d+\.\d+)
+Pgp-Mode: none
 
-# MUT Component Tracking:
+# Component: chromium
+# IMPORTANT: Chromium source comes from Debian's chromium package, NOT upstream Google.
+# We depend on Debian's pre-patched chromium which has Files-Excluded applied
+# and Debian-specific patches. This is different from upstream Google chromium.
 #
-# orig-chromium.tar.xz:
-#   Tracks Debian chromium package version
-#   Source: apt source chromium (pre-patched with Debian patches)
-#   Update when: Debian uploads new chromium version matching CEF branch
-#
-# orig-depot-tools.tar.xz:
-#   Google's depot_tools build system
-#   Source: https://chromium.googlesource.com/chromium/tools/depot_tools
-#   Update when: CEF requires newer depot_tools features
-#
-# orig-rust.tar.xz:
-#   Rust standard library source (interim bundled dependency)
-#   Source: https://github.com/nickel-lang/nickel (Chromium's Rust deps)
-#   Update when: Chromium updates its expected Rust version
-#   Can be removed when: Debian rust-src provides required files
+# Tracking Debian's chromium package pool directly:
+
+Component: chromium
+Source: https://deb.debian.org/debian/pool/main/c/chromium/
+Matching-Pattern: chromium_(@ANY_VERSION@)\.orig\.tar\.xz
+Pgp-Mode: none
+Compression: xz
+Dversion-Mangle: s/-\d+$//
+Version-Constraint: ignore
+
+# Component: depot-tools (Google's build tools)
+# This is a rolling repository with no versioned releases
+# Using HEAD with ignore version constraint
+
+Component: depot-tools
+Mode: git
+Git-Mode: shallow
+Source: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+Matching-Pattern: HEAD
+Pgp-Mode: none
+Compression: xz
+Version-Constraint: ignore
+
+# Note: The rust component (orig-rust.tar.xz) is not tracked here.
+# It is an interim bundled dependency that will be removed when Debian's
+# rust-src package provides the required sync_nonpoison files.
+# Use debian/scripts/get-orig-tarballs.sh for manual download if needed.
