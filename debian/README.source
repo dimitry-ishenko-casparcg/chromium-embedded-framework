@@ -346,10 +346,41 @@ Updating CEF Version:
 4. Regenerate orig-chromium.tar.xz from new Debian chromium
 5. Test build and fix any patch conflicts
 
-Updating Chromium Version:
-1. apt-get source --download-only chromium
-2. Rename and replace orig-chromium.tar.xz
-3. Test build and fix patch conflicts
+Updating Chromium Version (same CEF branch, new Chromium patch release):
+
+When Debian releases a new Chromium version within the same branch (e.g.,
+143.0.7499.169 -> 143.0.7499.192), follow these steps:
+
+1. Download new Chromium source:
+   $ apt-get source --download-only chromium
+
+   This downloads three files:
+   - chromium_X.Y.Z.W.orig.tar.xz (vanilla Chromium source)
+   - chromium_X.Y.Z.W-N.debian.tar.xz (Debian patches)
+   - chromium_X.Y.Z.W-N.dsc (source control file)
+
+2. Replace the MUT chromium tarball:
+   $ mv chromium_X.Y.Z.W.orig.tar.xz \
+        chromium-embedded-framework_VERSION.orig-chromium.tar.xz
+
+3. Update version references in debian/rules and debian/README.Debian
+   (search for old version string and replace with new)
+
+4. Regenerate .dsc file (updates checksums for new tarball):
+   $ cd chromium-embedded-framework
+   $ dpkg-source -b .
+
+5. Extract and build:
+   $ cd ..
+   $ dpkg-source -x chromium-embedded-framework_*.dsc
+   $ cd chromium-embedded-framework-*/
+   $ dpkg-buildpackage -us -uc
+
+6. Test build and fix any patch conflicts
+
+IMPORTANT: The debian.tar.xz must be present in the parent directory during
+build. The build process (Step 5.5 in debian/rules) extracts and applies
+these patches to integrate Chromium with Debian system libraries.
 
 Updating LLVM Version:
 1. Update Build-Depends in debian/control
