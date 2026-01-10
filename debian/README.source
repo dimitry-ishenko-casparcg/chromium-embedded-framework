@@ -295,6 +295,47 @@ This is safe because:
 - clang-format is purely cosmetic, doesn't affect functionality
 
 ================================================================================
+SYSTEM BINARIES
+================================================================================
+
+1. NODE.JS (system nodejs package)
+----------------------------------
+Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node.
+This package uses system Node.js instead of any bundled binary:
+
+- nodejs is in Build-Depends
+- debian/rules creates symlink: ln -sf /usr/bin/node .../third_party/node/.../node
+- Patch 0013-skip-nodejs-version-check.chromium.patch bypasses version check
+  (system node version may differ from Chromium's expected version)
+- chromium/third_party/node/linux/* is in Files-Excluded (debian/copyright)
+
+2. ROLLUP (system rollup package)
+---------------------------------
+Similarly, system rollup replaces bundled @rollup/wasm-node:
+
+- rollup is in Build-Depends
+- debian/rules creates symlink to /usr/share/nodejs/rollup
+
+================================================================================
+VERSION TRACKING (debian/watch)
+================================================================================
+
+The debian/watch file (Version 5 format) tracks upstream versions:
+
+    $ uscan --no-download --verbose
+
+Components tracked:
+- CEF: From Bitbucket git tags (refs/tags/X.Y.Z pattern)
+- chromium: From Debian package pool (deb.debian.org/debian/pool/main/c/chromium/)
+  NOTE: We depend on DEBIAN's chromium, not upstream Google chromium
+- depot-tools: From Google's git repository (HEAD, no versioned releases)
+
+The rust component is not tracked - it's interim and will be removed when
+Debian's rust-src provides required files.
+
+Alternative: Use debian/scripts/get-orig-tarballs.sh for manual downloads.
+
+================================================================================
 MAINTENANCE
 ================================================================================
 
