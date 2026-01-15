@@ -1,7 +1,10 @@
 #!/usr/bin/make -f
 
-# Align with Debian Chromium configuration (chromium_144.0.7559.59-1.debian.tar.xz)
-# Reference: /tmp/chromium-debian-reference/debian/rules
+# Chromium version tracking (update when syncing with new Debian Chromium)
+# To find current version: apt-cache show chromium | grep ^Version
+CHROMIUM_VERSION := 144.0.7559.59
+CHROMIUM_DEBIAN_REV := 1
+CHROMIUM_DEBIAN_TAR := chromium_$(CHROMIUM_VERSION)-$(CHROMIUM_DEBIAN_REV).debian.tar.xz
 
 include /usr/share/dpkg/buildopts.mk
 
@@ -170,9 +173,8 @@ export GN_DEFINES += is_component_ffmpeg=true
 # Note: GN_DEFINES is set in the automate-git.py invocation (line ~797)
 # Individual settings like use_custom_libcxx=false and use_thin_lto=false are there
 
-# CEF version/branch
-# Branch 7559 matches Chromium 144.0.7559.x (Debian chromium 144.0.7559.59)
-CEF_BRANCH = 7559
+# CEF branch (derived from CHROMIUM_VERSION - 3rd component: 144.0.7559.59 -> 7559)
+CEF_BRANCH := $(word 3,$(subst ., ,$(CHROMIUM_VERSION)))
 
 %:
 	dh $@
@@ -237,7 +239,7 @@ override_dh_auto_build:
 	@echo "==> CEF git repository initialized"
 
 	# Step 4: Fix version mismatch (CEF expects specific tag, Debian has different point release)
-	sed -i "s/144\.0\.7559\.[0-9]*/144.0.7559.59/" \
+	sed -i "s/[0-9]\+\.[0-9]\+\.$(CEF_BRANCH)\.[0-9]\+/$(CHROMIUM_VERSION)/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Move Chromium source from MUT-extracted directory
@@ -267,7 +269,7 @@ override_dh_auto_build:
 	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../chromium_144.0.7559.59-1.debian.tar.xz \
+	tar -xf $(CURDIR)/../$(CHROMIUM_DEBIAN_TAR) \
 		-C $(CURDIR)/chromium_src/chromium/
 	# Apply debianization patches (system libraries, build fixes, security patches)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
