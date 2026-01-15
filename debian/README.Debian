@@ -12,14 +12,14 @@ Binary Packages
 
 This source package produces four binary packages:
 
-  libcef138        - CEF shared library (libcef.so.138)
-                     The version number (138) is the CEF major version.
+  libcef144        - CEF shared library (libcef.so.144)
+                     The version number (144) is the CEF major version.
                      See "CEF and Chromium Version Alignment" section below.
 
-  libcef138-dbgsym - Debug symbols for libcef138 (auto-generated)
+  libcef144-dbgsym - Debug symbols for libcef144 (auto-generated)
 
   libcef-dev       - Development files (headers, CMake configuration)
-                     Depends on libcef138
+                     Depends on libcef144
 
   cef-resources    - Architecture-independent resources (PAK files, locales)
                      Required at runtime by CEF applications
@@ -140,7 +140,7 @@ the system's libffmpeg.so for media codec support. This enables:
   - AAC audio decoding (when libavcodec-extra is installed)
   - Other codecs supported by FFmpeg
 
-The package declares: Depends: libavcodec-extra | libavcodec60
+The package declares: Depends: libavcodec-extra | libavcodec61
 
 For full media playback support (e.g., streaming services), install:
 
@@ -164,33 +164,31 @@ The relationship is:
 
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
-  CEF 137        7444          142.0.7444.x         previous
-  CEF 138        7499          143.0.7499.x         current (143.0.7499.192)
+  CEF 138        7499          143.0.7499.x         previous
+  CEF 144        7559          144.0.7559.x         current (144.0.7559.59)
 
 **Why This Matters:**
 
-This package (libcef138) was chosen specifically to align with Debian Chromium
-in testing (143.0.7499.192). The CEF branch number (7499) corresponds to the
-Chromium build number (143.0.**7499**.x).
+This package (libcef144) was chosen specifically to align with Debian Chromium
+in testing (144.0.7559.59). The CEF branch number (7559) corresponds to the
+Chromium build number (144.0.**7559**.x).
 
 **CEF Version Scheme:**
 
-  - CEF version number (e.g., 138) is the CEF project's own major version
-  - CEF branch number (e.g., 7499) maps directly to Chromium build number
-  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 143.0.7499.40)
-  - CEF branch 7499 = Chromium 143.0.7499.x
+  - CEF version number (e.g., 144) is the CEF project's own major version
+  - CEF branch number (e.g., 7559) maps directly to Chromium build number
+  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 144.0.7559.59)
+  - CEF branch 7559 = Chromium 144.0.7559.x
 
 **Upstream CEF Source:**
 
   - Upstream URL: https://bitbucket.org/chromiumembedded/cef
-  - Branch: 7499 (CEF 138)
-  - CEF expects: refs/tags/143.0.7499.110
-  - Debian Chromium provides: 143.0.7499.192
+  - Branch: 7559 (CEF 144)
+  - CEF expects: refs/tags/144.0.7559.59
+  - Debian Chromium provides: 144.0.7559.59
 
 Note: CEF specifies the exact Chromium tag it was developed against.
-Debian Chromium has a higher patch level but the same branch (7499),
-so they are compatible. Patch-level differences within the same branch
-are expected to work since the API surface is stable within a branch.
+For this release, CEF and Debian Chromium versions match exactly.
 
 Future Migration: Debian Package Dependencies
 ----------------------------------------------

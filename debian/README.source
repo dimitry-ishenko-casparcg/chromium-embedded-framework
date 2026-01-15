@@ -69,7 +69,7 @@ COMPONENT TARBALLS
 1. CEF Source (orig.tar.xz)
 ---------------------------
 Obtained from: https://bitbucket.org/chromiumembedded/cef
-Branch: Must match Chromium's build number (e.g., branch 7499 for Chromium 143.x)
+Branch: Must match Chromium's build number (e.g., branch 7559 for Chromium 144.x)
 
 2. Chromium Source (orig-chromium.tar.xz)
 -----------------------------------------
@@ -349,7 +349,7 @@ Updating CEF Version:
 Updating Chromium Version (same CEF branch, new Chromium patch release):
 
 When Debian releases a new Chromium version within the same branch (e.g.,
-143.0.7499.169 -> 143.0.7499.192), follow these steps:
+144.0.7559.59 -> 144.0.7559.XX), follow these steps:
 
 1. Download new Chromium source:
    $ apt-get source --download-only chromium
