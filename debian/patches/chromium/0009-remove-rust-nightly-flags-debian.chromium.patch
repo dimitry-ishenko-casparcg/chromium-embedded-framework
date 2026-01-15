@@ -20,13 +20,13 @@ Description: Remove Rust nightly-only flags for Debian stable rustc compatibilit
  reproducibility, but allows building with Debian stable rustc.
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Forwarded: not-needed
-Last-Update: 2025-11-27
+Last-Update: 2026-01-15
 
 diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
-index 078c04943c..c422fd70e5 100644
+index c09c967..bee0059 100644
 --- a/build/config/compiler/BUILD.gn
 +++ b/build/config/compiler/BUILD.gn
-@@ -931,8 +931,10 @@ config("compiler") {
+@@ -941,8 +941,10 @@ config("compiler") {
          # whole-program-vtables implies -fsplit-lto-unit, and Rust needs to match
          # behaviour. Rust needs to know the linker will be doing LTO in this case
          # or it rejects the Zsplit-lto-unit flag.
@@ -38,10 +38,11 @@ index 078c04943c..c422fd70e5 100644
            "-Clinker-plugin-lto=yes",
          ]
        } else {
-@@ -1125,19 +1127,20 @@ config("compiler") {
-     # to compile dylibs on Android, such as for constructing unit test APKs.
+@@ -1136,21 +1138,21 @@ config("compiler") {
      "-Cdefault-linker-libraries",
+   ]
 
+-  rustflags += [
 -    # To make Rust .d files compatible with ninja
 -    "-Zdep-info-omit-d-target",
 -
@@ -55,24 +56,26 @@ index 078c04943c..c422fd70e5 100644
 -
 -    # We use clang-rt sanitizer runtimes.
 -    "-Zexternal-clangrt",
-+    # Debian: Removed nightly-only -Z flags for stable rustc compatibility
-+    # These are non-critical optimizations/debugging aids:
-+    #
-+    # -Zdep-info-omit-d-target: Makes Rust .d files compatible with ninja
-+    #   Impact: May affect incremental build dependency tracking
-+    #
-+    # -Zmacro-backtrace: Shows macro panic locations during compilation
-+    #   Impact: Slightly less helpful error messages
-+    #
-+    # -Zremap-cwd-prefix=.: Removes CWD from build outputs
-+    #   Impact: Build outputs may contain absolute paths (reproducibility)
-+    #
-+    # -Zexternal-clangrt: Uses clang-rt sanitizer runtimes
-+    #   Impact: May affect sanitizer support, testing needed
-   ]
+-  ]
++  # Debian: Removed nightly-only -Z flags for stable rustc compatibility
++  # These are non-critical optimizations/debugging aids:
++  #
++  # -Zdep-info-omit-d-target: Makes Rust .d files compatible with ninja
++  #   Impact: May affect incremental build dependency tracking
++  #
++  # -Zmacro-backtrace: Shows macro panic locations during compilation
++  #   Impact: Slightly less helpful error messages
++  #
++  # -Zremap-cwd-prefix=.: Removes CWD from build outputs
++  #   Impact: Build outputs may contain absolute paths (reproducibility)
++  #
++  # -Zexternal-clangrt: Uses clang-rt sanitizer runtimes
++  #   Impact: May affect sanitizer support, testing needed
++  rustflags += []
 
    if (!is_win || force_rustc_color_output) {
-@@ -1173,14 +1176,16 @@ config("compiler") {
+     # Colorize error output. The analogous flag is passed for clang. This must
+@@ -1185,14 +1187,16 @@ config("compiler") {
      # TODO(crbug.com/447558108): Use immediate-abort in AOSP once stabilized.
      if (is_official_build && !is_cronet_for_aosp_build) {
        rustflags += [
@@ -93,7 +96,7 @@ index 078c04943c..c422fd70e5 100644
        ]
      }
    }
-@@ -1205,7 +1210,10 @@ config("compiler") {
+@@ -1211,7 +1215,10 @@ config("compiler") {
  # Don't allow unstable features to be enabled by `#![feature()]` without
  # additional command line flags.
  config("disallow_unstable_features") {
@@ -104,8 +107,8 @@ index 078c04943c..c422fd70e5 100644
 +  rustflags = []
  }
 
- config("libcxx_hardening") {
-@@ -3074,7 +3082,9 @@ config("symbols") {
+ # The BUILDCONFIG file sets this config on targets by default, which means when
+@@ -3087,7 +3094,9 @@ config("symbols") {
      if (current_os != "aix" && current_os != "zos") {
        if (use_dwarf5) {
          cflags += [ "-gdwarf-5" ]
@@ -116,7 +119,7 @@ index 078c04943c..c422fd70e5 100644
        } else {
          # Recent clang versions default to DWARF5 on Linux, and Android is about
          # to switch. TODO: Adopt that in controlled way. For now, keep DWARF4.
-@@ -3086,7 +3096,9 @@ config("symbols") {
+@@ -3099,7 +3108,9 @@ config("symbols") {
 
          # On Apple, rustc defaults to DWARF2 so it needs to be told how to
          # match clang.
@@ -127,7 +130,7 @@ index 078c04943c..c422fd70e5 100644
        }
      }
 
-@@ -3221,18 +3233,21 @@ config("minimal_symbols") {
+@@ -3234,18 +3245,21 @@ config("minimal_symbols") {
        # at least 10.11.
        # TODO(thakis): Remove this once mac_deployment_target is 10.11.
        cflags += [ "-gdwarf-4" ]
@@ -153,7 +156,7 @@ index 078c04943c..c422fd70e5 100644
 
      cflags += [ "-g1" ]
 diff --git a/build/config/gcc/BUILD.gn b/build/config/gcc/BUILD.gn
-index a659210..2df292d 100644
+index a659210..ed51201 100644
 --- a/build/config/gcc/BUILD.gn
 +++ b/build/config/gcc/BUILD.gn
 @@ -32,7 +32,9 @@ declare_args() {

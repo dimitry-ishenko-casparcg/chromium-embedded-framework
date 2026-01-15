@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Align with Debian Chromium configuration (chromium_143.0.7499.192-1.debian.tar.xz)
+# Align with Debian Chromium configuration (chromium_144.0.7559.59-1~deb13u1.debian.tar.xz)
 # Reference: /tmp/chromium-debian-reference/debian/rules
 
 include /usr/share/dpkg/buildopts.mk
@@ -171,8 +171,8 @@ export GN_DEFINES += is_component_ffmpeg=true
 # Individual settings like use_custom_libcxx=false and use_thin_lto=false are there
 
 # CEF version/branch
-# Branch 7499 matches Chromium 143.0.7499.x (Debian chromium 143.0.7499.192)
-CEF_BRANCH = 7499
+# Branch 7559 matches Chromium 144.0.7559.x (Debian chromium 144.0.7559.59)
+CEF_BRANCH = 7559
 
 %:
 	dh $@
@@ -237,7 +237,7 @@ override_dh_auto_build:
 	@echo "==> CEF git repository initialized"
 
 	# Step 4: Fix version mismatch (CEF expects specific tag, Debian has different point release)
-	sed -i "s/143\.0\.7499\.[0-9]*/143.0.7499.192/" \
+	sed -i "s/144\.0\.7559\.[0-9]*/144.0.7559.59/" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Move Chromium source from MUT-extracted directory
@@ -267,7 +267,7 @@ override_dh_auto_build:
 	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../chromium_143.0.7499.192-1.debian.tar.xz \
+	tar -xf $(CURDIR)/../chromium_144.0.7559.59-1~deb13u1.debian.tar.xz \
 		-C $(CURDIR)/chromium_src/chromium/
 	# Apply debianization patches (system libraries, build fixes, security patches)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
@@ -507,6 +507,9 @@ override_dh_auto_build:
 	# Patch 0036-angle: Look for ANGLE libs in cef/ subdirectory on Linux
 	# Debian installs ANGLE to /usr/lib/x86_64-linux-gnu/cef/ to avoid GLVND/Mesa conflicts
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-angle-libs-cef-subdir.chromium.patch
+	# Patch 0049: Fix libc++ value_or template deduction with SkPoint in paint_vector_icon.cc
+	# libc++ cannot deduce template arg from brace-init {0,0}, use explicit SkPoint::Make(0,0)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-fix-skpoint-value_or-libcxx.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -1097,7 +1100,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot-tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_138.0.1.orig-chromium.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_144.0.6.orig-chromium.tar.xz \
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \
@@ -1108,13 +1111,13 @@ override_dh_auto_build:
 
 override_dh_auto_install:
 	# Create package directories first
-	mkdir -p $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu
+	mkdir -p $(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include
 	mkdir -p $(CURDIR)/debian/cef-resources/usr/share/cef
 
 	# Install libcef.so (use _linux64_minimal pattern for minimal-only distribution)
 	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libcef.so \
-		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
 
 	# Add RPATH for CEF's private ANGLE libraries (libEGL.so, libGLESv2.so)
 	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
@@ -1123,16 +1126,16 @@ override_dh_auto_install:
 	# The ANGLE libraries must be in a separate directory to avoid conflicts with system Mesa.
 	# libcef.so already has $ORIGIN RUNPATH from upstream, we append the CEF private lib dir.
 	patchelf --set-rpath '$$ORIGIN:/usr/lib/x86_64-linux-gnu/cef' \
-		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
 
 	# Fix SONAME for proper library versioning (upstream uses unversioned "libcef.so")
 	# This ensures proper library dependency tracking and ldconfig symlink creation
-	patchelf --set-soname libcef.so.138 \
-		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
+	patchelf --set-soname libcef.so.144 \
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
 
 	# Create soname symlink
-	ln -s libcef.so.138.0.1 \
-		$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/libcef.so.138
+	ln -s libcef.so.144.0.6 \
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144
 
 	# Install headers (use _linux64_minimal pattern for minimal-only distribution)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
@@ -1177,7 +1180,7 @@ override_dh_auto_install:
 		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
 		   ! echo "$$libname" | grep -qE '^lib(EGL|GLESv2|vulkan)\.so'; then \
 			install -D -m644 "$$lib" \
-				"$(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/$$libname"; \
+				"$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/$$libname"; \
 		fi \
 	done
 
@@ -1186,20 +1189,20 @@ override_dh_auto_install:
 	# CEF's GPU process requires these specific ANGLE libraries for hardware acceleration.
 	# Installing to /usr/lib/x86_64-linux-gnu/cef/ avoids conflicts with system Mesa (libegl1, libgles2).
 	# Applications using CEF should set LD_LIBRARY_PATH or use rpath to find these.
-	mkdir -p $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/cef/
+	mkdir -p $(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/cef/
 	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libEGL.so \
 	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libGLESv2.so; do \
 		if [ -f "$$lib" ]; then \
-			install -m644 "$$lib" $(CURDIR)/debian/libcef138/usr/lib/x86_64-linux-gnu/cef/; \
+			install -m644 "$$lib" $(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/cef/; \
 		fi \
 	done
 
 	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
 	# Generate with absolute path instead of relative path (original has ./libvk_swiftshader.so)
 	# This is needed for Vulkan loader to find the library from any working directory
-	mkdir -p $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/
+	mkdir -p $(CURDIR)/debian/libcef144/usr/share/vulkan/icd.d/
 	echo '{"file_format_version": "1.0.0", "ICD": {"library_path": "/usr/lib/x86_64-linux-gnu/libvk_swiftshader.so", "api_version": "1.0.5"}}' \
-		> $(CURDIR)/debian/libcef138/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
+		> $(CURDIR)/debian/libcef144/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
 	# Install chrome-sandbox (needed for CEF process isolation)
 	# Note: This binary requires setuid root to function, but we install it without setuid
@@ -1208,8 +1211,8 @@ override_dh_auto_install:
 	# - Configure setuid permissions manually: sudo chown root:root /usr/lib/cef/chrome-sandbox && sudo chmod 4755 /usr/lib/cef/chrome-sandbox
 	for sandbox in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/chrome-sandbox; do \
 		if [ -f "$$sandbox" ]; then \
-			mkdir -p $(CURDIR)/debian/libcef138/usr/lib/cef/; \
-			install -m755 "$$sandbox" $(CURDIR)/debian/libcef138/usr/lib/cef/chrome-sandbox; \
+			mkdir -p $(CURDIR)/debian/libcef144/usr/lib/cef/; \
+			install -m755 "$$sandbox" $(CURDIR)/debian/libcef144/usr/lib/cef/chrome-sandbox; \
 			break; \
 		fi \
 	done
