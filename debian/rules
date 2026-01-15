@@ -507,9 +507,9 @@ override_dh_auto_build:
 	# Patch 0036-angle: Look for ANGLE libs in cef/ subdirectory on Linux
 	# Debian installs ANGLE to /usr/lib/x86_64-linux-gnu/cef/ to avoid GLVND/Mesa conflicts
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-angle-libs-cef-subdir.chromium.patch
-	# Patch 0049: Fix libc++ value_or template deduction with SkPoint in paint_vector_icon.cc
-	# libc++ cannot deduce template arg from brace-init {0,0}, use explicit SkPoint::Make(0,0)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-fix-skpoint-value_or-libcxx.chromium.patch
+	# Patch 0049: Fix libc++ value_or template deduction (based on Debian Chromium trixie/value-or.patch)
+	# libc++ cannot deduce template args from brace-init like {} or {0, 0}
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-fix-value_or-libcxx.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
