@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Align with Debian Chromium configuration (chromium_144.0.7559.59-1~deb13u1.debian.tar.xz)
+# Align with Debian Chromium configuration (chromium_144.0.7559.59-1.debian.tar.xz)
 # Reference: /tmp/chromium-debian-reference/debian/rules
 
 include /usr/share/dpkg/buildopts.mk
@@ -267,7 +267,7 @@ override_dh_auto_build:
 	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../chromium_144.0.7559.59-1~deb13u1.debian.tar.xz \
+	tar -xf $(CURDIR)/../chromium_144.0.7559.59-1.debian.tar.xz \
 		-C $(CURDIR)/chromium_src/chromium/
 	# Apply debianization patches (system libraries, build fixes, security patches)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
