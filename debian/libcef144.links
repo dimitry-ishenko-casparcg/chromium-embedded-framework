@@ -1,7 +1,14 @@
+# ANGLE library version symlinks
+# CEF's dlopen looks for versioned sonames (libEGL.so.1, libGLESv2.so.2)
+# but ANGLE only provides unversioned .so files
+/usr/lib/x86_64-linux-gnu/cef/libEGL.so /usr/lib/x86_64-linux-gnu/cef/libEGL.so.1
+/usr/lib/x86_64-linux-gnu/cef/libGLESv2.so /usr/lib/x86_64-linux-gnu/cef/libGLESv2.so.2
+
 # CEF resource symlinks - CEF loads resources relative to libcef.so location
 # before processing command-line switches like --resources-dir-path.
 # These symlinks allow CEF to find its resources when using Debian's split
 # package layout (library in /usr/lib, resources in /usr/share).
+# Note: These are in libcef144 (not cef-resources) because they use arch-specific paths.
 
 # ICU data (internationalization)
 usr/share/cef/icudtl.dat usr/lib/x86_64-linux-gnu/icudtl.dat
