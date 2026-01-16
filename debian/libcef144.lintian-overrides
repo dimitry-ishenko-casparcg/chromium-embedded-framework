@@ -1,5 +1,5 @@
 # =============================================================================
-# LINTIAN OVERRIDES FOR LIBCEF138
+# LINTIAN OVERRIDES FOR LIBCEF144
 # =============================================================================
 # CEF (Chromium Embedded Framework) is built from Chromium sources.
 # These overrides align with Debian chromium's approach.
@@ -13,7 +13,7 @@
 # implementation. These conflict with system Mesa, so installed to private dir.
 # Debian policy allows RPATH for private libraries in /usr/lib/<package>/
 # See: https://wiki.debian.org/RpathIssue
-libcef138: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr/lib/x86_64-linux-gnu/libcef.so.138.0.1]
+libcef144: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr/lib/x86_64-linux-gnu/libcef.so.144.0.6]
 
 # -----------------------------------------------------------------------------
 # EMBEDDED LIBRARIES (same as Debian chromium)
@@ -24,18 +24,18 @@ libcef138: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr
 # - srtp: WebRTC bundles modified libsrtp2
 # - tiff: PDFium embeds with security hardening
 # Debian chromium uses identical overrides (see /usr/share/lintian/overrides/chromium)
-libcef138: embedded-library freetype [usr/lib/x86_64-linux-gnu/libcef.so.138.0.1]
-libcef138: embedded-library libjsoncpp [usr/lib/x86_64-linux-gnu/libcef.so.138.0.1]
-libcef138: embedded-library srtp [usr/lib/x86_64-linux-gnu/libcef.so.138.0.1]
-libcef138: embedded-library tiff [usr/lib/x86_64-linux-gnu/libcef.so.138.0.1]
+libcef144: embedded-library freetype [usr/lib/x86_64-linux-gnu/libcef.so.144.0.6]
+libcef144: embedded-library libjsoncpp [usr/lib/x86_64-linux-gnu/libcef.so.144.0.6]
+libcef144: embedded-library srtp [usr/lib/x86_64-linux-gnu/libcef.so.144.0.6]
+libcef144: embedded-library tiff [usr/lib/x86_64-linux-gnu/libcef.so.144.0.6]
 
 # -----------------------------------------------------------------------------
 # SWIFTSHADER (PRIVATE VULKAN SOFTWARE RENDERER)
 # -----------------------------------------------------------------------------
 # SwiftShader is a private library for software Vulkan rendering.
 # It's not a public API, so versioning/symlinks are not required.
-libcef138: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libvk_swiftshader.so libvk_swiftshader.so
-libcef138: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linux-gnu/libvk_swiftshader.so [usr/lib/x86_64-linux-gnu/libvk_swiftshader.so]
+libcef144: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libvk_swiftshader.so libvk_swiftshader.so
+libcef144: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linux-gnu/libvk_swiftshader.so [usr/lib/x86_64-linux-gnu/libvk_swiftshader.so]
 
 # -----------------------------------------------------------------------------
 # SYMBOLS FILE
@@ -43,6 +43,6 @@ libcef138: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linu
 # CEF is a 260MB library with thousands of symbols that change between releases.
 # Creating and maintaining a .symbols file is impractical. Dependency tracking
 # uses shlibs instead, which is sufficient for a library with this versioning
-# scheme (libcef138 -> libcef139 on API changes).
-libcef138: no-symbols-control-file usr/lib/x86_64-linux-gnu/libcef.so.138.0.1
-libcef138: no-symbols-control-file usr/lib/x86_64-linux-gnu/libvk_swiftshader.so
+# scheme (libcef144 -> libcef145 on API changes).
+libcef144: no-symbols-control-file usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
+libcef144: no-symbols-control-file usr/lib/x86_64-linux-gnu/libvk_swiftshader.so
