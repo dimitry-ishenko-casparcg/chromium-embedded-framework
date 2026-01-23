@@ -1,0 +1,26 @@
+Description: Add CEF resources dependency to about_ui BUILD.gn
+ The CEF patch chrome_browser_webui_license.patch adds an include for
+ "cef/grit/cef_resources.h" to chrome/browser/ui/webui/about/about_ui.cc
+ but doesn't add the corresponding GN dependency. This causes a build
+ failure when ninja tries to compile about_ui.cc before cef_resources.h
+ is generated.
+ .
+ This patch adds //cef:cef_resources to the deps list in BUILD.gn to ensure
+ proper build order. Required for Chromium 144.0.7559.96 compatibility.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-01-23
+
+diff --git a/chrome/browser/ui/webui/about/BUILD.gn b/chrome/browser/ui/webui/about/BUILD.gn
+index e5d9b02..076a2d1 100644
+--- a/chrome/browser/ui/webui/about/BUILD.gn
++++ b/chrome/browser/ui/webui/about/BUILD.gn
+@@ -23,6 +23,7 @@ source_set("impl") {
+
+   deps = [
+     ":about",
++    "//cef:cef_resources",
+     "//chrome/browser:browser_process",
+     "//chrome/browser:flags",
+     "//chrome/browser/profiles:profile",

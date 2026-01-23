@@ -2,7 +2,7 @@
 
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
-CHROMIUM_VERSION := 144.0.7559.59
+CHROMIUM_VERSION := 144.0.7559.96
 CHROMIUM_DEBIAN_REV := 1
 CHROMIUM_DEBIAN_TAR := chromium_$(CHROMIUM_VERSION)-$(CHROMIUM_DEBIAN_REV).debian.tar.xz
 
@@ -512,6 +512,9 @@ override_dh_auto_build:
 	# Patch 0049: Fix libc++ value_or template deduction (based on Debian Chromium trixie/value-or.patch)
 	# libc++ cannot deduce template args from brace-init like {} or {0, 0}
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0049-fix-value_or-libcxx.chromium.patch
+	# Patch 0050: Add CEF resources dependency to about_ui BUILD.gn
+	# Required for Chromium 144.0.7559.96+ where build order needs explicit CEF dependency
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0050-add-cef-resources-dep-about-ui.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
