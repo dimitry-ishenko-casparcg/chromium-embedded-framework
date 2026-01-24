@@ -15,3 +15,5 @@
 0016-use-full-path-autoninja-dpkg.cef.patch
 0017-sequential-distribution-commands.cef.patch
 0018-disable-distrib-clang-format.cef.patch
+0019-update-chrome-browser-browser-patch-for-debian-chromium-96.cef.patch
+0020-remove-chrome-browser-browser-from-skip-list.cef.patch
