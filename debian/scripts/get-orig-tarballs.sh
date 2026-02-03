@@ -14,7 +14,7 @@
 
 set -e
 
-VERSION="${1:-144.0.6}"
+VERSION="${1:-144.0.7}"
 CEF_BRANCH="${2:-7559}"
 PKG="chromium-embedded-framework"
 
@@ -68,10 +68,19 @@ else
     # Try apt-get source first
     if apt-get source --download-only chromium 2>/dev/null; then
         CHROMIUM_ORIG=$(ls chromium_*.orig.tar.xz 2>/dev/null | head -1)
+        CHROMIUM_DEBIAN=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
         if [ -n "$CHROMIUM_ORIG" ]; then
             mv "$CHROMIUM_ORIG" "${PKG}_${VERSION}.orig-chromium.tar.xz"
-            rm -f chromium_*.dsc chromium_*.debian.tar.xz 2>/dev/null || true
             echo "    Created: ${PKG}_${VERSION}.orig-chromium.tar.xz"
+
+            # Keep debian.tar.xz - it's needed for Step 5.5 in debian/rules
+            # which applies Debian's Chromium patches during build
+            if [ -n "$CHROMIUM_DEBIAN" ]; then
+                echo "    Kept: ${CHROMIUM_DEBIAN} (needed for build)"
+            fi
+
+            # Clean up .dsc file only
+            rm -f chromium_*.dsc 2>/dev/null || true
         fi
     else
         echo "    ERROR: Could not download Chromium source."
@@ -117,12 +126,33 @@ echo "============================================================"
 echo "Summary"
 echo "============================================================"
 ls -lh "${PKG}_${VERSION}".orig*.tar.xz
+
+# Detect Chromium version from debian.tar.xz filename
+CHROMIUM_DEBIAN_TAR=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
+if [ -n "$CHROMIUM_DEBIAN_TAR" ]; then
+    ls -lh "$CHROMIUM_DEBIAN_TAR"
+    # Extract version: chromium_144.0.7559.109-1.debian.tar.xz -> 144.0.7559.109-1
+    CHROMIUM_FULL_VER=$(echo "$CHROMIUM_DEBIAN_TAR" | sed 's/chromium_\(.*\)\.debian\.tar\.xz/\1/')
+    # Split into version and revision: 144.0.7559.109-1 -> 144.0.7559.109 and 1
+    CHROMIUM_VER=$(echo "$CHROMIUM_FULL_VER" | cut -d- -f1)
+    CHROMIUM_REV=$(echo "$CHROMIUM_FULL_VER" | cut -d- -f2)
+fi
 echo ""
 echo "Total size:"
 du -ch "${PKG}_${VERSION}".orig*.tar.xz | tail -1
 echo ""
+
+if [ -n "$CHROMIUM_VER" ]; then
+    echo "Detected Chromium version: ${CHROMIUM_VER}-${CHROMIUM_REV}"
+    echo ""
+fi
+
 echo "Next steps:"
-echo "  cd ${PKG}"
-echo "  debuild -S -sa        # Create signed source package for mentors"
-echo "  debuild -S -sa -us -uc  # Create unsigned source package"
-echo "  dpkg-buildpackage -us -uc  # Build binary packages"
+echo "  1. Update debian/ files with version references:"
+echo "     ./${PKG}/debian/scripts/upgrade-helper.sh ${VERSION} ${CHROMIUM_VER:-CHROMIUM_VERSION} ${CHROMIUM_REV:-DEBIAN_REV}"
+echo ""
+echo "  2. Build the package:"
+echo "     cd ${PKG}"
+echo "     debuild -S -sa          # Create signed source package for mentors"
+echo "     debuild -S -sa -us -uc  # Create unsigned source package"
+echo "     dpkg-buildpackage -us -uc  # Build binary packages"

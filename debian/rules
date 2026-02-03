@@ -1,8 +1,14 @@
 #!/usr/bin/make -f
 
+# Get package version from debian/changelog (provides DEB_VERSION_UPSTREAM, etc.)
+include /usr/share/dpkg/pkg-info.mk
+
+# CEF version derived from changelog (e.g., "144.0.7" from "144.0.7-1")
+CEF_VERSION := $(DEB_VERSION_UPSTREAM)
+
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
-CHROMIUM_VERSION := 144.0.7559.96
+CHROMIUM_VERSION := 144.0.7559.109
 CHROMIUM_DEBIAN_REV := 1
 CHROMIUM_DEBIAN_TAR := chromium_$(CHROMIUM_VERSION)-$(CHROMIUM_DEBIAN_REV).debian.tar.xz
 
@@ -1105,7 +1111,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot-tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_144.0.6.orig-chromium.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_$(CEF_VERSION).orig-chromium.tar.xz \
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \
@@ -1122,7 +1128,7 @@ override_dh_auto_install:
 
 	# Install libcef.so (use _linux64_minimal pattern for minimal-only distribution)
 	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libcef.so \
-		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_VERSION)
 
 	# Add RPATH for CEF's private ANGLE libraries (libEGL.so, libGLESv2.so)
 	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
@@ -1131,15 +1137,15 @@ override_dh_auto_install:
 	# The ANGLE libraries must be in a separate directory to avoid conflicts with system Mesa.
 	# libcef.so already has $ORIGIN RUNPATH from upstream, we append the CEF private lib dir.
 	patchelf --set-rpath '$$ORIGIN:/usr/lib/x86_64-linux-gnu/cef' \
-		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_VERSION)
 
 	# Fix SONAME for proper library versioning (upstream uses unversioned "libcef.so")
 	# This ensures proper library dependency tracking and ldconfig symlink creation
 	patchelf --set-soname libcef.so.144 \
-		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144.0.6
+		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_VERSION)
 
 	# Create soname symlink
-	ln -s libcef.so.144.0.6 \
+	ln -s libcef.so.$(CEF_VERSION) \
 		$(CURDIR)/debian/libcef144/usr/lib/x86_64-linux-gnu/libcef.so.144
 
 	# Install headers (use _linux64_minimal pattern for minimal-only distribution)
