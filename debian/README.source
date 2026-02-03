@@ -40,10 +40,29 @@ Standard Build (from source package):
     $ cd chromium-embedded-framework-*/
     $ dpkg-buildpackage -us -uc
 
-The MUT components are automatically extracted by dpkg-source -x.
+The MUT components are automatically extracted by dpkg-source -x. This is the
+recommended build method as it correctly handles component directory naming.
 
 Build Time: ~2-7 hours (depends on hardware; 2h on modern 24-core, 7h+ on older systems)
 Disk Space: ~40 GB required
+
+Development Workflow (from git checkout):
+
+When working from a git checkout (not a dpkg-source extracted package), you
+must first create and extract the source package:
+
+    $ cd /path/to/chromium-embedded-framework
+    $ dpkg-source -b .                    # Create .dsc and debian.tar.xz
+    $ cd ..
+    $ dpkg-source -x chromium-embedded-framework_*.dsc build-dir
+    $ cd build-dir
+    $ dpkg-buildpackage -us -uc
+
+This is necessary because MUT component tarballs (orig-chromium.tar.xz,
+orig-depot-tools.tar.xz) have internal directory names that differ from the
+component names. dpkg-source -x handles the renaming automatically.
+
+DO NOT attempt to manually extract component tarballs - use dpkg-source -x.
 
 Obtaining Source Tarballs:
 
@@ -339,6 +358,15 @@ Alternative: Use debian/scripts/get-orig-tarballs.sh for manual downloads.
 MAINTENANCE
 ================================================================================
 
+Helper Scripts:
+
+Two helper scripts are provided in debian/scripts/ to simplify version updates:
+
+  - get-orig-tarballs.sh: Downloads and creates MUT tarballs
+  - upgrade-helper.sh: Updates version references in debian/ files
+
+These scripts automate the manual steps below. See each script for usage.
+
 Updating CEF Version:
 1. Update CEF source in orig.tar.xz
 2. Update CEF_BRANCH in debian/rules
@@ -349,7 +377,7 @@ Updating CEF Version:
 Updating Chromium Version (same CEF branch, new Chromium patch release):
 
 When Debian releases a new Chromium version within the same branch (e.g.,
-144.0.7559.59 -> 144.0.7559.XX), follow these steps:
+144.0.7559.109 -> 144.0.7559.XX), follow these steps:
 
 1. Download new Chromium source:
    $ apt-get source --download-only chromium
