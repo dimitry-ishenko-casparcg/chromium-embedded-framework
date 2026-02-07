@@ -339,20 +339,26 @@ Similarly, system rollup replaces bundled @rollup/wasm-node:
 VERSION TRACKING (debian/watch)
 ================================================================================
 
-The debian/watch file (Version 5 format) tracks upstream versions:
+The debian/watch file uses Version 5 format with the Untrackable field.
 
-    $ uscan --no-download --verbose
+uscan cannot automatically track CEF upstream versions because the CEF
+Bitbucket repository has no git tags. CEF uses only branch numbers (e.g.,
+7559) which correspond to Chromium build numbers, not CEF versions. The
+actual CEF version (e.g., 144.0.7) is derived from a VERSION file inside
+the source tree, which uscan cannot extract from git refs.
 
-Components tracked:
-- CEF: From Bitbucket git tags (refs/tags/X.Y.Z pattern)
-- chromium: From Debian package pool (deb.debian.org/debian/pool/main/c/chromium/)
-  NOTE: We depend on DEBIAN's chromium, not upstream Google chromium
-- depot-tools: From Google's git repository (HEAD, no versioned releases)
+The MUT component tarballs (chromium and depot-tools) could be tracked
+individually, but the Untrackable field applies globally to the entire
+watch file. Their stanzas are preserved as comments in debian/watch.
 
-The rust component is not tracked - it's interim and will be removed when
-Debian's rust-src provides required files.
+To obtain MUT tarballs, use the helper script:
 
-Alternative: Use debian/scripts/get-orig-tarballs.sh for manual downloads.
+    $ ./debian/scripts/get-orig-tarballs.sh [VERSION] [CEF_BRANCH]
+
+Manual tracking resources:
+- CEF branches: https://bitbucket.org/chromiumembedded/cef/branches/
+- CEF builds: https://cef-builds.spotifycdn.com/index.html
+- Chromium pool: https://deb.debian.org/debian/pool/main/c/chromium/
 
 ================================================================================
 MAINTENANCE
