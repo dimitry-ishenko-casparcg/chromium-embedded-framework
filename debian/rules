@@ -9,7 +9,7 @@ CEF_VERSION := $(DEB_VERSION_UPSTREAM)
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
 CHROMIUM_VERSION := 144.0.7559.109
-CHROMIUM_DEBIAN_REV := 1
+CHROMIUM_DEBIAN_REV := 2
 CHROMIUM_DEBIAN_TAR := chromium_$(CHROMIUM_VERSION)-$(CHROMIUM_DEBIAN_REV).debian.tar.xz
 
 include /usr/share/dpkg/buildopts.mk
