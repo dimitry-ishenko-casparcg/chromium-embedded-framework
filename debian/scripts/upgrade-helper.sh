@@ -11,15 +11,16 @@
 # This script updates:
 #   - debian/changelog (version only, keeps existing entry for new packages)
 #   - debian/rules (CHROMIUM_VERSION, CHROMIUM_DEBIAN_REV)
-#   - debian/README.Debian (version references)
-#   - debian/README.source (version references)
-#   - debian/libcef144.lintian-overrides (library version)
+#   - debian/README.Debian (Chromium and CEF version references)
+#   - debian/README.source (Chromium and CEF version references)
+#   - debian/libcefN.lintian-overrides (library version in paths)
+#   - debian/libcefN-dbgsym.lintian-overrides (renamed on major version change)
 
 set -e
 
 CEF_VERSION="${1:-}"
 CHROMIUM_VERSION="${2:-}"
-CHROMIUM_REV="${3:-1}"
+CHROMIUM_REV="${3:-2}"
 
 if [ -z "$CEF_VERSION" ] || [ -z "$CHROMIUM_VERSION" ]; then
     echo "Usage: $0 CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]"
@@ -29,7 +30,7 @@ if [ -z "$CEF_VERSION" ] || [ -z "$CHROMIUM_VERSION" ]; then
     echo "Arguments:"
     echo "  CEF_VERSION      - New CEF version (e.g., 144.0.7)"
     echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 144.0.7559.109)"
-    echo "  CHROMIUM_REV     - Debian revision (default: 1)"
+    echo "  CHROMIUM_REV     - Debian revision (default: 2)"
     exit 1
 fi
 
@@ -88,47 +89,64 @@ else
     echo "    WARNING: Could not find CHROMIUM_VERSION in debian/rules"
 fi
 
+# Derive CEF major version and branch from version strings
+# CEF 144.0.7 -> major=144, Chromium 144.0.7559.109 -> branch=7559
+CURRENT_CEF_MAJOR=$(echo "$CURRENT_CEF" | cut -d. -f1)
+NEW_CEF_MAJOR=$(echo "$CEF_VERSION" | cut -d. -f1)
+CURRENT_BRANCH=$(echo "$CURRENT_CHROMIUM" | cut -d. -f3)
+NEW_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
+
+# Helper: update Chromium and CEF version references in a file
+update_version_refs() {
+    local file="$1"
+    local label="$2"
+    if [ ! -f "$file" ]; then
+        echo "    Skipped (file not found)"
+        return
+    fi
+    if [ -n "$CURRENT_CHROMIUM" ] && [ "$CURRENT_CHROMIUM" != "unknown" ]; then
+        sed -i "s/${CURRENT_CHROMIUM}/${CHROMIUM_VERSION}/g" "$file"
+        echo "    Updated Chromium references: ${CURRENT_CHROMIUM} -> ${CHROMIUM_VERSION}"
+    fi
+    # On major version changes, update CEF major references (e.g., CEF 144 -> 145)
+    if [ "$CURRENT_CEF_MAJOR" != "$NEW_CEF_MAJOR" ]; then
+        sed -i "s/CEF ${CURRENT_CEF_MAJOR}/CEF ${NEW_CEF_MAJOR}/g" "$file"
+        sed -i "s/libcef${CURRENT_CEF_MAJOR}/libcef${NEW_CEF_MAJOR}/g" "$file"
+        echo "    Updated CEF major: ${CURRENT_CEF_MAJOR} -> ${NEW_CEF_MAJOR}"
+    fi
+    if [ "$CURRENT_BRANCH" != "$NEW_BRANCH" ]; then
+        sed -i "s/branch ${CURRENT_BRANCH}/branch ${NEW_BRANCH}/g" "$file"
+        echo "    Updated branch: ${CURRENT_BRANCH} -> ${NEW_BRANCH}"
+    fi
+}
+
 # 3. Update debian/README.Debian
 echo "==> [3/5] Updating debian/README.Debian"
-if [ -f "${DEBIAN_DIR}/README.Debian" ]; then
-    # Update Chromium version references (e.g., 144.0.7559.59 -> 144.0.7559.109)
-    # Only update full version patterns, not partial ones
-    if [ -n "$CURRENT_CHROMIUM" ] && [ "$CURRENT_CHROMIUM" != "unknown" ]; then
-        sed -i "s/${CURRENT_CHROMIUM}/${CHROMIUM_VERSION}/g" "${DEBIAN_DIR}/README.Debian"
-        echo "    Updated Chromium references: ${CURRENT_CHROMIUM} -> ${CHROMIUM_VERSION}"
-    else
-        echo "    Skipped (could not determine current Chromium version)"
-    fi
-else
-    echo "    Skipped (file not found)"
-fi
+update_version_refs "${DEBIAN_DIR}/README.Debian" "README.Debian"
 
 # 4. Update debian/README.source
 echo "==> [4/5] Updating debian/README.source"
-if [ -f "${DEBIAN_DIR}/README.source" ]; then
-    if [ -n "$CURRENT_CHROMIUM" ] && [ "$CURRENT_CHROMIUM" != "unknown" ]; then
-        sed -i "s/${CURRENT_CHROMIUM}/${CHROMIUM_VERSION}/g" "${DEBIAN_DIR}/README.source"
-        echo "    Updated Chromium references: ${CURRENT_CHROMIUM} -> ${CHROMIUM_VERSION}"
-    else
-        echo "    Skipped (could not determine current Chromium version)"
-    fi
-else
-    echo "    Skipped (file not found)"
-fi
+update_version_refs "${DEBIAN_DIR}/README.source" "README.source"
 
-# 5. Update debian/libcef144.lintian-overrides
-echo "==> [5/5] Updating debian/libcef144.lintian-overrides"
-LINTIAN_FILE="${DEBIAN_DIR}/libcef144.lintian-overrides"
-if [ -f "$LINTIAN_FILE" ]; then
-    if [ -n "$CURRENT_CEF" ] && [ "$CURRENT_CEF" != "unknown" ]; then
-        sed -i "s/libcef\.so\.${CURRENT_CEF}/libcef.so.${CEF_VERSION}/g" "$LINTIAN_FILE"
-        echo "    Updated library references: libcef.so.${CURRENT_CEF} -> libcef.so.${CEF_VERSION}"
-    else
-        echo "    Skipped (could not determine current CEF version)"
+# 5. Update lintian-overrides files
+echo "==> [5/5] Updating lintian-overrides"
+for LINTIAN_FILE in "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}.lintian-overrides" \
+                    "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}-dbgsym.lintian-overrides"; do
+    if [ -f "$LINTIAN_FILE" ]; then
+        # Update CEF version in library paths (e.g., libcef.so.144.0.7 -> libcef.so.145.0.1)
+        if [ -n "$CURRENT_CEF" ] && [ "$CURRENT_CEF" != "unknown" ]; then
+            sed -i "s/libcef\.so\.${CURRENT_CEF}/libcef.so.${CEF_VERSION}/g" "$LINTIAN_FILE"
+        fi
+        # On major version change, update package name references and rename file
+        if [ "$CURRENT_CEF_MAJOR" != "$NEW_CEF_MAJOR" ]; then
+            sed -i "s/libcef${CURRENT_CEF_MAJOR}/libcef${NEW_CEF_MAJOR}/g" "$LINTIAN_FILE"
+            NEW_LINTIAN_FILE=$(echo "$LINTIAN_FILE" | sed "s/libcef${CURRENT_CEF_MAJOR}/libcef${NEW_CEF_MAJOR}/")
+            mv "$LINTIAN_FILE" "$NEW_LINTIAN_FILE"
+            echo "    Renamed: $(basename "$LINTIAN_FILE") -> $(basename "$NEW_LINTIAN_FILE")"
+        fi
+        echo "    Updated: $(basename "${LINTIAN_FILE}")"
     fi
-else
-    echo "    Skipped (file not found)"
-fi
+done
 
 echo ""
 echo "============================================================"

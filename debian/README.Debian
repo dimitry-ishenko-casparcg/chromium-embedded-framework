@@ -225,7 +225,11 @@ See debian/README.source for implementation details.
 Security Updates
 ----------------
 
-See README.security for the security update policy.
+CEF inherits its security posture from the Chromium version it is built against.
+Security updates are delivered by rebuilding CEF against the latest Debian
+Chromium source package. When the chromium-source binary package becomes
+available (bug #893448), this process will be simplified to a Build-Depends
+version bump.
 
 Patch Documentation
 -------------------
