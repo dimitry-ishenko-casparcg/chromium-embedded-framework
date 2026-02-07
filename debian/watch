@@ -1,51 +1,43 @@
 Version: 5
+Untrackable: CEF has no git tags; version derived from internal VERSION file
 
-# CEF releases from Bitbucket git repository
-# CEF uses branch-based releases aligned with Chromium versions
-# Branch naming: e.g., branch 7499 corresponds to Chromium 143.x
+# CEF upstream version tracking
 #
-# CEF version format: MAJOR.MINOR.PATCH (e.g., 138.0.1)
-# where MAJOR matches the Chromium milestone number
+# CEF's Bitbucket repository has no git tags. Releases are branches numbered
+# by Chromium build number (e.g., branch 7559 for Chromium 144.x). The actual
+# CEF version (e.g., 144.0.7) is derived from the VERSION file inside the
+# source tree, which uscan cannot extract from git refs.
+#
+# The chromium component comes from Debian's chromium source package, and
+# depot-tools is a rolling repository with no versioned releases.
+#
+# Use debian/scripts/get-orig-tarballs.sh to obtain MUT tarballs.
+# See debian/README.source for full details.
 #
 # Manual tracking resources:
-# - Branches: https://bitbucket.org/chromiumembedded/cef/branches/
-# - Downloads: https://bitbucket.org/chromiumembedded/cef/downloads/
-# - Spotify builds: https://cef-builds.spotifycdn.com/index.html
+# - CEF branches: https://bitbucket.org/chromiumembedded/cef/branches/
+# - CEF builds: https://cef-builds.spotifycdn.com/index.html
+# - Chromium pool: https://deb.debian.org/debian/pool/main/c/chromium/
 
-Mode: git
 Source: https://bitbucket.org/chromiumembedded/cef.git
-Matching-Pattern: refs/tags/(\d+\.\d+\.\d+)
-Pgp-Mode: none
+Matching-Pattern: .*@ANY_VERSION@@ARCHIVE_EXT@
 
-# Component: chromium
-# IMPORTANT: Chromium source comes from Debian's chromium package, NOT upstream Google.
-# We depend on Debian's pre-patched chromium which has Files-Excluded applied
-# and Debian-specific patches. This is different from upstream Google chromium.
+# The following MUT components would be trackable individually but are
+# disabled because Untrackable applies globally to the entire watch file.
 #
-# Tracking Debian's chromium package pool directly:
-
-Component: chromium
-Source: https://deb.debian.org/debian/pool/main/c/chromium/
-Matching-Pattern: chromium_(@ANY_VERSION@)\.orig\.tar\.xz
-Pgp-Mode: none
-Compression: xz
-Dversion-Mangle: s/-\d+$//
-Version-Constraint: ignore
-
-# Component: depot-tools (Google's build tools)
-# This is a rolling repository with no versioned releases
-# Using HEAD with ignore version constraint
-
-Component: depot-tools
-Mode: git
-Git-Mode: shallow
-Source: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-Matching-Pattern: HEAD
-Pgp-Mode: none
-Compression: xz
-Version-Constraint: ignore
-
-# Note: The rust component (orig-rust.tar.xz) is not tracked here.
-# It is an interim bundled dependency that will be removed when Debian's
-# rust-src package provides the required sync_nonpoison files.
-# Use debian/scripts/get-orig-tarballs.sh for manual download if needed.
+# Component: chromium
+# Source: https://deb.debian.org/debian/pool/main/c/chromium/
+# Matching-Pattern: chromium_(@ANY_VERSION@)\.orig\.tar\.xz
+# Pgp-Mode: none
+# Compression: xz
+# Dversion-Mangle: s/-\d+$//
+# Version-Constraint: ignore
+#
+# Component: depot-tools
+# Mode: git
+# Git-Mode: shallow
+# Source: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+# Matching-Pattern: HEAD
+# Pgp-Mode: none
+# Compression: xz
+# Version-Constraint: ignore
