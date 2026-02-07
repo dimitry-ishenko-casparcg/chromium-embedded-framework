@@ -13,7 +13,7 @@ Build-Depends: debhelper-compat (= 13),
 # Note: CEF uses system libc++ from libc++-19-dev, matching Debian Chromium's approach (Build 197+).
 # Previous bundled libc++ attempts (Builds 108-113) had configuration issues (missing -stdlib=libc++ flags).
 # System libc++ works with proper compiler flags: -stdlib=libc++ -static-libstdc++
-# See debian/README.source section "SYSTEM LIBC++ ALIGNMENT" for details.
+# See debian/README.source section "SYSTEM LIBC++ (use_custom_libcxx=false)" for details.
                cmake,
                xvfb,
                gperf,
