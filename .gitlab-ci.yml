@@ -1,0 +1,66 @@
+---
+# CEF build pipeline for Salsa custom runner
+# Requires custom runner — shared runners have 3h timeout (CEF needs 7h+)
+
+stages:
+  - build
+  - check
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  PKG: chromium-embedded-framework
+
+build-cef:
+  stage: build
+  tags: ["cef-builder"]
+  timeout: 24h
+  rules:
+    - if: $GITLAB_USER_LOGIN == "mendezr"
+      when: manual
+    - when: never
+  script:
+    - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
+    - CEF_BRANCH="7559"
+    - echo "Building CEF ${UPSTREAM_VERSION}"
+
+    # Show runner capabilities
+    - echo "CPU cores:$(nproc) RAM:$(free -h | grep Mem | awk '{print $2}') Disk:$(df -h . | tail -1 | awk '{print $4}')"
+
+    - export TMPDIR="$PWD/tmp"
+    - mkdir -p "$TMPDIR"
+
+    # Obtain MUT tarballs (script skips existing ones)
+    - chmod +x debian/scripts/get-orig-tarballs.sh
+    - cd .. && ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" && cd ${PKG}
+
+    # Restore source tree to match what dpkg-source -x would produce:
+    # 1. Extract unpatched cef/ from orig tarball (git checkout has patches baked in)
+    # 2. Extract chromium/ and depot-tools/ MUT components (not tracked in git)
+    # dpkg-source --before-build then applies quilt patches cleanly
+    - rm -rf cef
+    - tar -xf ../${PKG}_${UPSTREAM_VERSION}.orig.tar.xz --strip-components=1
+    - mkdir -p chromium
+    - tar -xf ../${PKG}_${UPSTREAM_VERSION}.orig-chromium.tar.xz --strip-components=1 -C chromium
+    - tar -xf ../${PKG}_${UPSTREAM_VERSION}.orig-depot-tools.tar.xz
+
+    # Build binary packages
+    - export PATH="/usr/lib/llvm-19/bin:$PATH"
+    - dpkg-buildpackage -b -us -uc
+
+    # Copy artifacts into project dir (GitLab artifacts must be within $CI_PROJECT_DIR)
+    - mkdir -p build-output
+    - cp ../*.deb ../*.buildinfo ../*.changes build-output/ || true
+
+  artifacts:
+    paths:
+      - build-output/
+    expire_in: 30 days
+    when: on_success
+
+lintian:
+  stage: check
+  tags: ["cef-builder"]
+  needs: ["build-cef"]
+  script:
+    - lintian --info --display-info --pedantic build-output/*.deb || true
+  allow_failure: true
