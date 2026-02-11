@@ -74,12 +74,44 @@ Or download with dget:
 
     $ dget https://deb.debian.org/debian/pool/.../chromium-embedded-framework_VERSION.dsc
 
-To recreate tarballs from upstream sources (e.g., for initial packaging):
+================================================================================
+FOR DEBIAN DEVELOPERS REVIEWING THIS PACKAGE
+================================================================================
 
-    $ ./debian/scripts/get-orig-tarballs.sh [VERSION] [CEF_BRANCH]
+Quick Start (copy-paste these commands):
 
-This script downloads CEF from Bitbucket, Chromium from Debian's archive,
-and depot-tools from Google, then creates properly named MUT tarballs.
+    # 1. Clone the repository
+    git clone https://salsa.debian.org/mendezr/chromium-embedded-framework.git
+    cd chromium-embedded-framework
+
+    # 2. Find the Chromium version available in Debian
+    apt-cache policy chromium | grep Candidate
+    # Example output: Candidate: 144.0.7559.109-2
+
+    # 3. Download MUT tarballs (use the version from step 2)
+    #
+    #    Parameters:
+    #      144.0.7           = CEF package version (from debian/changelog)
+    #      7559              = CEF upstream branch (from cef/CHROMIUM_BUILD_COMPATIBILITY.txt)
+    #      144.0.7559.109-2  = Chromium Debian version (from step 2)
+    #
+    ./debian/scripts/get-orig-tarballs.sh 144.0.7 7559 144.0.7559.109-2
+
+    # 4. Create source package
+    dpkg-source -b .
+
+    # 5. Extract and build
+    cd ..
+    dpkg-source -x chromium-embedded-framework_*.dsc build-test
+    cd build-test
+    dpkg-buildpackage -us -uc
+
+Notes:
+- Step 3: The script downloads CEF, Chromium, and depot-tools automatically.
+  It tries apt-get source first, then falls back to dget from security.debian.org
+  or deb.debian.org if needed.
+- Step 5: dpkg-source -x applies quilt patches and renames MUT directories.
+- Build requires ~40GB disk space and 2-7 hours depending on hardware.
 
 ================================================================================
 COMPONENT TARBALLS
@@ -93,7 +125,17 @@ Branch: Must match Chromium's build number (e.g., branch 7559 for Chromium 144.x
 2. Chromium Source (orig-chromium.tar.xz)
 -----------------------------------------
 Obtained from: Debian chromium package source
-Command: apt-get source --download-only chromium
+
+IMPORTANT: You must download the correct Chromium version that matches CEF's
+requirements. Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for the required version.
+For CEF branch 7559, this is Chromium 144.0.7559.x.
+
+Command (with specific version):
+    apt-get source --download-only chromium=144.0.7559.109-2
+
+To find available versions:
+    apt-cache policy chromium
+
 Rename: mv chromium_*.orig.tar.xz chromium-embedded-framework_VERSION.orig-chromium.tar.xz
 
 NOTE: This tarball contains vanilla Chromium source. The Debian Chromium patches

@@ -8,7 +8,7 @@
 # orig tarballs from upstream sources. Once the package is in the Debian
 # archive, use 'apt-get source' or 'dget' instead.
 #
-# Usage: ./debian/scripts/get-orig-tarballs.sh [VERSION]
+# Usage: ./debian/scripts/get-orig-tarballs.sh [VERSION] [CEF_BRANCH] [CHROMIUM_VERSION]
 #
 # Run from the PARENT directory of the package source.
 
@@ -16,6 +16,7 @@ set -e
 
 VERSION="${1:-144.0.7}"
 CEF_BRANCH="${2:-7559}"
+CHROMIUM_VERSION="${3:-}"
 PKG="chromium-embedded-framework"
 
 echo "============================================================"
@@ -65,30 +66,72 @@ if [ -f "${PKG}_${VERSION}.orig-chromium.tar.xz" ]; then
 else
     echo "    Downloading Chromium source from Debian..."
 
-    # Try apt-get source first
-    if apt-get source --download-only chromium 2>/dev/null; then
-        CHROMIUM_ORIG=$(ls chromium_*.orig.tar.xz 2>/dev/null | head -1)
-        CHROMIUM_DEBIAN=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
-        if [ -n "$CHROMIUM_ORIG" ]; then
-            mv "$CHROMIUM_ORIG" "${PKG}_${VERSION}.orig-chromium.tar.xz"
-            echo "    Created: ${PKG}_${VERSION}.orig-chromium.tar.xz"
+    # Download specific version if provided, otherwise latest
+    if [ -n "$CHROMIUM_VERSION" ]; then
+        echo "    Requested: chromium=${CHROMIUM_VERSION}"
+        APT_SOURCE_CMD="apt-get source --download-only chromium=${CHROMIUM_VERSION}"
+    else
+        APT_SOURCE_CMD="apt-get source --download-only chromium"
+    fi
 
-            # Keep debian.tar.xz - it's needed for Step 5.5 in debian/rules
-            # which applies Debian's Chromium patches during build
-            if [ -n "$CHROMIUM_DEBIAN" ]; then
-                echo "    Kept: ${CHROMIUM_DEBIAN} (needed for build)"
+    if $APT_SOURCE_CMD 2>/dev/null; then
+        echo "    Downloaded via apt-get source"
+    elif [ -n "$CHROMIUM_VERSION" ]; then
+        # Fallback: try dget from Debian servers
+        echo "    apt-get source failed, trying dget..."
+        CHROMIUM_BASE_VER=$(echo "$CHROMIUM_VERSION" | sed 's/~.*//')
+        DOWNLOADED=false
+
+        # Try security.debian.org first (often has newer versions)
+        for SUFFIX in "~deb13u1" "~deb12u1" ""; do
+            DSC_URL="https://security.debian.org/debian-security/pool/updates/main/c/chromium/chromium_${CHROMIUM_BASE_VER}${SUFFIX}.dsc"
+            echo "    Trying: $DSC_URL"
+            if dget -d "$DSC_URL" 2>/dev/null; then
+                DOWNLOADED=true
+                break
             fi
+        done
 
-            # Clean up .dsc file only
-            rm -f chromium_*.dsc 2>/dev/null || true
+        # Try main Debian archive if security failed
+        if [ "$DOWNLOADED" = false ]; then
+            for SUFFIX in "~deb13u1" "~deb12u1" ""; do
+                DSC_URL="https://deb.debian.org/debian/pool/main/c/chromium/chromium_${CHROMIUM_BASE_VER}${SUFFIX}.dsc"
+                echo "    Trying: $DSC_URL"
+                if dget -d "$DSC_URL" 2>/dev/null; then
+                    DOWNLOADED=true
+                    break
+                fi
+            done
+        fi
+
+        if [ "$DOWNLOADED" = false ]; then
+            echo "    ERROR: Could not download Chromium ${CHROMIUM_VERSION}"
+            echo ""
+            echo "    Find the correct .dsc URL at:"
+            echo "      https://security.debian.org/debian-security/pool/updates/main/c/chromium/"
+            echo "      https://deb.debian.org/debian/pool/main/c/chromium/"
+            echo ""
+            echo "    Then run: dget -d <URL>"
+            exit 1
         fi
     else
-        echo "    ERROR: Could not download Chromium source."
-        echo "    Make sure you have 'deb-src' lines in /etc/apt/sources.list"
-        echo "    and run 'apt-get update' first."
-        echo ""
-        echo "    Alternatively, download manually from:"
-        echo "    https://deb.debian.org/debian/pool/main/c/chromium/"
+        echo "    ERROR: apt-get source failed and no version specified."
+        echo "    Please specify Chromium version as third parameter."
+        exit 1
+    fi
+
+    CHROMIUM_ORIG=$(ls chromium_*.orig.tar.xz 2>/dev/null | head -1)
+    CHROMIUM_DEBIAN=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
+    if [ -n "$CHROMIUM_ORIG" ]; then
+        mv "$CHROMIUM_ORIG" "${PKG}_${VERSION}.orig-chromium.tar.xz"
+        echo "    Created: ${PKG}_${VERSION}.orig-chromium.tar.xz"
+
+        if [ -n "$CHROMIUM_DEBIAN" ]; then
+            echo "    Kept: ${CHROMIUM_DEBIAN} (needed for build)"
+        fi
+        rm -f chromium_*.dsc 2>/dev/null || true
+    else
+        echo "    ERROR: No chromium orig.tar.xz found after download"
         exit 1
     fi
 fi
