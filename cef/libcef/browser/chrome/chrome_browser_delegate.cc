@@ -439,7 +439,8 @@ std::optional<bool> ChromeBrowserDelegate::SupportsWindowFeature(
     int feature) const {
   // Override the default value from
   // Browser::PictureInPictureBrowserSupportsWindowFeature.
-  if (feature == Browser::FEATURE_TITLEBAR &&
+  if (static_cast<Browser::WindowFeature>(feature) ==
+          Browser::WindowFeature::kFeatureTitleBar &&
       browser_->is_type_picture_in_picture()) {
     // Return false to hide titlebar and enable draggable regions.
     return !SupportsFramelessPictureInPicture();
@@ -482,6 +483,32 @@ bool ChromeBrowserDelegate::TakeFocus(content::WebContents* source,
     return delegate->TakeFocus(source, reverse);
   }
   return false;
+}
+
+void ChromeBrowserDelegate::FindReply(content::WebContents* web_contents,
+                                      int request_id,
+                                      int number_of_matches,
+                                      const gfx::Rect& selection_rect,
+                                      int active_match_ordinal,
+                                      bool final_update) {
+  if (auto delegate = GetDelegateForWebContents(web_contents)) {
+    delegate->FindReply(web_contents, request_id, number_of_matches,
+                        selection_rect, active_match_ordinal, final_update);
+  }
+}
+
+void ChromeBrowserDelegate::UpdatePreferredSize(content::WebContents* source,
+                                                const gfx::Size& pref_size) {
+  if (auto delegate = GetDelegateForWebContents(source)) {
+    delegate->UpdatePreferredSize(source, pref_size);
+  }
+}
+
+void ChromeBrowserDelegate::ResizeDueToAutoResize(content::WebContents* source,
+                                                  const gfx::Size& new_size) {
+  if (auto delegate = GetDelegateForWebContents(source)) {
+    delegate->ResizeDueToAutoResize(source, new_size);
+  }
 }
 
 void ChromeBrowserDelegate::WindowFullscreenStateChanged() {

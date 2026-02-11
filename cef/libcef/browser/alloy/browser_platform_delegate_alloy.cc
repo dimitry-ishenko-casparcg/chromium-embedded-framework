@@ -96,10 +96,6 @@ void CefBrowserPlatformDelegateAlloy::AddNewContents(
   }
 }
 
-void CefBrowserPlatformDelegateAlloy::RenderViewReady() {
-  ConfigureAutoResize();
-}
-
 void CefBrowserPlatformDelegateAlloy::BrowserCreated(
     CefBrowserHostBase* browser) {
   CefBrowserPlatformDelegate::BrowserCreated(browser);
@@ -163,83 +159,6 @@ void CefBrowserPlatformDelegateAlloy::NotifyMoveOrResizeStarted() {
   }
 }
 #endif
-
-void CefBrowserPlatformDelegateAlloy::SetAutoResizeEnabled(
-    bool enabled,
-    const CefSize& min_size,
-    const CefSize& max_size) {
-  if (enabled == auto_resize_enabled_) {
-    return;
-  }
-
-  auto_resize_enabled_ = enabled;
-  if (enabled) {
-    auto_resize_min_ = gfx::Size(min_size.width, min_size.height);
-    auto_resize_max_ = gfx::Size(max_size.width, max_size.height);
-  } else {
-    auto_resize_min_ = auto_resize_max_ = gfx::Size();
-  }
-  ConfigureAutoResize();
-}
-
-void CefBrowserPlatformDelegateAlloy::ConfigureAutoResize() {
-  if (!web_contents_ || !web_contents_->GetRenderWidgetHostView()) {
-    return;
-  }
-
-  if (auto_resize_enabled_) {
-    web_contents_->GetRenderWidgetHostView()->EnableAutoResize(
-        auto_resize_min_, auto_resize_max_);
-  } else {
-    web_contents_->GetRenderWidgetHostView()->DisableAutoResize(gfx::Size());
-  }
-}
-
-void CefBrowserPlatformDelegateAlloy::Find(const CefString& searchText,
-                                           bool forward,
-                                           bool matchCase,
-                                           bool findNext) {
-  if (!web_contents_) {
-    return;
-  }
-
-  find_in_page::FindTabHelper::FromWebContents(web_contents_)
-      ->StartFinding(searchText.ToString16(), forward, matchCase, findNext,
-                     /*run_synchronously_for_testing=*/false);
-}
-
-void CefBrowserPlatformDelegateAlloy::StopFinding(bool clearSelection) {
-  if (!web_contents_) {
-    return;
-  }
-
-  last_search_result_ = find_in_page::FindNotificationDetails();
-  find_in_page::FindTabHelper::FromWebContents(web_contents_)
-      ->StopFinding(clearSelection ? find_in_page::SelectionAction::kClear
-                                   : find_in_page::SelectionAction::kKeep);
-}
-
-bool CefBrowserPlatformDelegateAlloy::HandleFindReply(
-    int request_id,
-    int number_of_matches,
-    const gfx::Rect& selection_rect,
-    int active_match_ordinal,
-    bool final_update) {
-  if (!web_contents_) {
-    return false;
-  }
-
-  auto find_in_page =
-      find_in_page::FindTabHelper::FromWebContents(web_contents_);
-
-  find_in_page->HandleFindReply(request_id, number_of_matches, selection_rect,
-                                active_match_ordinal, final_update);
-  if (!(find_in_page->find_result() == last_search_result_)) {
-    last_search_result_ = find_in_page->find_result();
-    return true;
-  }
-  return false;
-}
 
 base::RepeatingClosure
 CefBrowserPlatformDelegateAlloy::GetBoundsChangedCallback() {

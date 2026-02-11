@@ -150,6 +150,16 @@ class CefBrowserContentsDelegate : public content::WebContentsDelegate,
   void OnFocusChangedInPage(
       const content::FocusedNodeDetails& details) override;
   bool TakeFocus(content::WebContents* source, bool reverse) override;
+  void FindReply(content::WebContents* web_contents,
+                 int request_id,
+                 int number_of_matches,
+                 const gfx::Rect& selection_rect,
+                 int active_match_ordinal,
+                 bool final_update) override;
+  void UpdatePreferredSize(content::WebContents* source,
+                           const gfx::Size& pref_size) override;
+  void ResizeDueToAutoResize(content::WebContents* source,
+                             const gfx::Size& new_size) override;
   void WebContentsDestroyed() override;
 
   // Accessors for state information. Changes will be signaled to
