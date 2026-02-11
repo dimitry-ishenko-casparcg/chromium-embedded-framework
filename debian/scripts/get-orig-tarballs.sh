@@ -79,30 +79,19 @@ else
     elif [ -n "$CHROMIUM_VERSION" ]; then
         # Fallback: try dget from Debian servers
         echo "    apt-get source failed, trying dget..."
-        CHROMIUM_BASE_VER=$(echo "$CHROMIUM_VERSION" | sed 's/~.*//')
         DOWNLOADED=false
 
-        # Try security.debian.org first (often has newer versions)
-        for SUFFIX in "~deb13u1" "~deb12u1" ""; do
-            DSC_URL="https://security.debian.org/debian-security/pool/updates/main/c/chromium/chromium_${CHROMIUM_BASE_VER}${SUFFIX}.dsc"
+        # Try to download the exact version requested
+        # First try main Debian archive, then security
+        for BASE_URL in "https://deb.debian.org/debian/pool/main/c/chromium" \
+                        "https://security.debian.org/debian-security/pool/updates/main/c/chromium"; do
+            DSC_URL="${BASE_URL}/chromium_${CHROMIUM_VERSION}.dsc"
             echo "    Trying: $DSC_URL"
             if dget -d "$DSC_URL" 2>/dev/null; then
                 DOWNLOADED=true
                 break
             fi
         done
-
-        # Try main Debian archive if security failed
-        if [ "$DOWNLOADED" = false ]; then
-            for SUFFIX in "~deb13u1" "~deb12u1" ""; do
-                DSC_URL="https://deb.debian.org/debian/pool/main/c/chromium/chromium_${CHROMIUM_BASE_VER}${SUFFIX}.dsc"
-                echo "    Trying: $DSC_URL"
-                if dget -d "$DSC_URL" 2>/dev/null; then
-                    DOWNLOADED=true
-                    break
-                fi
-            done
-        fi
 
         if [ "$DOWNLOADED" = false ]; then
             echo "    ERROR: Could not download Chromium ${CHROMIUM_VERSION}"
