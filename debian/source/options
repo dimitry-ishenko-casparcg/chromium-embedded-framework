@@ -5,4 +5,4 @@
 # (e.g., chromium-144.0.7559.109/) which differs from the MUT component
 # name (chromium/). dpkg-source -x renames it, but git checkouts keep
 # the original name.
-extend-diff-ignore = "^depot-tools/|^depot_tools/|^chromium/|^chromium-[0-9]|^chromium_src/|^third_party/|^cef/|^tools/|^\\.gbp\\.conf$"
+extend-diff-ignore = "^depot-tools/|^depot_tools/|^chromium/|^chromium-[0-9]|^chromium_src/|^third_party/|^cef/|^tools/|^\\.gbp\\.conf$|\\.gitlab-ci\\.yml$"
