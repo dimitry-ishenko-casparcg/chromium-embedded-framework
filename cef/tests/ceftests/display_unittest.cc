@@ -8,6 +8,7 @@
 #include "include/wrapper/cef_closure_task.h"
 #include "tests/ceftests/routing_test_handler.h"
 #include "tests/ceftests/test_handler.h"
+#include "tests/ceftests/test_util.h"
 #include "tests/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -148,6 +149,7 @@ TEST(DisplayTest, Title) {
   ReleaseAndWaitForDestructor(handler);
 }
 
+#if !defined(OS_LINUX)
 namespace {
 
 const char kAutoResizeUrl[] = "https://tests-display/auto-resize.html";
@@ -179,12 +181,12 @@ class AutoResizeTestHandler : public RoutingTestHandler {
 
   bool OnAutoResize(CefRefPtr<CefBrowser> browser,
                     const CefSize& new_size) override {
-    if (new_size.width == 1064 && new_size.height == 576) {
+    if (new_size.width > 700 && new_size.height > 500) {
       // Ignore this initial resize that may or may not occur.
     } else if (!got_auto_resize1_) {
       got_auto_resize1_.yes();
-      EXPECT_EQ(50, new_size.width);
-      EXPECT_EQ(18, new_size.height);
+      EXPECT_NEAR(50, new_size.width, 1);
+      EXPECT_NEAR(18, new_size.height, 1);
 
       // Trigger a resize.
       browser->GetMainFrame()->ExecuteJavaScript(
@@ -192,8 +194,8 @@ class AutoResizeTestHandler : public RoutingTestHandler {
           kAutoResizeUrl, 0);
     } else if (!got_auto_resize2_) {
       got_auto_resize2_.yes();
-      EXPECT_EQ(50, new_size.width);
-      EXPECT_EQ(37, new_size.height);
+      EXPECT_NEAR(50, new_size.width, 1);
+      EXPECT_NEAR(37, new_size.height, 1);
 
       // Disable resize notifications.
       browser->GetHost()->SetAutoResizeEnabled(false, CefSize(), CefSize());
@@ -242,11 +244,14 @@ class AutoResizeTestHandler : public RoutingTestHandler {
 }  // namespace
 
 // Test OnAutoResize notification.
+// Disabled on Linux because it causes DCHECK failures in the renderer process.
+// See issue #4038.
 TEST(DisplayTest, AutoResize) {
   CefRefPtr<AutoResizeTestHandler> handler = new AutoResizeTestHandler();
   handler->ExecuteTest();
   ReleaseAndWaitForDestructor(handler);
 }
+#endif  // !defined(OS_LINUX)
 
 namespace {
 

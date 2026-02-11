@@ -360,18 +360,11 @@ class CefBrowserPlatformDelegate {
   virtual gfx::Size GetMaximumDialogSize();
 
   // See CefBrowserHost documentation.
-  virtual void SetAutoResizeEnabled(bool enabled,
-                                    const CefSize& min_size,
-                                    const CefSize& max_size);
   virtual void SetAccessibilityState(cef_state_t accessibility_state);
   virtual bool IsPrintPreviewSupported() const;
-  virtual void Find(const CefString& searchText,
-                    bool forward,
-                    bool matchCase,
-                    bool findNext);
-  virtual void StopFinding(bool clearSelection);
 
   virtual bool IsMovePictureInPictureEnabled() const;
+  virtual bool AllowPictureInPictureWithoutUserActivation() const;
 
   // CefBrowser configuration determined prior to CefBrowserHost creation and
   // passed to the renderer process via the GetNewBrowserInfo Mojo request.

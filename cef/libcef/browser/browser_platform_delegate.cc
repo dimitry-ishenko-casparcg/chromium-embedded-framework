@@ -507,12 +507,6 @@ gfx::Size CefBrowserPlatformDelegate::GetMaximumDialogSize() {
   return web_contents_->GetContainerBounds().size();
 }
 
-void CefBrowserPlatformDelegate::SetAutoResizeEnabled(bool enabled,
-                                                      const CefSize& min_size,
-                                                      const CefSize& max_size) {
-  NOTIMPLEMENTED();
-}
-
 void CefBrowserPlatformDelegate::SetAccessibilityState(
     cef_state_t accessibility_state) {
   // Do nothing if state is set to default. It'll be disabled by default and
@@ -574,20 +568,15 @@ bool CefBrowserPlatformDelegate::IsMovePictureInPictureEnabled() const {
   return false;
 }
 
+bool CefBrowserPlatformDelegate::AllowPictureInPictureWithoutUserActivation()
+    const {
+  return false;
+}
+
 cef::BrowserConfig CefBrowserPlatformDelegate::GetBrowserConfig() const {
   return {IsWindowless(), IsPrintPreviewSupported(),
-          IsMovePictureInPictureEnabled()};
-}
-
-void CefBrowserPlatformDelegate::Find(const CefString& searchText,
-                                      bool forward,
-                                      bool matchCase,
-                                      bool findNext) {
-  NOTIMPLEMENTED();
-}
-
-void CefBrowserPlatformDelegate::StopFinding(bool clearSelection) {
-  NOTIMPLEMENTED();
+          IsMovePictureInPictureEnabled(),
+          AllowPictureInPictureWithoutUserActivation()};
 }
 
 // static

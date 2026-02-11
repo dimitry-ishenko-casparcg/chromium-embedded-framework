@@ -231,17 +231,6 @@ CefWindowHandle ChromeBrowserHostImpl::GetOpenerWindowHandle() {
   return kNullWindowHandle;
 }
 
-void ChromeBrowserHostImpl::Find(const CefString& searchText,
-                                 bool forward,
-                                 bool matchCase,
-                                 bool findNext) {
-  NOTIMPLEMENTED();
-}
-
-void ChromeBrowserHostImpl::StopFinding(bool clearSelection) {
-  NOTIMPLEMENTED();
-}
-
 void ChromeBrowserHostImpl::WasResized() {
   NOTIMPLEMENTED();
 }
@@ -323,12 +312,6 @@ void ChromeBrowserHostImpl::DragSourceEndedAt(int x,
   NOTIMPLEMENTED();
 }
 
-void ChromeBrowserHostImpl::SetAutoResizeEnabled(bool enabled,
-                                                 const CefSize& min_size,
-                                                 const CefSize& max_size) {
-  NOTIMPLEMENTED();
-}
-
 bool ChromeBrowserHostImpl::CanExecuteChromeCommand(int command_id) {
   // Verify that this method is being called on the UI thread.
   if (!CEF_CURRENTLY_ON_UIT()) {
@@ -394,7 +377,7 @@ bool ChromeBrowserHostImpl::Navigate(const content::OpenURLParams& params) {
 
     nav_params.tabstrip_add_types = AddTabTypes::ADD_NONE;
     if (params.user_gesture) {
-      nav_params.window_action = NavigateParams::SHOW_WINDOW;
+      nav_params.window_action = NavigateParams::WindowAction::kShowWindow;
     }
     ::Navigate(&nav_params);
     return true;

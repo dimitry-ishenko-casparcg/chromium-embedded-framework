@@ -302,6 +302,10 @@ def GetRecommendedDefaultArgs():
       # Disable downgrade processing/restart with the Chrome runtime.
       # https://github.com/chromiumembedded/cef/issues/3608
       'enable_downgrade_processing': False,
+
+      # Disable Gemini integration which only works in branded Google Chrome.
+      # https://github.com/chromiumembedded/cef/issues/3982
+      'enable_glic': False,
   }
 
   if platform == 'windows' or platform == 'mac':
@@ -582,6 +586,12 @@ def GetConfigArgs(args, is_debug, cpu):
         # Use a global table to track all live raw_ptr/raw_ref instances to help
         # debug dangling pointers. This requires PA-E.
         add_args['enable_backup_ref_ptr_instance_tracer'] = True
+
+    # Disable GWP-ASAN on macOS Debug builds to avoid static initialization
+    # deadlock on application start. See https://crbug.com/465497430
+    if platform == 'mac' and is_debug:
+      add_args['enable_gwp_asan_malloc'] = False
+      add_args['enable_gwp_asan_partitionalloc'] = False
 
   result = MergeDicts(args, add_args, {
       'is_debug': is_debug,

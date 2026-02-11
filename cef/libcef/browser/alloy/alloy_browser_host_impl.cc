@@ -331,49 +331,6 @@ CefWindowHandle AlloyBrowserHostImpl::GetOpenerWindowHandle() {
   return opener_window_handle_;
 }
 
-void AlloyBrowserHostImpl::Find(const CefString& searchText,
-                                bool forward,
-                                bool matchCase,
-                                bool findNext) {
-  if (!CEF_CURRENTLY_ON_UIT()) {
-    CEF_POST_TASK(CEF_UIT,
-                  base::BindOnce(&AlloyBrowserHostImpl::Find, this, searchText,
-                                 forward, matchCase, findNext));
-    return;
-  }
-
-  if (platform_delegate_) {
-    platform_delegate_->Find(searchText, forward, matchCase, findNext);
-  }
-}
-
-void AlloyBrowserHostImpl::StopFinding(bool clearSelection) {
-  if (!CEF_CURRENTLY_ON_UIT()) {
-    CEF_POST_TASK(CEF_UIT, base::BindOnce(&AlloyBrowserHostImpl::StopFinding,
-                                          this, clearSelection));
-    return;
-  }
-
-  if (platform_delegate_) {
-    platform_delegate_->StopFinding(clearSelection);
-  }
-}
-
-void AlloyBrowserHostImpl::SetAutoResizeEnabled(bool enabled,
-                                                const CefSize& min_size,
-                                                const CefSize& max_size) {
-  if (!CEF_CURRENTLY_ON_UIT()) {
-    CEF_POST_TASK(CEF_UIT,
-                  base::BindOnce(&AlloyBrowserHostImpl::SetAutoResizeEnabled,
-                                 this, enabled, min_size, max_size));
-    return;
-  }
-
-  if (platform_delegate_) {
-    platform_delegate_->SetAutoResizeEnabled(enabled, min_size, max_size);
-  }
-}
-
 bool AlloyBrowserHostImpl::CanExecuteChromeCommand(int command_id) {
   return false;
 }
@@ -661,23 +618,9 @@ void AlloyBrowserHostImpl::FindReply(content::WebContents* web_contents,
                                      const gfx::Rect& selection_rect,
                                      int active_match_ordinal,
                                      bool final_update) {
-  auto alloy_delegate =
-      static_cast<CefBrowserPlatformDelegateAlloy*>(platform_delegate());
-  if (alloy_delegate->HandleFindReply(request_id, number_of_matches,
-                                      selection_rect, active_match_ordinal,
-                                      final_update)) {
-    if (client_) {
-      if (auto handler = client_->GetFindHandler()) {
-        const auto& details = alloy_delegate->last_search_result();
-        CefRect rect(details.selection_rect().x(), details.selection_rect().y(),
-                     details.selection_rect().width(),
-                     details.selection_rect().height());
-        handler->OnFindResult(
-            this, details.request_id(), details.number_of_matches(), rect,
-            details.active_match_ordinal(), details.final_update());
-      }
-    }
-  }
+  contents_delegate_.FindReply(web_contents, request_id, number_of_matches,
+                               selection_rect, active_match_ordinal,
+                               final_update);
 }
 
 void AlloyBrowserHostImpl::ImeSetComposition(
@@ -1167,27 +1110,12 @@ bool AlloyBrowserHostImpl::ShowContextMenu(
 
 void AlloyBrowserHostImpl::UpdatePreferredSize(content::WebContents* source,
                                                const gfx::Size& pref_size) {
-#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC))
-  CEF_REQUIRE_UIT();
-  if (platform_delegate_) {
-    platform_delegate_->SizeTo(pref_size.width(), pref_size.height());
-  }
-#endif
+  contents_delegate_.UpdatePreferredSize(source, pref_size);
 }
 
 void AlloyBrowserHostImpl::ResizeDueToAutoResize(content::WebContents* source,
                                                  const gfx::Size& new_size) {
-  CEF_REQUIRE_UIT();
-
-  if (client_) {
-    CefRefPtr<CefDisplayHandler> handler = client_->GetDisplayHandler();
-    if (handler && handler->OnAutoResize(
-                       this, CefSize(new_size.width(), new_size.height()))) {
-      return;
-    }
-  }
-
-  UpdatePreferredSize(source, new_size);
+  contents_delegate_.ResizeDueToAutoResize(source, new_size);
 }
 
 void AlloyBrowserHostImpl::RequestMediaAccessPermission(

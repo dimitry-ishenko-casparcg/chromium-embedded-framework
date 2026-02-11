@@ -229,7 +229,7 @@ index 399fba1a3d4e601dc2cdd5f1f4def8b7fd7a3011..e784943296025be191918397b3f4164e
    gpu::SyncPointManager* GetSyncPointManager() override;
    gpu::Scheduler* GetGpuScheduler() override;
 diff --git content/browser/compositor/viz_process_transport_factory.cc content/browser/compositor/viz_process_transport_factory.cc
-index d8f825a29c50f47a35ef2ff4dc03c0a8d27d877d..3ca38069938379385dc1963a7eb9cc3a8dbef2c3 100644
+index 43d29976d8bd42d3ee6857db7d61f31c26795848..c3be4f8e990ba113774b9d28cf385d706c821ce0 100644
 --- content/browser/compositor/viz_process_transport_factory.cc
 +++ content/browser/compositor/viz_process_transport_factory.cc
 @@ -381,8 +381,15 @@ void VizProcessTransportFactory::OnEstablishedGpuChannel(
@@ -308,7 +308,7 @@ index 2f462f0deb5fc8a637457243fb5d5849fc214d14..695869b83cefaa24af93a2e11b39de05
 +  Draw(gfx.mojom.Rect damage_rect) => ();
  };
 diff --git ui/compositor/compositor.h ui/compositor/compositor.h
-index 010a30bcd09ca39215f0b31ec59425067a2392a4..6ea02fb704e074289ccfebfd974929e48ca857b6 100644
+index a54db013c6057ec4af188e66bda932e2c5595d67..35f5d844dabce232c77894d22dcc97f2f5e1a5d5 100644
 --- ui/compositor/compositor.h
 +++ ui/compositor/compositor.h
 @@ -34,7 +34,9 @@
