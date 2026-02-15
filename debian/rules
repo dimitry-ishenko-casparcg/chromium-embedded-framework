@@ -423,8 +423,8 @@ override_dh_auto_build:
 	# and use .chromium.patch suffix to distinguish them from CEF patches
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
 	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
-	@echo "==> Applying Debian Chromium patches (DEPS, gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
-	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0001-debian-tarball-deps.chromium.patch
+	# Note: 0001-debian-tarball-deps removed - all source_tarball conditions upstreamed in Chromium 145
+	@echo "==> Applying Debian Chromium patches (gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
@@ -452,15 +452,7 @@ override_dh_auto_build:
 	# When using custom unbundle toolchain, bundled libc++ directory doesn't exist
 	# but GN still tries to load buildtools/third_party/libc++/BUILD.gn during parse phase
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-add-stub-libcxx-build-gn.chromium.patch
-	# Patch 0015: Remove GCC libstdc++ optional header for system libc++ compatibility
-	# The upstream Chromium tarball contains a file 'optional' which is a GCC libstdc++ header
-	# This header includes <bits/version.h> (GCC-specific, doesn't exist in libc++)
-	# The Debian Chromium tarball has already removed this file, so we only apply if it exists
-	@if [ -f "$(CURDIR)/chromium_src/chromium/src/optional" ]; then \
-		patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0015-remove-libstdcxx-optional-header.chromium.patch; \
-	else \
-		echo "==> Skipping patch 0015: optional file already absent (Debian Chromium tarball)"; \
-	fi
+	# NOTE: Patch 0015 removed - Chromium 145 no longer ships the GCC libstdc++ optional header
 	# Patch 0016: Fix Clang 19 warning flag names to eliminate warning spam
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-fix-clang-19-warning-flags.chromium.patch
 	# Patch 0017: Handle SwiftShader reactor conditional target (for subzero-disabled builds)
@@ -477,9 +469,7 @@ override_dh_auto_build:
 	# Patch 0021: Remove nightly-only Rust options from crabbyavif BUILD.gn
 	# Removes -Zallow-features=sanitize and disable_cfi feature for stable Rust compatibility.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0021-fix-rust-nightly-option-crabbyavif.chromium.patch
-	# Patch 0022: Fix GN unused variable scoping error in gcc_toolchain.gni
-	# Moves deb_build_arch/deb_host_arch getenv() calls inside toolchain_args scope.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0022-fix-gn-unused-variable-scoping.chromium.patch
+	# NOTE: Patch 0022 removed - Chromium 145 restructured gcc_toolchain.gni, scoping fix upstreamed
 	# Patch 0023: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types
 	# Replaces emplace() with aggregate initialization assignment for C++20 aggregates with
 	# default member initializers (multiplex_router, rtp_config, gpu_image_decode_cache,
@@ -528,8 +518,7 @@ override_dh_auto_build:
 	# Note: Patch 0043 was removed as it conflicts with 0044. Patch 0044 provides the
 	# complete fix by adding explicit #define assert(x) ((void)0) after includes.
 	tail -n +18 debian/patches/chromium/0044-fix-assert-macro-cassert-after-includes.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
-	# Patch 0045: Fix undefined deb_build_arch GN variable (Debian cross-build.patch bug)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0045-fix-deb-build-arch-gn.chromium.patch
+	# NOTE: Patch 0045 removed - Chromium 145 fixed the deb_build_arch self-assignment bug
 	# Patch 0046: Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0046-pulseaudio-assert-fix.chromium.patch
 	# Patch 0047: Fix cookie_util.cc iterator type mismatch for system libc++
