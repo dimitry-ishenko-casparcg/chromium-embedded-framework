@@ -20,7 +20,7 @@ build-cef:
     - when: never
   script:
     - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
-    - CEF_BRANCH="7559"
+    - CEF_BRANCH="7632"
     - echo "Building CEF ${UPSTREAM_VERSION}"
 
     # Show runner capabilities
