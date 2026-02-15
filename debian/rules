@@ -249,8 +249,11 @@ override_dh_auto_build:
 		(git commit -m "CEF source with Debian patches applied" || true)
 	@echo "==> CEF git repository initialized"
 
-	# Step 4: Fix version mismatch (CEF expects specific tag, Debian has different point release)
-	sed -i "s/[0-9]\+\.[0-9]\+\.$(CEF_BRANCH)\.[0-9]\+/$(CHROMIUM_VERSION)/" \
+	# Step 4: Fix version mismatch (CEF source may target different Chromium version)
+	# The CEF orig tarball may reference a different Chromium version (e.g., 144.0.7559.133)
+	# than the Chromium tarball we actually ship (e.g., 145.0.7632.75).
+	# Match any version pattern in the chromium_checkout line.
+	sed -i "s|'refs/tags/[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+'|'refs/tags/$(CHROMIUM_VERSION)'|" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
 
 	# Step 5: Move Chromium source from MUT-extracted directory
