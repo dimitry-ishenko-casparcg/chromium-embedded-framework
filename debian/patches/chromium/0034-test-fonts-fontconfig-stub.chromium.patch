@@ -8,11 +8,13 @@ Description: Stub test_fonts/fontconfig BUILD.gn for missing test fonts
  generation (which requires the missing test fonts).
  .
  Related to the existing third_party/test_fonts/BUILD.gn stub.
- Updated for Chromium 145 which removed data_deps from test_support.
+ Regenerated against Chromium 145 post-Debian-patches (which already removed
+ data_deps from test_support).
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2026-02-15
+Last-Update: 2026-02-16
+
 diff --git a/third_party/test_fonts/fontconfig/BUILD.gn b/third_party/test_fonts/fontconfig/BUILD.gn
 index 42791d7..35d8552 100644
 --- a/third_party/test_fonts/fontconfig/BUILD.gn
@@ -20,12 +22,12 @@ index 42791d7..35d8552 100644
 @@ -2,54 +2,29 @@
  # Use of this source code is governed by a BSD-style license that can be
  # found in the LICENSE file.
- 
+
 -import("//build/compiled_action.gni")
 +# Debian patch: Test fonts are stripped from the Chromium source tarball.
 +# This stubbed BUILD.gn satisfies build dependencies without requiring
 +# the fonts or running fontconfig cache generation.
- 
+
  if (is_linux || is_chromeos) {
 +  # Empty test_support group - test fonts aren't available in Debian builds
    group("test_support") {
@@ -34,7 +36,7 @@ index 42791d7..35d8552 100644
 -    if (current_toolchain == host_toolchain) {
 -    }
    }
- 
+
 -  source_set("fontconfig_util_linux") {
 +  # Empty fontconfig_util_linux - not needed without test fonts
 +  group("fontconfig_util_linux") {
@@ -46,14 +48,14 @@ index 42791d7..35d8552 100644
 -    data_deps = [ ":fonts_conf" ]
 -    deps = [ "//third_party/fontconfig" ]
    }
- 
+
 -  copy("fonts_conf") {
 -    sources = [ "fonts.conf" ]
 -    outputs = [ "$root_out_dir/etc/fonts/{{source_file_part}}" ]
 +  # Empty fonts_conf - not needed without test fonts
 +  group("fonts_conf") {
    }
- 
+
    if (current_toolchain == host_toolchain) {
 -    executable("generate_fontconfig_caches") {
 +    # Empty do_generate_fontconfig_caches - test fonts not available
