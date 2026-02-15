@@ -1,0 +1,10 @@
+# =============================================================================
+# LINTIAN OVERRIDES FOR LIBCEF145-DBGSYM
+# =============================================================================
+# Some CEF/Chromium helper binaries are built without debug symbols.
+# This is expected for small utility binaries like chrome_crashpad_handler
+# and other helper executables that are stripped or built without -g flag.
+# =============================================================================
+
+# Build-id debug files without debug symbols (helper binaries, stripped libs)
+libcef145-dbgsym: debug-file-with-no-debug-symbols usr/lib/debug/.build-id/*/*.debug

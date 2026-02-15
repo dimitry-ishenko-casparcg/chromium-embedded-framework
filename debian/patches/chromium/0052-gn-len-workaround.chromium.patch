@@ -1,0 +1,25 @@
+Description: Disable len() assert in rust_bindgen.gni for older GN versions
+ Debian's generate-ninja package does not yet include the len() builtin
+ function. Comment out the assert that uses it, as it is only a safety
+ check and the code works correctly without it.
+ .
+ Based on Debian Chromium's trixie/gn-len.patch by Andres Salomon.
+ See Debian bug #1127702 for the generate-ninja update request.
+Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-02-15
+
+diff --git a/build/rust/rust_bindgen.gni b/build/rust/rust_bindgen.gni
+index 9fd2dce..86d3d43 100644
+--- a/build/rust/rust_bindgen.gni
++++ b/build/rust/rust_bindgen.gni
+@@ -112,7 +112,7 @@ template("rust_bindgen") {
+   # Calculate `_generated_bindings_rs`.
+   _bindgen_outputs = get_target_outputs(":$_rust_bindgen_generator_target_name")
+   _bindgen_rs_outputs = filter_include(_bindgen_outputs, [ "*.rs" ])
+-  assert(len(_bindgen_rs_outputs) == 1)
++#  assert(len(_bindgen_rs_outputs) == 1)
+   _generated_bindings_rs = _bindgen_rs_outputs[0]
+
+   rust_static_library(target_name) {

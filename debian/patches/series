@@ -19,3 +19,4 @@
 # If CEF patches fail to apply during build, regenerate this patch
 # 0019-update-chrome-browser-browser-patch-for-debian-chromium-96.cef.patch
 0020-remove-chrome-browser-browser-from-skip-list.cef.patch
+0021-remove-tracing-resources-chromium145.cef.patch

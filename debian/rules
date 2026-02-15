@@ -135,6 +135,9 @@ export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 # FFmpeg: Use system libffmpeg.so for codec support (H.264/AAC when available)
 export GN_DEFINES += is_component_ffmpeg=true
 
+# LiteRT/TFLite: Disable WebNN TFLite backend (litert src stripped from Debian tarball)
+export GN_DEFINES += webnn_use_tflite=false
+
 ## ============================================================================
 ## LIBC++ CONFIGURATION: System libc++ via Custom Unbundle Toolchain
 ## ============================================================================
@@ -277,19 +280,17 @@ override_dh_auto_build:
 	@echo "==> Applying Debian Chromium patches for system integration"
 	tar -xf $(CURDIR)/../$(CHROMIUM_DEBIAN_TAR) \
 		-C $(CURDIR)/chromium_src/chromium/
-	# Apply debianization patches (system libraries, build fixes, security patches)
+	# Apply patches from series file in order, skipping arch/release-specific directories
+	# Skipped: ppc64le/ loongarch64/ i386/ bookworm/ trixie/ bullseye/ (not relevant for amd64 sid)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
-		for patch_dir in debianization fixes system; do \
-			if [ -d "../debian/patches/$$patch_dir" ]; then \
-				for patch in ../debian/patches/$$patch_dir/*.patch; do \
-					[ -f "$$patch" ] && { \
-						echo "Applying $$patch"; \
-						patch -p1 < "$$patch" || { \
-							echo "WARNING: Patch $$patch failed, continuing..."; \
-						}; \
-					}; \
-				done; \
-			fi; \
+		grep -v '^\#' ../debian/patches/series | grep -v '^\s*$$' | \
+		grep -v '^ppc64le/' | grep -v '^loongarch64/' | grep -v '^i386/' | \
+		grep -v '^bookworm/' | grep -v '^trixie/' | grep -v '^bullseye/' | \
+		while read patch; do \
+			echo "Applying $$patch"; \
+			patch -p1 < "../debian/patches/$$patch" || { \
+				echo "WARNING: Patch $$patch failed, continuing..."; \
+			}; \
 		done
 	@echo "==> Debian Chromium patches applied successfully"
 
@@ -419,7 +420,8 @@ override_dh_auto_build:
 		echo "==> Skipping depot_tools commit (MUT tarball mode - no .git)"; \
 	fi
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0008-fix-dri-pkg-config-debian.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-remove-rust-nightly-flags-debian.chromium.patch
+	# Patch 0009 removed: Debian Chromium patches (force-rust-nightly.patch, rustc-allow-features.patch)
+	# already handle Rust nightly flags via RUSTC_BOOTSTRAP=1 approach
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0010-protoc-gen-js-gn-action-stub.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0011-disable-panic-immediate-abort.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0012-bindgen-libclang-abspath.chromium.patch
@@ -470,9 +472,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-wayland-color-manager-flat-map-fix.chromium.patch
 	# Patch 0026: Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0026-wtf-string-codepoint-iterator-include.chromium.patch
-	# Patch 0027: Fix GRIT tracing resources - create stub about_tracing files without catapult
-	# Catapult is stripped from Debian source for DFSG compliance, so we generate stubs directly.
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-tracing-stub-catapult-removed.chromium.patch
+	# NOTE: Patch 0027 removed - tracing BUILD.gn was removed upstream in Chromium 145
 	# Patch 0028: Add enable_cef to GRIT defines for components_strings
 	# CEF patches add <if expr="enable_cef"> conditionals to GRD files, so GRIT needs enable_cef defined.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-grit-enable-cef-define.chromium.patch
@@ -521,6 +521,12 @@ override_dh_auto_build:
 	# Patch 0050: Add CEF resources dependency to about_ui BUILD.gn
 	# Required for Chromium 145.0.7632.75+ where build order needs explicit CEF dependency
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0050-add-cef-resources-dep-about-ui.chromium.patch
+	# Patch 0051: Work around missing string_hash() in system GN (based on Debian Chromium trixie/gn-string-hash.patch)
+	# Debian bug #1127702 - generate-ninja needs update for string_hash()
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0051-gn-string-hash-workaround.chromium.patch
+	# Patch 0052: Disable len() assert in rust_bindgen.gni (based on Debian Chromium trixie/gn-len.patch)
+	# Debian bug #1127702 - generate-ninja needs update for len()
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0052-gn-len-workaround.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -725,6 +731,11 @@ override_dh_auto_build:
 	cd $(CURDIR)/chromium_src/chromium/src/third_party/node && \
 	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
 	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
+	@echo "==> Creating symlink for esbuild binary and node module (devtools-frontend)"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/third_party/esbuild
+	ln -sf /usr/bin/esbuild $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/third_party/esbuild/esbuild
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules
+	ln -sf /usr/lib/x86_64-linux-gnu/nodejs/esbuild $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/esbuild
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-19-init-19711-g6cecc0c9-1' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
@@ -1104,7 +1115,7 @@ override_dh_auto_build:
 	## violating Debian's no-internet build policy.
 	cd $(CURDIR)/chromium_src/cef && \
 	export DEBIAN_BUILD=1 && \
-	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false" && \
+	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false webnn_use_tflite=false" && \
 	export PATH=$(CURDIR)/depot-tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
 	python3 tools/automate/automate-git.py \
