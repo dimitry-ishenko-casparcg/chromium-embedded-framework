@@ -53,22 +53,6 @@ index 953e15e358..cf957c7273 100644
  
    std::vector<AnalysisKey *> AADeps;
  
-diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
-index bd63dd8756..77e9608ada 100644
---- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
-+++ b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/CodeGen/ResourcePriorityQueue.h
-@@ -16,10 +16,10 @@
- #ifndef LLVM_CODEGEN_RESOURCEPRIORITYQUEUE_H
- #define LLVM_CODEGEN_RESOURCEPRIORITYQUEUE_H
- 
-+#include "llvm/CodeGen/DFAPacketizer.h"
- #include "llvm/CodeGen/ScheduleDAG.h"
- 
- namespace llvm {
--  class DFAPacketizer;
-   class InstrItineraryData;
-   class ResourcePriorityQueue;
-   class SelectionDAGISel;
 diff --git a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h b/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h
 index e5236523a5..e92fd8f5f9 100644
 --- a/third_party/swiftshader/third_party/llvm-16.0/llvm/include/llvm/IR/ModuleSummaryIndex.h

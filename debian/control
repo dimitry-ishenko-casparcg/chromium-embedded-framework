@@ -120,7 +120,7 @@ Homepage: https://bitbucket.org/chromiumembedded/cef
 Vcs-Browser: https://salsa.debian.org/debian/chromium-embedded-framework
 Vcs-Git: https://salsa.debian.org/debian/chromium-embedded-framework.git
 
-Package: libcef144
+Package: libcef145
 Architecture: amd64
 Depends: ${shlibs:Depends}, ${misc:Depends}, libegl1, libgles2, libvulkan1,
          libavcodec-extra | libavcodec61
@@ -142,7 +142,7 @@ Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)
 Package: libcef-dev
 Architecture: amd64
 Section: libdevel
-Depends: libcef144 (= ${binary:Version}), ${misc:Depends}
+Depends: libcef145 (= ${binary:Version}), ${misc:Depends}
 Description: Chromium Embedded Framework - development files
  The Chromium Embedded Framework (CEF) is a simple framework for embedding
  Chromium-based browsers in other applications.
@@ -150,7 +150,7 @@ Description: Chromium Embedded Framework - development files
  This package provides the development files (headers, static libraries)
  needed to build applications using CEF.
  .
- WARNING: This package is EXPERIMENTAL. See libcef144 description for details.
+ WARNING: This package is EXPERIMENTAL. See libcef145 description for details.
 
 Package: cef-resources
 Architecture: all
@@ -162,4 +162,4 @@ Description: Chromium Embedded Framework - resource files
  This package provides resource files (PAK files, locales) required by CEF
  applications at runtime.
  .
- WARNING: This package is EXPERIMENTAL. See libcef144 description for details.
+ WARNING: This package is EXPERIMENTAL. See libcef145 description for details.

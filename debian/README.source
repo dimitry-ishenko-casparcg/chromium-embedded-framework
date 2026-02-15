@@ -86,16 +86,16 @@ Quick Start (copy-paste these commands):
 
     # 2. Find the Chromium version available in Debian
     apt-cache policy chromium | grep Candidate
-    # Example output: Candidate: 144.0.7559.109-2
+    # Example output: Candidate: 145.0.7632.75-2
 
     # 3. Download MUT tarballs (use the version from step 2)
     #
     #    Parameters:
     #      144.0.7           = CEF package version (from debian/changelog)
     #      7559              = CEF upstream branch (from cef/CHROMIUM_BUILD_COMPATIBILITY.txt)
-    #      144.0.7559.109-2  = Chromium Debian version (from step 2)
+    #      145.0.7632.75-2  = Chromium Debian version (from step 2)
     #
-    ./debian/scripts/get-orig-tarballs.sh 144.0.7 7559 144.0.7559.109-2
+    ./debian/scripts/get-orig-tarballs.sh 144.0.7 7559 145.0.7632.75-2
 
     # 4. Create source package
     dpkg-source -b .
@@ -120,7 +120,7 @@ COMPONENT TARBALLS
 1. CEF Source (orig.tar.xz)
 ---------------------------
 Obtained from: https://bitbucket.org/chromiumembedded/cef
-Branch: Must match Chromium's build number (e.g., branch 7559 for Chromium 144.x)
+Branch: Must match Chromium's build number (e.g., branch 7632 for Chromium 144.x)
 
 2. Chromium Source (orig-chromium.tar.xz)
 -----------------------------------------
@@ -128,10 +128,10 @@ Obtained from: Debian chromium package source
 
 IMPORTANT: You must download the correct Chromium version that matches CEF's
 requirements. Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for the required version.
-For CEF branch 7559, this is Chromium 144.0.7559.x.
+For CEF branch 7632, this is Chromium 145.0.7632.x.
 
 Command (with specific version):
-    apt-get source --download-only chromium=144.0.7559.109-2
+    apt-get source --download-only chromium=145.0.7632.75-2
 
 To find available versions:
     apt-cache policy chromium
@@ -425,7 +425,7 @@ Updating CEF Version:
 Updating Chromium Version (same CEF branch, new Chromium patch release):
 
 When Debian releases a new Chromium version within the same branch (e.g.,
-144.0.7559.109 -> 144.0.7559.XX), follow these steps:
+145.0.7632.75 -> 145.0.7632.XX), follow these steps:
 
 1. Download new Chromium source:
    $ apt-get source --download-only chromium
