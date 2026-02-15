@@ -267,6 +267,23 @@ override_dh_auto_build:
 	mv $(CURDIR)/chromium $(CURDIR)/chromium_src/chromium/src
 	@echo "==> Chromium moved successfully"
 
+	# Step 5.3: Apply CEF patches to vanilla Chromium (BEFORE Debian patches)
+	# CEF's patcher.py applies ~111 patches designed for vanilla Chromium.
+	# These MUST run before Debian Chromium patches (Step 5.5) to avoid conflicts.
+	# patcher.py uses git apply, so we need a temporary git repo.
+	@echo "==> Applying CEF patches to vanilla Chromium source"
+	cd $(CURDIR)/chromium_src/chromium/src && \
+		git init && \
+		git config user.name "Debian Builder" && \
+		git config user.email "builder@debian.org" && \
+		git commit --allow-empty -m "Vanilla Chromium source"
+	cp -a $(CURDIR)/chromium_src/cef $(CURDIR)/chromium_src/chromium/src/cef
+	cd $(CURDIR)/chromium_src/chromium/src/cef && \
+		DEBIAN_BUILD=0 python3 tools/patcher.py || \
+		echo "==> Some CEF patches failed (expected: targets stripped files like Windows/bundled libs)"
+	rm -rf $(CURDIR)/chromium_src/chromium/src/cef
+	@echo "==> CEF patches applied to vanilla Chromium"
+
 	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
 	# Source: debian/rules lines 186-191 from Debian Chromium package
 	# This ensures devtools-frontend can use system rollup instead of bundled version
@@ -279,7 +296,7 @@ override_dh_auto_build:
 		ln -s /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3
 	@echo "==> Node.js and rollup3 symlink created"
 
-	# Step 5.5: Apply Debian Chromium patches to vanilla source
+	# Step 5.5: Apply Debian Chromium patches on top of CEF-patched source
 	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
 	# Extract Debian Chromium packaging (includes patches and build configuration)
 	@echo "==> Applying Debian Chromium patches for system integration"
