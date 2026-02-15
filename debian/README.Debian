@@ -12,14 +12,14 @@ Binary Packages
 
 This source package produces four binary packages:
 
-  libcef144        - CEF shared library (libcef.so.144)
-                     The version number (144) is the CEF major version.
+  libcef145        - CEF shared library (libcef.so.145)
+                     The version number (145) is the CEF major version.
                      See "CEF and Chromium Version Alignment" section below.
 
-  libcef144-dbgsym - Debug symbols for libcef144 (auto-generated)
+  libcef145-dbgsym - Debug symbols for libcef145 (auto-generated)
 
   libcef-dev       - Development files (headers, CMake configuration)
-                     Depends on libcef144
+                     Depends on libcef145
 
   cef-resources    - Architecture-independent resources (PAK files, locales)
                      Required at runtime by CEF applications
@@ -165,27 +165,27 @@ The relationship is:
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
   CEF 138        7499          143.0.7499.x         previous
-  CEF 144        7559          144.0.7559.x         current (144.0.7559.109)
+  CEF 145        7632          145.0.7632.x         current (145.0.7632.75)
 
 **Why This Matters:**
 
-This package (libcef144) was chosen specifically to align with Debian Chromium
-in testing (144.0.7559.109). The CEF branch number (7559) corresponds to the
-Chromium build number (144.0.**7559**.x).
+This package (libcef145) was chosen specifically to align with Debian Chromium
+in testing (145.0.7632.75). The CEF branch number (7632) corresponds to the
+Chromium build number (145.0.**7632**.x).
 
 **CEF Version Scheme:**
 
-  - CEF version number (e.g., 144) is the CEF project's own major version
-  - CEF branch number (e.g., 7559) maps directly to Chromium build number
-  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 144.0.7559.109)
-  - CEF branch 7559 = Chromium 144.0.7559.x
+  - CEF version number (e.g., 145) is the CEF project's own major version
+  - CEF branch number (e.g., 7632) maps directly to Chromium build number
+  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 145.0.7632.75)
+  - CEF branch 7632 = Chromium 145.0.7632.x
 
 **Upstream CEF Source:**
 
   - Upstream URL: https://bitbucket.org/chromiumembedded/cef
-  - Branch: 7559 (CEF 144)
-  - CEF expects: refs/tags/144.0.7559.109
-  - Debian Chromium provides: 144.0.7559.109
+  - Branch: 7632 (CEF 145)
+  - CEF expects: refs/tags/145.0.7632.75
+  - Debian Chromium provides: 145.0.7632.75
 
 Note: CEF specifies the exact Chromium tag it was developed against.
 For this release, CEF and Debian Chromium versions match exactly.

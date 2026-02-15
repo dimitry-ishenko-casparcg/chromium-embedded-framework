@@ -2,7 +2,7 @@
 # These are extracted from separate orig-*.tar.xz tarballs
 # Also ignore build artifacts and git-buildpackage config
 # Note: chromium-[0-9] matches the tarball's internal directory name
-# (e.g., chromium-144.0.7559.109/) which differs from the MUT component
+# (e.g., chromium-145.0.7632.75/) which differs from the MUT component
 # name (chromium/). dpkg-source -x renames it, but git checkouts keep
 # the original name.
 # Ignore MUT component directories in diff comparison

@@ -55,12 +55,14 @@ index 42aadc4..5160eb4 100644
  }  // namespace
 
  std::string_view VerificationStatusToStringView(VerificationStatus status) {
-@@ -501,7 +511,7 @@ void AddressComponent::ParseValueAndAssignSubcomponents() {
+@@ -511,8 +521,8 @@ void AddressComponent::ParseValueAndAssignSubcomponents() {
    // As a final fallback, parse using the fallback method.
    // In some countries (e.g. India), the parsing cannot be reliably implemented
    // and the fallback method does more harm than good.
--  if (!countries_not_supporting_fallback_parsing.contains(GetCountryCode())) {
-+  if (!IsCountryNotSupportingFallbackParsing(GetCountryCode())) {
+-  if (!countries_not_supporting_fallback_parsing.contains(GetCountryCode()) ||
+-      !base::FeatureList::IsEnabled(features::kAutofillUseINAddressModel)) {
++  if (!IsCountryNotSupportingFallbackParsing(GetCountryCode()) ||
++      !base::FeatureList::IsEnabled(features::kAutofillUseINAddressModel)) {
      ParseValueAndAssignSubcomponentsByFallbackMethod();
    }
  }

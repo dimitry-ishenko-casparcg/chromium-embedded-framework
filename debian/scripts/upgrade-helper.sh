@@ -6,7 +6,7 @@
 #
 # Usage: ./debian/scripts/upgrade-helper.sh CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]
 #
-# Example: ./debian/scripts/upgrade-helper.sh 144.0.7 144.0.7559.109 1
+# Example: ./debian/scripts/upgrade-helper.sh 145.0.23 145.0.7632.75 1~deb13u1
 #
 # This script updates:
 #   - debian/changelog (version only, keeps existing entry for new packages)
@@ -25,11 +25,11 @@ CHROMIUM_REV="${3:-2}"
 if [ -z "$CEF_VERSION" ] || [ -z "$CHROMIUM_VERSION" ]; then
     echo "Usage: $0 CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]"
     echo ""
-    echo "Example: $0 144.0.7 144.0.7559.109 1"
+    echo "Example: $0 145.0.23 145.0.7632.75 1~deb13u1"
     echo ""
     echo "Arguments:"
-    echo "  CEF_VERSION      - New CEF version (e.g., 144.0.7)"
-    echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 144.0.7559.109)"
+    echo "  CEF_VERSION      - New CEF version (e.g., 145.0.23)"
+    echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 145.0.7632.75)"
     echo "  CHROMIUM_REV     - Debian revision (default: 2)"
     exit 1
 fi
