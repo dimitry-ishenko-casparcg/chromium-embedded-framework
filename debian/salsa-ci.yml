@@ -20,7 +20,6 @@ build-cef:
     - when: never
   script:
     - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
-    - CEF_BRANCH="7632"
     - echo "Building CEF ${UPSTREAM_VERSION}"
 
     # Show runner capabilities
@@ -29,27 +28,27 @@ build-cef:
     - export TMPDIR="$PWD/tmp"
     - mkdir -p "$TMPDIR"
 
+    # Extract Chromium version and CEF branch from debian/rules
+    - CHROMIUM_VERSION=$(sed -n 's/^CHROMIUM_VERSION := //p' debian/rules)
+    - CHROMIUM_DEBIAN_REV=$(sed -n 's/^CHROMIUM_DEBIAN_REV := //p' debian/rules)
+    - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
+    - echo "Chromium ${CHROMIUM_VERSION}-${CHROMIUM_DEBIAN_REV}, CEF branch ${CEF_BRANCH}"
+
     # Obtain MUT tarballs (script skips existing ones)
     - chmod +x debian/scripts/get-orig-tarballs.sh
-    - cd .. && ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" && cd ${PKG}
+    - cd .. && ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "${CHROMIUM_VERSION}-${CHROMIUM_DEBIAN_REV}" && cd ${PKG}
 
-    # Restore source tree to match what dpkg-source -x would produce:
-    # 1. Extract unpatched cef/ from orig tarball (git checkout has patches baked in)
-    # 2. Extract chromium/ and depot-tools/ MUT components (not tracked in git)
-    # dpkg-source --before-build then applies quilt patches cleanly
-    - rm -rf cef
-    - tar -xf ../${PKG}_${UPSTREAM_VERSION}.orig.tar.xz --strip-components=1
-    - mkdir -p chromium
-    - tar -xf ../${PKG}_${UPSTREAM_VERSION}.orig-chromium.tar.xz --strip-components=1 -C chromium
-    - tar -xf ../${PKG}_${UPSTREAM_VERSION}.orig-depot-tools.tar.xz
-
-    # Build binary packages
-    - export PATH="/usr/lib/llvm-19/bin:$PATH"
+    # Follow the exact README.source workflow (dpkg-source -b / -x)
+    # This is the same path a Debian Developer would take
+    - dpkg-source -b .
+    - cd ..
+    - dpkg-source -x ${PKG}_${UPSTREAM_VERSION}-*.dsc build-dir
+    - cd build-dir
     - dpkg-buildpackage -b -us -uc
 
-    # Copy artifacts into project dir (GitLab artifacts must be within $CI_PROJECT_DIR)
-    - mkdir -p build-output
-    - cp ../*.deb ../*.buildinfo ../*.changes build-output/ || true
+    # Copy artifacts back into project dir (GitLab artifacts must be within $CI_PROJECT_DIR)
+    - mkdir -p ${CI_PROJECT_DIR}/build-output
+    - cp ../*.deb ../*.buildinfo ../*.changes ${CI_PROJECT_DIR}/build-output/ || true
 
   artifacts:
     paths:
