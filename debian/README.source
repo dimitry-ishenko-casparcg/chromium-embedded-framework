@@ -8,13 +8,16 @@ source format. All source components are distributed as separate tarballs.
 SOURCE PACKAGE STRUCTURE (MUT)
 ================================================================================
 
-The source package consists of 3 tarballs:
+The source package consists of 4 tarballs:
 
     chromium-embedded-framework_VERSION.orig.tar.xz
         CEF source code (main upstream tarball)
 
     chromium-embedded-framework_VERSION.orig-chromium.tar.xz
-        Chromium browser source (from Debian chromium package)
+        Chromium browser source (vanilla, from Debian chromium package)
+
+    chromium-embedded-framework_VERSION.orig-chromium-debian.tar.xz
+        Debian Chromium patches (from Debian chromium source package)
 
     chromium-embedded-framework_VERSION.orig-depot-tools.tar.xz
         Google's depot_tools build system
@@ -24,6 +27,7 @@ When extracted with dpkg-source -x, these create:
     chromium-embedded-framework-VERSION/
     ├── cef/                    <- CEF source (from orig.tar.xz)
     ├── chromium/               <- From orig-chromium.tar.xz
+    ├── chromium-debian/        <- From orig-chromium-debian.tar.xz
     ├── depot-tools/            <- From orig-depot-tools.tar.xz (note: hyphen)
     └── debian/                 <- Packaging files
 
@@ -107,10 +111,12 @@ Quick Start (copy-paste these commands):
     dpkg-buildpackage -us -uc
 
 Notes:
-- Step 3: The script downloads CEF, Chromium, and depot-tools automatically.
-  It tries apt-get source first, then falls back to dget from security.debian.org
-  or deb.debian.org if needed.
-- Step 5: dpkg-source -x applies quilt patches and renames MUT directories.
+- Step 3: The script downloads CEF, Chromium, depot-tools, and Debian Chromium
+  patches automatically. It creates all 4 MUT component tarballs. It tries
+  apt-get source first, then falls back to dget from security.debian.org or
+  deb.debian.org if needed.
+- Step 5: dpkg-source -x applies quilt patches and extracts all MUT components.
+  The build is fully self-contained - no external files needed.
 - Build requires ~40GB disk space and 2-7 hours depending on hardware.
 
 ================================================================================
@@ -124,7 +130,7 @@ Branch: Must match Chromium's build number (e.g., branch 7632 for Chromium 145.x
 
 2. Chromium Source (orig-chromium.tar.xz)
 -----------------------------------------
-Obtained from: Debian chromium package source
+Obtained from: Debian chromium package source (vanilla upstream tarball)
 
 IMPORTANT: You must download the correct Chromium version that matches CEF's
 requirements. Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for the required version.
@@ -136,19 +142,32 @@ Command (with specific version):
 To find available versions:
     apt-cache policy chromium
 
-Rename: mv chromium_*.orig.tar.xz chromium-embedded-framework_VERSION.orig-chromium.tar.xz
+This tarball contains vanilla Chromium source, identical to what Debian chromium
+distributes as chromium_*.orig.tar.xz. The get-orig-tarballs.sh script renames
+it to the MUT component name automatically.
 
-NOTE: This tarball contains vanilla Chromium source. The Debian Chromium patches
-(from chromium_*.debian.tar.xz) are applied during the build in Step 5.5 of
-debian/rules. This ensures CEF builds with the same system integration patches
-that Debian Chromium uses (libc++, system libraries, build fixes, etc.).
+3. Debian Chromium Patches (orig-chromium-debian.tar.xz)
+--------------------------------------------------------
+Obtained from: Debian chromium source package (chromium_*.debian.tar.xz)
 
-3. depot-tools (orig-depot-tools.tar.xz)
+Contains the Debian Chromium packaging directory (patches/, rules, etc.).
+These patches are applied during Step 5.5 of debian/rules to integrate
+Chromium with Debian system libraries (libc++, system FFmpeg, build fixes, etc.).
+
+The get-orig-tarballs.sh script creates this MUT component automatically from
+the chromium_*.debian.tar.xz downloaded alongside the Chromium source.
+
+Why a separate MUT component (not embedded in orig-chromium.tar.xz):
+- Keeps vanilla Chromium source verifiable (byte-identical to Debian chromium orig)
+- Makes Debian patch application transparent and auditable
+- Makes the source package fully self-contained (works in sbuild/buildd)
+
+4. depot-tools (orig-depot-tools.tar.xz)
 ----------------------------------------
 Obtained from: https://chromium.googlesource.com/chromium/tools/depot_tools.git
 This tarball is cleaned of binary files (.cipd*, *.exe, *.dll, etc.)
 
-4. Rust Standard Library (system rust-src)
+5. Rust Standard Library (system rust-src)
 ------------------------------------------
 The build uses system rust-src package (Build-Depends: rust-src).
 
@@ -425,38 +444,19 @@ Updating CEF Version:
 Updating Chromium Version (same CEF branch, new Chromium patch release):
 
 When Debian releases a new Chromium version within the same branch (e.g.,
-145.0.7632.75 -> 145.0.7632.XX), follow these steps:
+145.0.7632.75 -> 145.0.7632.XX), the simplest method is to re-run the
+get-orig-tarballs.sh script with the new version, which recreates both
+orig-chromium.tar.xz and orig-chromium-debian.tar.xz:
 
-1. Download new Chromium source:
-   $ apt-get source --download-only chromium
-
-   This downloads three files:
-   - chromium_X.Y.Z.W.orig.tar.xz (vanilla Chromium source)
-   - chromium_X.Y.Z.W-N.debian.tar.xz (Debian patches)
-   - chromium_X.Y.Z.W-N.dsc (source control file)
-
-2. Replace the MUT chromium tarball:
-   $ mv chromium_X.Y.Z.W.orig.tar.xz \
-        chromium-embedded-framework_VERSION.orig-chromium.tar.xz
-
-3. Update version references in debian/rules and debian/README.Debian
-   (search for old version string and replace with new)
-
-4. Regenerate .dsc file (updates checksums for new tarball):
+   $ rm -f chromium-embedded-framework_VERSION.orig-chromium*.tar.xz
+   $ ./debian/scripts/get-orig-tarballs.sh VERSION BRANCH CHROMIUM_DEB_VERSION
+   $ ./debian/scripts/upgrade-helper.sh VERSION CHROMIUM_VERSION
    $ cd chromium-embedded-framework
    $ dpkg-source -b .
-
-5. Extract and build:
    $ cd ..
-   $ dpkg-source -x chromium-embedded-framework_*.dsc
-   $ cd chromium-embedded-framework-*/
+   $ dpkg-source -x chromium-embedded-framework_*.dsc build-test
+   $ cd build-test
    $ dpkg-buildpackage -us -uc
-
-6. Test build and fix any patch conflicts
-
-IMPORTANT: The debian.tar.xz must be present in the parent directory during
-build. The build process (Step 5.5 in debian/rules) extracts and applies
-these patches to integrate Chromium with Debian system libraries.
 
 Updating LLVM Version:
 1. Update Build-Depends in debian/control
@@ -470,7 +470,7 @@ FUTURE MIGRATION (When chromium-source package exists)
 When the Debian Chromium team provides a chromium-source binary package:
 
 Migration Steps:
-1. Remove `orig-chromium.tar.xz` from MUT tarballs
+1. Remove `orig-chromium.tar.xz` and `orig-chromium-debian.tar.xz` from MUT tarballs
 2. Add `Build-Depends: chromium-source` to debian/control
 3. Modify Step 5 in debian/rules to copy from /usr/src/chromium/ (or wherever
    the chromium-source package installs the source)
@@ -483,7 +483,7 @@ The chromium-source package may provide source in two formats:
 
 A) VANILLA SOURCE (pristine upstream):
    - Keep Step 5.5 to apply Debian Chromium patches during build
-   - Extract patches from the chromium-source package or debian.tar.xz
+   - Extract patches from the chromium-source package
    - This is identical to our current approach
 
 B) PRE-PATCHED SOURCE (Debian patches already applied):

@@ -39,7 +39,7 @@ if [ -d "debian" ]; then
 fi
 
 # 1. CEF main tarball
-echo "==> [1/3] CEF orig.tar.xz"
+echo "==> [1/4] CEF orig.tar.xz"
 if [ -f "${PKG}_${VERSION}.orig.tar.xz" ]; then
     echo "    Already exists: ${PKG}_${VERSION}.orig.tar.xz"
 else
@@ -59,14 +59,17 @@ else
 fi
 echo ""
 
-# 2. Chromium component tarball (from Debian)
-echo "==> [2/3] Chromium orig-chromium.tar.xz (from Debian)"
-if [ -f "${PKG}_${VERSION}.orig-chromium.tar.xz" ]; then
+# 2. Chromium component tarballs (from Debian)
+#    Downloads Chromium source and creates two MUT components:
+#    - orig-chromium.tar.xz (vanilla Chromium source)
+#    - orig-chromium-debian.tar.xz (Debian Chromium patches)
+echo "==> [2/4] Chromium orig-chromium.tar.xz and orig-chromium-debian.tar.xz"
+if [ -f "${PKG}_${VERSION}.orig-chromium.tar.xz" ] && [ -f "${PKG}_${VERSION}.orig-chromium-debian.tar.xz" ]; then
     echo "    Already exists: ${PKG}_${VERSION}.orig-chromium.tar.xz"
+    echo "    Already exists: ${PKG}_${VERSION}.orig-chromium-debian.tar.xz"
 else
     echo "    Downloading Chromium source from Debian..."
 
-    # Download specific version if provided, otherwise latest
     if [ -n "$CHROMIUM_VERSION" ]; then
         echo "    Requested: chromium=${CHROMIUM_VERSION}"
         APT_SOURCE_CMD="apt-get source --download-only chromium=${CHROMIUM_VERSION}"
@@ -77,12 +80,8 @@ else
     if $APT_SOURCE_CMD 2>/dev/null; then
         echo "    Downloaded via apt-get source"
     elif [ -n "$CHROMIUM_VERSION" ]; then
-        # Fallback: try dget from Debian servers
         echo "    apt-get source failed, trying dget..."
         DOWNLOADED=false
-
-        # Try to download the exact version requested
-        # First try main Debian archive, then security
         for BASE_URL in "https://deb.debian.org/debian/pool/main/c/chromium" \
                         "https://security.debian.org/debian-security/pool/updates/main/c/chromium"; do
             DSC_URL="${BASE_URL}/chromium_${CHROMIUM_VERSION}.dsc"
@@ -92,15 +91,11 @@ else
                 break
             fi
         done
-
         if [ "$DOWNLOADED" = false ]; then
             echo "    ERROR: Could not download Chromium ${CHROMIUM_VERSION}"
-            echo ""
             echo "    Find the correct .dsc URL at:"
             echo "      https://security.debian.org/debian-security/pool/updates/main/c/chromium/"
             echo "      https://deb.debian.org/debian/pool/main/c/chromium/"
-            echo ""
-            echo "    Then run: dget -d <URL>"
             exit 1
         fi
     else
@@ -109,25 +104,34 @@ else
         exit 1
     fi
 
+    # Create orig-chromium.tar.xz from vanilla Chromium source
     CHROMIUM_ORIG=$(ls chromium_*.orig.tar.xz 2>/dev/null | head -1)
-    CHROMIUM_DEBIAN=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
-    if [ -n "$CHROMIUM_ORIG" ]; then
-        mv "$CHROMIUM_ORIG" "${PKG}_${VERSION}.orig-chromium.tar.xz"
-        echo "    Created: ${PKG}_${VERSION}.orig-chromium.tar.xz"
-
-        if [ -n "$CHROMIUM_DEBIAN" ]; then
-            echo "    Kept: ${CHROMIUM_DEBIAN} (needed for build)"
-        fi
-        rm -f chromium_*.dsc 2>/dev/null || true
-    else
+    if [ -z "$CHROMIUM_ORIG" ]; then
         echo "    ERROR: No chromium orig.tar.xz found after download"
         exit 1
     fi
+    mv "$CHROMIUM_ORIG" "${PKG}_${VERSION}.orig-chromium.tar.xz"
+    echo "    Created: ${PKG}_${VERSION}.orig-chromium.tar.xz"
+
+    # Create orig-chromium-debian.tar.xz from Debian Chromium patches
+    CHROMIUM_DEBIAN=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
+    if [ -z "$CHROMIUM_DEBIAN" ]; then
+        echo "    ERROR: No chromium debian.tar.xz found after download"
+        exit 1
+    fi
+    rm -rf chromium-debian
+    mkdir chromium-debian
+    tar -xf "$CHROMIUM_DEBIAN" --strip-components=1 -C chromium-debian
+    tar -cJf "${PKG}_${VERSION}.orig-chromium-debian.tar.xz" chromium-debian
+    rm -rf chromium-debian "$CHROMIUM_DEBIAN"
+    echo "    Created: ${PKG}_${VERSION}.orig-chromium-debian.tar.xz"
+
+    rm -f chromium_*.dsc 2>/dev/null || true
 fi
 echo ""
 
 # 3. depot-tools component tarball
-echo "==> [3/3] depot-tools orig-depot-tools.tar.xz"
+echo "==> [3/4] depot-tools orig-depot-tools.tar.xz"
 if [ -f "${PKG}_${VERSION}.orig-depot-tools.tar.xz" ]; then
     echo "    Already exists: ${PKG}_${VERSION}.orig-depot-tools.tar.xz"
 else
@@ -158,33 +162,18 @@ echo "============================================================"
 echo "Summary"
 echo "============================================================"
 ls -lh "${PKG}_${VERSION}".orig*.tar.xz
-
-# Detect Chromium version from debian.tar.xz filename
-CHROMIUM_DEBIAN_TAR=$(ls chromium_*.debian.tar.xz 2>/dev/null | head -1)
-if [ -n "$CHROMIUM_DEBIAN_TAR" ]; then
-    ls -lh "$CHROMIUM_DEBIAN_TAR"
-    # Extract version: chromium_144.0.7559.109-1.debian.tar.xz -> 144.0.7559.109-1
-    CHROMIUM_FULL_VER=$(echo "$CHROMIUM_DEBIAN_TAR" | sed 's/chromium_\(.*\)\.debian\.tar\.xz/\1/')
-    # Split into version and revision: 144.0.7559.109-1 -> 144.0.7559.109 and 1
-    CHROMIUM_VER=$(echo "$CHROMIUM_FULL_VER" | cut -d- -f1)
-    CHROMIUM_REV=$(echo "$CHROMIUM_FULL_VER" | cut -d- -f2)
-fi
 echo ""
 echo "Total size:"
 du -ch "${PKG}_${VERSION}".orig*.tar.xz | tail -1
 echo ""
-
-if [ -n "$CHROMIUM_VER" ]; then
-    echo "Detected Chromium version: ${CHROMIUM_VER}-${CHROMIUM_REV}"
-    echo ""
-fi
-
 echo "Next steps:"
 echo "  1. Update debian/ files with version references:"
-echo "     ./${PKG}/debian/scripts/upgrade-helper.sh ${VERSION} ${CHROMIUM_VER:-CHROMIUM_VERSION} ${CHROMIUM_REV:-DEBIAN_REV}"
+echo "     ./${PKG}/debian/scripts/upgrade-helper.sh ${VERSION} ${CHROMIUM_VERSION:-CHROMIUM_VERSION} ${CHROMIUM_REV:-DEBIAN_REV}"
 echo ""
 echo "  2. Build the package:"
 echo "     cd ${PKG}"
-echo "     debuild -S -sa          # Create signed source package for mentors"
-echo "     debuild -S -sa -us -uc  # Create unsigned source package"
-echo "     dpkg-buildpackage -us -uc  # Build binary packages"
+echo "     dpkg-source -b ."
+echo "     cd .."
+echo "     dpkg-source -x ${PKG}_*.dsc build-test"
+echo "     cd build-test"
+echo "     dpkg-buildpackage -us -uc"
