@@ -1130,6 +1130,13 @@ override_dh_auto_build:
 	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null)\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false webnn_use_tflite=false build_tflite_with_xnnpack=false" && \
 	export PATH=$(CURDIR)/depot-tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
+	echo "DEBUG: PATH=$$PATH" && \
+	echo "DEBUG: which git=$$(which git 2>&1)" && \
+	echo "DEBUG: which python3=$$(which python3 2>&1)" && \
+	echo "DEBUG: python3 version=$$(python3 --version 2>&1)" && \
+	echo "DEBUG: git version=$$(git --version 2>&1)" && \
+	echo "DEBUG: ls cef/.git=$$(ls -d $(CURDIR)/chromium_src/chromium/src/cef/.git 2>&1)" && \
+	echo "DEBUG: git rev-parse in cef=$$(cd $(CURDIR)/chromium_src/chromium/src/cef && git rev-parse HEAD 2>&1)" && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot-tools \
