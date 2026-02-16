@@ -23,7 +23,7 @@ index 714a7dec13e55bd82b3b89f82fe6341444325829..4f310ab77d64203e5f16b1500082965c
  
  bool NavigationThrottleRegistryImpl::HasThrottle(const std::string& name) {
 diff --git content/browser/renderer_host/navigation_throttle_registry_impl.h content/browser/renderer_host/navigation_throttle_registry_impl.h
-index b99d4dd9f8677be303a5bec0e43c70dda2e99472..e4a9a41ed36132f013f8cda30d205aafc604d857 100644
+index 41ea3fbafd0b757dabc3f51d59edaea6e5e6d789..4b0bf132a5b5aad85cae5dbc3fefb7b0f1b0d2f0 100644
 --- content/browser/renderer_host/navigation_throttle_registry_impl.h
 +++ content/browser/renderer_host/navigation_throttle_registry_impl.h
 @@ -135,7 +135,8 @@ class CONTENT_EXPORT NavigationThrottleRegistryImpl

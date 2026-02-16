@@ -848,7 +848,7 @@ bool OsrWindowWin::OnTouchEvent(UINT message, WPARAM wParam, LPARAM lParam) {
   if (num_points < 0 || num_points > 16) {
     return false;
   }
-  std::unique_ptr<TOUCHINPUT[]> input(new TOUCHINPUT[num_points]);
+  auto input = std::make_unique<TOUCHINPUT[]>(num_points);
   if (GetTouchInputInfo(reinterpret_cast<HTOUCHINPUT>(lParam), num_points,
                         input.get(), sizeof(TOUCHINPUT))) {
     CefTouchEvent touch_event;
@@ -945,14 +945,13 @@ void OsrWindowWin::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
 bool OsrWindowWin::GetRootScreenRect(CefRefPtr<CefBrowser> browser,
                                      CefRect& rect) {
   CEF_REQUIRE_UI_THREAD();
-  DCHECK_GT(device_scale_factor_, 0);
 
-  if (!settings_.real_screen_bounds) {
+  if (!::IsWindow(hwnd_) || !settings_.real_screen_bounds) {
     return false;
   }
 
   HWND root_hwnd = ::GetAncestor(hwnd_, GA_ROOT);
-  DCHECK(root_hwnd);
+  CHECK(root_hwnd);
   RECT root_rect = {};
   ::GetWindowRect(root_hwnd, &root_rect);
 
@@ -972,7 +971,12 @@ bool OsrWindowWin::GetRootScreenRect(CefRefPtr<CefBrowser> browser,
 
 void OsrWindowWin::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) {
   CEF_REQUIRE_UI_THREAD();
-  DCHECK_GT(device_scale_factor_, 0);
+
+  if (!::IsWindow(hwnd_)) {
+    // Window not yet created; return a default size.
+    rect = {0, 0, 1, 1};
+    return;
+  }
 
   RECT window_rect = {};
   ::GetWindowRect(hwnd_, &window_rect);
@@ -1139,9 +1143,8 @@ void OsrWindowWin::OnImeCompositionRangeChanged(
   if (ime_handler_) {
     // Convert from view coordinates to device coordinates.
     CefRenderHandler::RectList device_bounds;
-    CefRenderHandler::RectList::const_iterator it = character_bounds.begin();
-    for (; it != character_bounds.end(); ++it) {
-      device_bounds.push_back(LogicalToDevice(*it, device_scale_factor_));
+    for (const auto& bounds : character_bounds) {
+      device_bounds.push_back(LogicalToDevice(bounds, device_scale_factor_));
     }
 
     ime_handler_->ChangeCompositionRange(selection_range, device_bounds);

@@ -8,6 +8,10 @@ chromium_src/
 depot_tools/
 build/
 
+# MUT component directories - extracted by dpkg-source, not tracked by git
+chromium/
+depot-tools/
+
 # Quilt patch state - temporary, recreated during patch application
 .pc/
 **/.pc/

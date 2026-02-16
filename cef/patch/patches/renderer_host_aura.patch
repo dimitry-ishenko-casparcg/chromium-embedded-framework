@@ -1,5 +1,5 @@
 diff --git content/browser/renderer_host/render_widget_host_view_aura.cc content/browser/renderer_host/render_widget_host_view_aura.cc
-index 63a7dc99a9596f22379436c32325936ebd8d14e6..acdff69a767c09199a06d5394412cb33bfb8b5df 100644
+index c6ed3e391e0eeb06091bef7cd43c1ac88b87637c..a27a0ef8684979788eb3bd651b4019288439e292 100644
 --- content/browser/renderer_host/render_widget_host_view_aura.cc
 +++ content/browser/renderer_host/render_widget_host_view_aura.cc
 @@ -8,6 +8,7 @@
@@ -18,7 +18,7 @@ index 63a7dc99a9596f22379436c32325936ebd8d14e6..acdff69a767c09199a06d5394412cb33
  #include "content/public/common/page_visibility_state.h"
  #include "services/service_manager/public/cpp/interface_provider.h"
  #include "third_party/blink/public/common/input/web_input_event.h"
-@@ -807,6 +809,9 @@ gfx::Rect RenderWidgetHostViewAura::GetViewBounds() {
+@@ -820,6 +822,9 @@ gfx::Rect RenderWidgetHostViewAura::GetViewBounds() {
  void RenderWidgetHostViewAura::UpdateBackgroundColor() {
    CHECK(GetBackgroundColor());
  
@@ -28,7 +28,7 @@ index 63a7dc99a9596f22379436c32325936ebd8d14e6..acdff69a767c09199a06d5394412cb33
    SkColor color = *GetBackgroundColor();
    window_->layer()->SetColor(color);
  }
-@@ -1172,6 +1177,12 @@ void RenderWidgetHostViewAura::TransformPointToRootSurface(gfx::PointF* point) {
+@@ -1185,6 +1190,12 @@ void RenderWidgetHostViewAura::TransformPointToRootSurface(gfx::PointF* point) {
  }
  
  gfx::Rect RenderWidgetHostViewAura::GetBoundsInRootWindow() {
@@ -41,7 +41,7 @@ index 63a7dc99a9596f22379436c32325936ebd8d14e6..acdff69a767c09199a06d5394412cb33
    aura::Window* top_level = window_->GetToplevelWindow();
    gfx::Rect bounds(top_level->GetBoundsInScreen());
  
-@@ -2783,6 +2794,16 @@ void RenderWidgetHostViewAura::CreateAuraWindow(aura::client::WindowType type) {
+@@ -2798,6 +2809,16 @@ void RenderWidgetHostViewAura::CreateAuraWindow(aura::client::WindowType type) {
    window_->layer()->SetColor(GetBackgroundColor() ? *GetBackgroundColor()
                                                    : SK_ColorWHITE);
    UpdateFrameSinkIdRegistration();
@@ -59,10 +59,10 @@ index 63a7dc99a9596f22379436c32325936ebd8d14e6..acdff69a767c09199a06d5394412cb33
  
  void RenderWidgetHostViewAura::UpdateFrameSinkIdRegistration() {
 diff --git content/browser/renderer_host/render_widget_host_view_aura.h content/browser/renderer_host/render_widget_host_view_aura.h
-index 4a3acf119b128990f7b02fe0508467b0f67f3559..e91ea6556b42e12fc1f5d08cbfefd8557641193f 100644
+index d6153a1765013e4b53ffc58818b2f30c41e17960..176195dcd6713887cce7feebbff091ce705de712 100644
 --- content/browser/renderer_host/render_widget_host_view_aura.h
 +++ content/browser/renderer_host/render_widget_host_view_aura.h
-@@ -463,6 +463,12 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
+@@ -460,6 +460,12 @@ class CONTENT_EXPORT RenderWidgetHostViewAura
    }
  #endif  // BUILDFLAG(IS_WIN)
  

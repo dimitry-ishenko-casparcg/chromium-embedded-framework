@@ -253,12 +253,10 @@ struct TestSetup {
     }
 
     const std::string& path_url = test_request::GetPathURL(url);
-    ResourceList::const_iterator it = resources.begin();
-    for (; it != resources.end(); ++it) {
-      Resource* resource = *it;
+    for (const auto& resource : resources) {
       if (resource->GetPathURL() == path_url &&
           (resource->method.empty() ||
-           matching_methods.find(resource->method) != matching_methods.end())) {
+           matching_methods.contains(resource->method))) {
         return resource;
       }
     }
@@ -279,9 +277,7 @@ struct TestSetup {
 
   // Returns true if the server will be used.
   virtual bool NeedsServer() const {
-    ResourceList::const_iterator it = resources.begin();
-    for (; it != resources.end(); ++it) {
-      Resource* resource = *it;
+    for (const auto& resource : resources) {
       if (resource->handler == HandlerType::SERVER) {
         return true;
       }
@@ -303,9 +299,7 @@ struct TestSetup {
     if (!GotAllExpectedConsoleMessages()) {
       return false;
     }
-    ResourceList::const_iterator it = resources.begin();
-    for (; it != resources.end(); ++it) {
-      Resource* resource = *it;
+    for (const auto& resource : resources) {
       if (!resource->IsDone()) {
         return false;
       }
@@ -315,9 +309,8 @@ struct TestSetup {
 
   void AssertDone() const {
     EXPECT_TRUE(GotAllExpectedConsoleMessages());
-    ResourceList::const_iterator it = resources.begin();
-    for (; it != resources.end(); ++it) {
-      (*it)->AssertDone();
+    for (const auto& resource : resources) {
+      resource->AssertDone();
     }
   }
 
@@ -341,6 +334,9 @@ class TestServerObserver : public test_server::ObserverHelper {
   }
 
   ~TestServerObserver() override { std::move(done_callback_).Run(); }
+
+  TestServerObserver(const TestServerObserver&) = delete;
+  TestServerObserver& operator=(const TestServerObserver&) = delete;
 
   void OnInitialized(const std::string& server_origin) override {
     CEF_REQUIRE_UI_THREAD();
@@ -374,13 +370,14 @@ class TestServerObserver : public test_server::ObserverHelper {
   TestSetup* const setup_;
   base::OnceClosure ready_callback_;
   base::OnceClosure done_callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestServerObserver);
 };
 
 class CorsTestHandler : public RoutingTestHandler {
  public:
   explicit CorsTestHandler(TestSetup* setup) : setup_(setup) {}
+
+  CorsTestHandler(const CorsTestHandler&) = delete;
+  CorsTestHandler& operator=(const CorsTestHandler&) = delete;
 
   void RunTest() override {
     StartServer(base::BindOnce(&CorsTestHandler::TriggerCreateBrowser, this));
@@ -624,7 +621,6 @@ class CorsTestHandler : public RoutingTestHandler {
   TrackCallback got_cleared_cookies_;
 
   IMPLEMENT_REFCOUNTING(CorsTestHandler);
-  DISALLOW_COPY_AND_ASSIGN(CorsTestHandler);
 };
 
 // JS that results in a call to CorsTestHandler::OnQuery.

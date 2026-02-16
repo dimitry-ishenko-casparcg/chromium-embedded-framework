@@ -380,7 +380,7 @@ void CefBrowserInfoManager::OnGetNewBrowserInfo(
   const int timeout_id = ++next_timeout_id_;
 
   // Queue the request.
-  std::unique_ptr<PendingNewBrowserInfo> pending(new PendingNewBrowserInfo());
+  auto pending = std::make_unique<PendingNewBrowserInfo>();
   pending->global_token = global_token;
   pending->timeout_id = timeout_id;
   pending->callback = std::move(callback);
@@ -463,8 +463,8 @@ void CefBrowserInfoManager::RemoveBrowserInfo(
     scoped_refptr<CefBrowserInfo> browser_info) {
   base::AutoLock lock_scope(browser_info_lock_);
 
-  BrowserInfoList::iterator it = browser_info_list_.begin();
-  for (; it != browser_info_list_.end(); ++it) {
+  for (auto it = browser_info_list_.begin(); it != browser_info_list_.end();
+       ++it) {
     if (*it == browser_info) {
       browser_info_list_.erase(it);
       return;
@@ -484,9 +484,8 @@ void CefBrowserInfoManager::DestroyAllBrowsers() {
 
   // Destroy any remaining browser windows.
   if (!list.empty()) {
-    BrowserInfoList::iterator it = list.begin();
-    for (; it != list.end(); ++it) {
-      CefRefPtr<CefBrowserHostBase> browser = (*it)->browser();
+    for (const auto& browser_info : list) {
+      CefRefPtr<CefBrowserHostBase> browser = browser_info->browser();
       DCHECK(browser.get());
       if (browser.get()) {
         // DestroyBrowser will call RemoveBrowserInfo.
@@ -637,10 +636,8 @@ void CefBrowserInfoManager::RenderProcessHostDestroyed(
 
   host->RemoveObserver(this);
 
-  // TODO: Change to content::ChildProcessId usage once supported by
-  // GlobalRenderFrameHostToken. See https://crbug.com/379869738.
-  const int render_process_id = host->GetDeprecatedID();
-  DCHECK_GT(render_process_id, 0);
+  const content::ChildProcessId render_process_id = host->GetID();
+  DCHECK(!render_process_id.is_null());
 
   // Remove all pending requests that reference the destroyed host.
   {
@@ -650,7 +647,9 @@ void CefBrowserInfoManager::RenderProcessHostDestroyed(
         pending_new_browser_info_map_.begin();
     while (it != pending_new_browser_info_map_.end()) {
       const auto& info = it->second;
-      if (info->global_token.child_id == render_process_id) {
+      // TODO(crbug.com/379869738): Remove GetUnsafeValue() once
+      // GlobalRenderFrameHostToken is migrated to use ChildProcessId.
+      if (info->global_token.child_id == render_process_id.GetUnsafeValue()) {
         CancelNewBrowserInfoResponse(info.get());
         it = pending_new_browser_info_map_.erase(it);
       } else {
