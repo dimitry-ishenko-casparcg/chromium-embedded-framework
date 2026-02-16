@@ -429,6 +429,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0048-fix-ninja-py-depot-tools-hyphen.chromium.patch
+	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0053-fix-gclient-paths-depot-tools-hyphen.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-make-siso-import-optional.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-skip-test-fonts.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-disable-warning-suppression-mappings.chromium.patch
@@ -437,7 +438,7 @@ override_dh_auto_build:
 	# MUT tarball mode: no .git, so no conflicts possible
 	@if [ -d "$(CURDIR)/depot-tools/.git" ]; then \
 		echo "==> Committing depot_tools patches (git-clone mode)"; \
-		cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004, 0048)" --allow-empty; \
+		cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004, 0048, 0053)" --allow-empty; \
 	else \
 		echo "==> Skipping depot_tools commit (MUT tarball mode - no .git)"; \
 	fi
