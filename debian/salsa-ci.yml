@@ -30,13 +30,15 @@ build-cef:
 
     # Extract Chromium version and CEF branch from debian/rules
     - CHROMIUM_VERSION=$(sed -n 's/^CHROMIUM_VERSION := //p' debian/rules)
-    - CHROMIUM_DEBIAN_REV=$(sed -n 's/^CHROMIUM_DEBIAN_REV := //p' debian/rules)
     - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
-    - echo "Chromium ${CHROMIUM_VERSION}-${CHROMIUM_DEBIAN_REV}, CEF branch ${CEF_BRANCH}"
+    - echo "Chromium ${CHROMIUM_VERSION}, CEF branch ${CEF_BRANCH}"
 
-    # Obtain MUT tarballs (script skips existing ones)
-    - chmod +x debian/scripts/get-orig-tarballs.sh
-    - cd .. && ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "${CHROMIUM_VERSION}-${CHROMIUM_DEBIAN_REV}" && cd ${PKG}
+    # Clean stale tarballs from previous runs to ensure correct versions
+    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc
+
+    # Obtain MUT tarballs (4 components: cef, chromium, chromium-debian, depot-tools)
+    - chmod +x ./${PKG}/debian/scripts/get-orig-tarballs.sh
+    - ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "$CHROMIUM_VERSION" && cd ${PKG}
 
     # Follow the exact README.source workflow (dpkg-source -b / -x)
     # This is the same path a Debian Developer would take
