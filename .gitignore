@@ -10,6 +10,7 @@ build/
 
 # MUT component directories - extracted by dpkg-source, not tracked by git
 chromium/
+chromium-debian/
 depot-tools/
 
 # Quilt patch state - temporary, recreated during patch application

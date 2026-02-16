@@ -10,7 +10,7 @@
 #
 # This script updates:
 #   - debian/changelog (version only, keeps existing entry for new packages)
-#   - debian/rules (CHROMIUM_VERSION, CHROMIUM_DEBIAN_REV)
+#   - debian/rules (CHROMIUM_VERSION)
 #   - debian/README.Debian (Chromium and CEF version references)
 #   - debian/README.source (Chromium and CEF version references)
 #   - debian/libcefN.lintian-overrides (library version in paths)
@@ -78,13 +78,11 @@ else
     echo "    Already at version ${CEF_VERSION}"
 fi
 
-# 2. Update debian/rules CHROMIUM_VERSION and CHROMIUM_DEBIAN_REV
+# 2. Update debian/rules CHROMIUM_VERSION
 echo "==> [2/5] Updating debian/rules"
 if grep -q "^CHROMIUM_VERSION := " "${DEBIAN_DIR}/rules"; then
     sed -i "s/^CHROMIUM_VERSION := .*/CHROMIUM_VERSION := ${CHROMIUM_VERSION}/" "${DEBIAN_DIR}/rules"
-    sed -i "s/^CHROMIUM_DEBIAN_REV := .*/CHROMIUM_DEBIAN_REV := ${CHROMIUM_REV}/" "${DEBIAN_DIR}/rules"
     echo "    Updated CHROMIUM_VERSION: ${CURRENT_CHROMIUM} -> ${CHROMIUM_VERSION}"
-    echo "    Updated CHROMIUM_DEBIAN_REV: ${CHROMIUM_REV}"
 else
     echo "    WARNING: Could not find CHROMIUM_VERSION in debian/rules"
 fi

@@ -9,8 +9,6 @@ CEF_VERSION := $(DEB_VERSION_UPSTREAM)
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
 CHROMIUM_VERSION := 145.0.7632.75
-CHROMIUM_DEBIAN_REV := 1~deb13u1
-CHROMIUM_DEBIAN_TAR := chromium_$(CHROMIUM_VERSION)-$(CHROMIUM_DEBIAN_REV).debian.tar.xz
 
 include /usr/share/dpkg/buildopts.mk
 
@@ -298,19 +296,18 @@ override_dh_auto_build:
 
 	# Step 5.5: Apply Debian Chromium patches on top of CEF-patched source
 	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
-	# Extract Debian Chromium packaging (includes patches and build configuration)
+	# The chromium-debian/ MUT component contains Debian Chromium packaging
+	# (patches, build configuration) from the Debian chromium source package
 	@echo "==> Applying Debian Chromium patches for system integration"
-	tar -xf $(CURDIR)/../$(CHROMIUM_DEBIAN_TAR) \
-		-C $(CURDIR)/chromium_src/chromium/
 	# Apply patches from series file in order, skipping arch/release-specific directories
 	# Skipped: ppc64le/ loongarch64/ i386/ bookworm/ trixie/ bullseye/ (not relevant for amd64 sid)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
-		grep -v '^\#' ../debian/patches/series | grep -v '^\s*$$' | \
+		grep -v '^\#' $(CURDIR)/chromium-debian/patches/series | grep -v '^\s*$$' | \
 		grep -v '^ppc64le/' | grep -v '^loongarch64/' | grep -v '^i386/' | \
 		grep -v '^bookworm/' | grep -v '^trixie/' | grep -v '^bullseye/' | \
 		while read patch; do \
 			echo "Applying $$patch"; \
-			patch -p1 < "../debian/patches/$$patch" || { \
+			patch -p1 < "$(CURDIR)/chromium-debian/patches/$$patch" || { \
 				echo "WARNING: Patch $$patch failed, continuing..."; \
 			}; \
 		done
