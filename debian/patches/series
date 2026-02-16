@@ -18,3 +18,4 @@
 # 0019 removed - not needed for CEF 145 / Chromium 145
 # 0020 removed - old skip-list approach replaced by DEBIAN_BUILD=1 skip-all in 0001
 0021-remove-tracing-resources-chromium145.cef.patch
+0022-remove-gfx-ipc-skia-chromium145.cef.patch
