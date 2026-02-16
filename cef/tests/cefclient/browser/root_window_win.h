@@ -28,6 +28,9 @@ class RootWindowWin : public RootWindow, public BrowserWindow::Delegate {
   explicit RootWindowWin(bool use_alloy_style);
   ~RootWindowWin() override;
 
+  RootWindowWin(const RootWindowWin&) = delete;
+  RootWindowWin& operator=(const RootWindowWin&) = delete;
+
   // RootWindow methods.
   void Init(RootWindow::Delegate* delegate,
             std::unique_ptr<RootWindowConfig> config,
@@ -131,6 +134,9 @@ class RootWindowWin : public RootWindow, public BrowserWindow::Delegate {
 
   void MaybeNotifyScreenInfoChanged();
 
+  // For popups: poll until the browser HWND is available, then call ShowPopup.
+  void TryShowPopupBrowser();
+
   static void SaveWindowRestoreOnUIThread(const WINDOWPLACEMENT& placement);
 
   // After initialization all members are only accessed on the main thread.
@@ -183,7 +189,10 @@ class RootWindowWin : public RootWindow, public BrowserWindow::Delegate {
 
   bool called_enable_non_client_dpi_scaling_ = false;
 
-  DISALLOW_COPY_AND_ASSIGN(RootWindowWin);
+  // For Chrome style popups with multi-threaded message loop: track bounds
+  // for deferred ShowPopup call when browser HWND isn't immediately available.
+  bool pending_show_popup_ = false;
+  CefRect pending_popup_bounds_;
 };
 
 }  // namespace client

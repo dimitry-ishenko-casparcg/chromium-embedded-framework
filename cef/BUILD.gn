@@ -17,10 +17,10 @@
 #
 #      > set GN_DEFINES=is_official_build=true
 #
-#    Example B: Generate VS2017 project files in addition to the default Ninja
+#    Example B: Generate VS2022 project files in addition to the default Ninja
 #               build files on Windows:
 #
-#      > set GN_ARGUMENTS=--ide=vs2017 --sln=cef --filters=//cef/*
+#      > set GN_ARGUMENTS=--ide=vs2022 --sln=cef --filters=//cef/*
 #
 #      After completing the "GN Automated Build" or "GN Manual Build" section
 #      open "out\<build_dir>\cef.sln" for editing and debugging. Building must
@@ -998,7 +998,6 @@ source_set("libcef_static") {
     "//ui/gfx/geometry",
     "//ui/gfx/ipc",
     "//ui/gfx/ipc/geometry",
-    "//ui/gfx/ipc/skia",
     "//ui/gl",
     "//ui/strings",
     "//ui/views",
@@ -1232,15 +1231,15 @@ config("libcef_dll_wrapper_config") {
   # avoid accidental usage of new/unsupported language features in sample apps.
   # For Chromium defaults see //build/config/compiler/BUILD.gn.
   #
-  # Mixing C++17 and C++20 leads to build errors with modules enabled. Dependent
+  # Mixing C++20 and C++23 leads to build errors with modules enabled. Dependent
   # targets must therefore also set use_libcxx_modules = false (see issue #3611).
   if (is_win) {
-    cflags_cc = [ "/std:c++17" ]
+    cflags_cc = [ "/std:c++20" ]
   } else {
-    cflags_cc = [ "-std=c++17" ]
+    cflags_cc = [ "-std=c++20" ]
   }
   if (is_mac) {
-    cflags_objcc = [ "-std=c++17" ]
+    cflags_objcc = [ "-std=c++20" ]
   }
 
   if (cef_api_version != "") {
@@ -2336,6 +2335,7 @@ if (is_mac) {
     helper_deps = [
       ":libcef_dll_wrapper",
       ":gtest_teamcity",
+      "//testing/gmock",
       "//testing/gtest",
     ]
     helper_frameworks = [
@@ -2362,6 +2362,7 @@ if (is_mac) {
       ":ceftests_resources_bundle_data_english",
       ":ceftests_xibs",
       ":gtest_teamcity",
+      "//testing/gmock",
       "//testing/gtest",
     ]
     frameworks = [
@@ -2837,6 +2838,7 @@ if (is_mac) {
       ":libcef",
       ":libcef_dll_wrapper",
       ":gtest_teamcity",
+      "//testing/gmock",
       "//testing/gtest",
     ]
 
@@ -2916,6 +2918,7 @@ if (is_mac) {
         ":libcef",
         ":libcef_dll_wrapper",
         ":gtest_teamcity",
+        "//testing/gmock",
         "//testing/gtest",
       ]
 

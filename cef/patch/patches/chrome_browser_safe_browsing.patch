@@ -1,8 +1,8 @@
 diff --git chrome/browser/safe_browsing/BUILD.gn chrome/browser/safe_browsing/BUILD.gn
-index c10d66e0ca3c2409a5aa8aef8eb535a789dd2ee1..ae5eb8a878debdfbbd1395db5a295c28131328fb 100644
+index 7a13fd744586c6153937acf71acdd2619bda331f..c190fbfeaa58284c674b4ebd975c7cb26c0fd129 100644
 --- chrome/browser/safe_browsing/BUILD.gn
 +++ chrome/browser/safe_browsing/BUILD.gn
-@@ -31,6 +31,7 @@ static_library("safe_browsing") {
+@@ -33,6 +33,7 @@ static_library("safe_browsing") {
      "//chrome/browser/history",
      "//chrome/browser/optimization_guide",
      "//chrome/browser/password_manager/factories",
@@ -10,7 +10,7 @@ index c10d66e0ca3c2409a5aa8aef8eb535a789dd2ee1..ae5eb8a878debdfbbd1395db5a295c28
      "//chrome/browser/profiles",
      "//chrome/browser/profiles:profile",
      "//chrome/browser/profiles:profile_io_data",
-@@ -44,6 +45,7 @@ static_library("safe_browsing") {
+@@ -47,6 +48,7 @@ static_library("safe_browsing") {
      "//components/enterprise/buildflags",
      "//components/enterprise/common:strings",
      "//components/enterprise/obfuscation/core:enterprise_obfuscation",
