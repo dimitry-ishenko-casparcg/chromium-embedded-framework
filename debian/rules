@@ -423,7 +423,7 @@ override_dh_auto_build:
 	# and use .chromium.patch suffix to distinguish them from CEF patches
 	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
 	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
-	# Note: 0001-debian-tarball-deps removed - all source_tarball conditions upstreamed in Chromium 145
+	# Note: 0001-debian-tarball-deps removed - CEF patcher's tarball_deps.patch (Step 5.3) handles this
 	@echo "==> Applying Debian Chromium patches (gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
 	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
