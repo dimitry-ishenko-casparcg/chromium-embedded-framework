@@ -42,6 +42,7 @@ build-cef:
     # This is the same path a Debian Developer would take
     - dpkg-source -b .
     - cd ..
+    - rm -rf build-dir
     - dpkg-source -x ${PKG}_${UPSTREAM_VERSION}-*.dsc build-dir
     - cd build-dir
     - dpkg-buildpackage -b -us -uc
