@@ -1,3 +1,8 @@
+# chrome-sandbox symlink: CEF looks for chrome-sandbox next to libcef.so
+# (via dladdr/DIR_ASSETS override in setuid_sandbox_host.cc).
+# Reuse Debian's chromium-sandbox package instead of shipping a duplicate.
+/usr/lib/chromium/chrome-sandbox /usr/lib/x86_64-linux-gnu/chrome-sandbox
+
 # ANGLE library version symlinks
 # CEF's dlopen looks for versioned sonames (libEGL.so.1, libGLESv2.so.2)
 # but ANGLE only provides unversioned .so files

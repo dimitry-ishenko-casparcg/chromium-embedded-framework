@@ -1236,18 +1236,8 @@ override_dh_auto_install:
 	echo '{"file_format_version": "1.0.0", "ICD": {"library_path": "/usr/lib/x86_64-linux-gnu/libvk_swiftshader.so", "api_version": "1.0.5"}}' \
 		> $(CURDIR)/debian/libcef145/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
-	# Install chrome-sandbox (needed for CEF process isolation)
-	# Note: This binary requires setuid root to function, but we install it without setuid
-	# for security. Users who need sandbox support should either:
-	# - Run the application with --no-sandbox flag, OR
-	# - Configure setuid permissions manually: sudo chown root:root /usr/lib/cef/chrome-sandbox && sudo chmod 4755 /usr/lib/cef/chrome-sandbox
-	for sandbox in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/chrome-sandbox; do \
-		if [ -f "$$sandbox" ]; then \
-			mkdir -p $(CURDIR)/debian/libcef145/usr/lib/cef/; \
-			install -m755 "$$sandbox" $(CURDIR)/debian/libcef145/usr/lib/cef/chrome-sandbox; \
-			break; \
-		fi \
-	done
+	# chrome-sandbox: CEF looks for it next to libcef.so (via dladdr/DIR_ASSETS).
+	# We depend on chromium-sandbox and symlink to it (see libcef145.links).
 
 override_dh_auto_test:
 	# Skip tests for now - CEF tests require X display

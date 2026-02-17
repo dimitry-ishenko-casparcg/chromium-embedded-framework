@@ -13,6 +13,7 @@
 #   - debian/rules (CHROMIUM_VERSION)
 #   - debian/README.Debian (Chromium and CEF version references)
 #   - debian/README.source (Chromium and CEF version references)
+#   - debian/control Breaks/Replaces (adds old libcefN on major version change)
 #   - debian/libcefN.lintian-overrides (library version in paths)
 #   - debian/libcefN-dbgsym.lintian-overrides (renamed on major version change)
 
@@ -67,7 +68,7 @@ echo "  Chromium: ${CHROMIUM_VERSION}-${CHROMIUM_REV}"
 echo ""
 
 # 1. Update debian/changelog version
-echo "==> [1/5] Updating debian/changelog"
+echo "==> [1/6] Updating debian/changelog"
 if [ "$CURRENT_CEF" != "$CEF_VERSION" ]; then
     # Update the version in the first line of changelog
     sed -i "1s/([^)]*)/($CEF_VERSION-1)/" "${DEBIAN_DIR}/changelog"
@@ -79,7 +80,7 @@ else
 fi
 
 # 2. Update debian/rules CHROMIUM_VERSION
-echo "==> [2/5] Updating debian/rules"
+echo "==> [2/6] Updating debian/rules"
 if grep -q "^CHROMIUM_VERSION := " "${DEBIAN_DIR}/rules"; then
     sed -i "s/^CHROMIUM_VERSION := .*/CHROMIUM_VERSION := ${CHROMIUM_VERSION}/" "${DEBIAN_DIR}/rules"
     echo "    Updated CHROMIUM_VERSION: ${CURRENT_CHROMIUM} -> ${CHROMIUM_VERSION}"
@@ -119,15 +120,33 @@ update_version_refs() {
 }
 
 # 3. Update debian/README.Debian
-echo "==> [3/5] Updating debian/README.Debian"
+echo "==> [3/6] Updating debian/README.Debian"
 update_version_refs "${DEBIAN_DIR}/README.Debian" "README.Debian"
 
 # 4. Update debian/README.source
-echo "==> [4/5] Updating debian/README.source"
+echo "==> [4/6] Updating debian/README.source"
 update_version_refs "${DEBIAN_DIR}/README.source" "README.source"
 
-# 5. Update lintian-overrides files
-echo "==> [5/5] Updating lintian-overrides"
+# 5. Update debian/control Breaks/Replaces (add old libcefN on major version change)
+echo "==> [5/6] Updating debian/control Breaks/Replaces"
+if [ "$CURRENT_CEF_MAJOR" != "$NEW_CEF_MAJOR" ]; then
+    OLD_PKG="libcef${CURRENT_CEF_MAJOR}"
+    if grep -q "^Breaks:" "${DEBIAN_DIR}/control"; then
+        # Add old package to existing Breaks/Replaces lines
+        sed -i "s/^Breaks: \(.*\)/Breaks: \1, ${OLD_PKG}/" "${DEBIAN_DIR}/control"
+        sed -i "s/^Replaces: \(.*\)/Replaces: \1, ${OLD_PKG}/" "${DEBIAN_DIR}/control"
+        echo "    Added ${OLD_PKG} to Breaks/Replaces"
+    else
+        # Insert Breaks/Replaces before Description line in the libcefN stanza
+        sed -i "/^Description: Chromium Embedded Framework - shared library/i Breaks: ${OLD_PKG}\nReplaces: ${OLD_PKG}" "${DEBIAN_DIR}/control"
+        echo "    Created Breaks/Replaces with ${OLD_PKG}"
+    fi
+else
+    echo "    Same major version, no Breaks/Replaces update needed"
+fi
+
+# 6. Update lintian-overrides files
+echo "==> [6/6] Updating lintian-overrides"
 for LINTIAN_FILE in "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}.lintian-overrides" \
                     "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}-dbgsym.lintian-overrides"; do
     if [ -f "$LINTIAN_FILE" ]; then
