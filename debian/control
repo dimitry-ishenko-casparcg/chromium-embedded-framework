@@ -123,8 +123,10 @@ Vcs-Git: https://salsa.debian.org/debian/chromium-embedded-framework.git
 
 Package: libcef145
 Architecture: amd64
-Depends: ${shlibs:Depends}, ${misc:Depends}, libegl1, libgles2, libvulkan1,
-         libavcodec-extra | libavcodec61
+Depends: ${shlibs:Depends}, ${misc:Depends}, chromium-sandbox, libegl1, libgles2,
+         libvulkan1, libavcodec-extra | libavcodec61
+Breaks: libcef138, libcef144
+Replaces: libcef138, libcef144
 Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)
  The Chromium Embedded Framework (CEF) is a simple framework for embedding
  Chromium-based browsers in other applications.

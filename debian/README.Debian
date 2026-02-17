@@ -111,18 +111,12 @@ without needing to set LD_LIBRARY_PATH.
 
 **Chrome Sandbox:**
 
-CEF includes chrome-sandbox for process isolation, installed at:
+CEF reuses Debian's chromium-sandbox package for process isolation. A symlink
+at /usr/lib/x86_64-linux-gnu/chrome-sandbox points to /usr/lib/chromium/chrome-sandbox
+(which has the required SUID 4755 permissions).
 
-  /usr/lib/cef/chrome-sandbox
-
-By default, this binary is NOT setuid root for security reasons. This means
-sandbox support is disabled out of the box. Applications can work around
-this by:
-
-  1. Running with --no-sandbox flag, OR
-  2. Manually enabling setuid (requires root):
-     sudo chown root:root /usr/lib/cef/chrome-sandbox
-     sudo chmod 4755 /usr/lib/cef/chrome-sandbox
+On modern kernels with unprivileged user namespaces, the namespace sandbox is
+preferred and the SUID sandbox serves as a fallback.
 
 **SwiftShader (Software Rendering):**
 
