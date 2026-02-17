@@ -1145,7 +1145,7 @@ override_dh_auto_install:
 	# Create package directories first
 	mkdir -p $(CURDIR)/debian/libcef145/usr/lib/x86_64-linux-gnu
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include
-	mkdir -p $(CURDIR)/debian/cef-common/usr/share/cef
+	mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef
 
 	# Install libcef.so (use _linux64_minimal pattern for minimal-only distribution)
 	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libcef.so \
@@ -1183,25 +1183,25 @@ override_dh_auto_install:
 
 	# Install resources (PAK files) - use _linux64_minimal pattern
 	# PAK files are in Resources/ directory, NOT Release/
-	mkdir -p $(CURDIR)/debian/cef-common/usr/share/cef/
+	mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef/
 	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/*.pak \
-		$(CURDIR)/debian/cef-common/usr/share/cef/
+		$(CURDIR)/debian/libcef-common/usr/share/cef/
 
 	# Install ICU data file (CRITICAL for internationalization) - use _linux64_minimal pattern
 	# icudtl.dat is in Resources/ directory, NOT Release/
 	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/icudtl.dat \
-		$(CURDIR)/debian/cef-common/usr/share/cef/
+		$(CURDIR)/debian/libcef-common/usr/share/cef/
 
 	# Install V8 context snapshot (CRITICAL for JavaScript) - use _linux64_minimal pattern
 	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/v8_context_snapshot.bin \
-		$(CURDIR)/debian/cef-common/usr/share/cef/ || true
+		$(CURDIR)/debian/libcef-common/usr/share/cef/ || true
 
 	# Install locales - use _linux64_minimal pattern
 	# Locales are in Resources/ directory, NOT Release/
 	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/locales ]; then \
-		mkdir -p $(CURDIR)/debian/cef-common/usr/share/cef/locales/; \
+		mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef/locales/; \
 		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/locales/*.pak \
-			$(CURDIR)/debian/cef-common/usr/share/cef/locales/; \
+			$(CURDIR)/debian/libcef-common/usr/share/cef/locales/; \
 	fi
 
 	# Install other required libraries from Release directory

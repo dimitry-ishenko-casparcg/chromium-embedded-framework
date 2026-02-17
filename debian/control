@@ -155,7 +155,7 @@ Description: Chromium Embedded Framework - development files
  .
  WARNING: This package is EXPERIMENTAL. See libcef145 description for details.
 
-Package: cef-common
+Package: libcef-common
 Architecture: all
 Depends: ${misc:Depends}
 Description: Chromium Embedded Framework - common data files

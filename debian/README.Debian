@@ -21,7 +21,7 @@ This source package produces four binary packages:
   libcef-dev       - Development files (headers, CMake configuration)
                      Depends on libcef145
 
-  cef-common       - Architecture-independent data files (PAK files, locales)
+  libcef-common    - Architecture-independent data files (PAK files, locales)
                      Required at runtime by CEF applications
 
 Source Package Structure (MUT)
@@ -142,7 +142,7 @@ For full media playback support (e.g., streaming services), install:
 
 **Resource Files:**
 
-CEF resource files (PAK files, locales, ICU data) are in the cef-common
+CEF resource files (PAK files, locales, ICU data) are in the libcef-common
 package, installed to:
 
   /usr/share/cef/
