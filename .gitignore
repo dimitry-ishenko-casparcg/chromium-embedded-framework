@@ -6,6 +6,7 @@
 # Build directories - created during build process
 chromium_src/
 depot_tools/
+third_party/
 build/
 
 # MUT component directories - extracted by dpkg-source, not tracked by git
