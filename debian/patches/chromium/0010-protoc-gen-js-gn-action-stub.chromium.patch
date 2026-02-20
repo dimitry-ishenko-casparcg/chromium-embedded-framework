@@ -4,7 +4,7 @@ Description: Compile locale stub library using GN action to bypass ThinLTO
  conflicts with glibc headers.
  .
  This patch uses a GN action() target to compile the locale stub library
- (liblocale_stub.a) using clang++ directly, completely bypassing the GN config
+ (liblocale_stub.a) using clang++-19 directly, completely bypassing the GN config
  system and ThinLTO. The action runs after gn gen but before ninja compiles
  protoc-gen-js, ensuring correct timing and symbol preservation.
  .
@@ -14,7 +14,7 @@ Description: Compile locale stub library using GN action to bypass ThinLTO
  .
  GN action() approach (Build 175i):
  - Compiles AFTER gn gen (correct timing)
- - Uses direct clang++ invocation (bypasses GN configs)
+ - Uses direct clang++-19 invocation (bypasses GN configs)
  - Bypasses ThinLTO completely (no -flto flags applied)
  - Library available when ninja needs it
  .
@@ -27,10 +27,10 @@ Description: Compile locale stub library using GN action to bypass ThinLTO
 Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-16
+Last-Update: 2026-02-20
 
 diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
-index b453ada..762ab08 100644
+index d6fa1d7..bbf68f4 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
 @@ -4,6 +4,32 @@
@@ -38,7 +38,7 @@ index b453ada..762ab08 100644
  # Only compile the compiler for the host architecture.
  if (current_toolchain == host_toolchain) {
 +  # Debian: Compile locale stub library outside GN config system
-+  # This action() compiles the stub with clang++ directly, bypassing ThinLTO
++  # This action() compiles the stub with clang++-19 directly, bypassing ThinLTO
 +  action("compile_locale_stub") {
 +    script = "//build/gn_run_binary.py"
 +
@@ -54,7 +54,7 @@ index b453ada..762ab08 100644
 +      "/bin/sh",
 +      "-c",
 +      "mkdir -p " + rebase_path(root_out_dir, root_build_dir) + "/obj/debian && " +
-+      "clang++ -std=c++17 -c " +
++      "clang++-19 -std=c++17 -c " +
 +      "-isystem " + rebase_path("//third_party/libc++/src/include", root_build_dir) + " " +
 +      "-isystem " + rebase_path("//third_party/perfetto/buildtools/libcxx_config", root_build_dir) + " " +
 +      rebase_path("//debian/cef_locale_stub.cpp", root_build_dir) + " " +
