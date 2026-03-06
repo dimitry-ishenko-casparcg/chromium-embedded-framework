@@ -8,7 +8,7 @@ CEF_VERSION := $(DEB_VERSION_UPSTREAM)
 
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
-CHROMIUM_VERSION := 145.0.7632.116
+CHROMIUM_VERSION := 145.0.7632.159
 
 include /usr/share/dpkg/buildopts.mk
 
@@ -1251,6 +1251,10 @@ override_dh_auto_clean:
 	rm -f chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 2>/dev/null || true
 	# Clean entire build directory
 	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
+	# Clean stale quilt state to prevent desync between .pc/ and source tree
+	rm -rf .pc
+	# Remove stale depot_tools/ (underscore) from manual clones - MUT uses depot-tools/ (hyphen)
+	rm -rf depot_tools/
 	# NOTE: depot_tools is treated as BUNDLED DEPENDENCY (not removed during clean)
 	# TEMPORARY APPROACH: For official Debian submission, depot_tools must be:
 	#   - Included in orig.tar.xz, OR
