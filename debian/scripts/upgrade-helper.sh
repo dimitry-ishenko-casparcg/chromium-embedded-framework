@@ -2,11 +2,16 @@
 # debian/scripts/upgrade-helper.sh
 #
 # Helper script to update debian/ files when upgrading package versions.
-# Run this after get-orig-tarballs.sh has created the new tarballs.
+# For Chromium updates, run this before get-orig-tarballs.sh to bump +ds version.
 #
 # Usage: ./debian/scripts/upgrade-helper.sh CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]
 #
-# Example: ./debian/scripts/upgrade-helper.sh 145.0.23 145.0.7632.75 1~deb13u1
+# Example: ./debian/scripts/upgrade-helper.sh 145.0.23 145.0.7632.159 2
+#
+# The +dsN suffix is managed automatically:
+#   - New CEF version: resets to +ds1 (e.g., 146.0.1+ds1)
+#   - Same CEF version, new Chromium: increments +ds (e.g., 145.0.23+ds2)
+#   - Same CEF and Chromium: no version change
 #
 # This script updates:
 #   - debian/changelog (version only, keeps existing entry for new packages)
@@ -26,12 +31,14 @@ CHROMIUM_REV="${3:-2}"
 if [ -z "$CEF_VERSION" ] || [ -z "$CHROMIUM_VERSION" ]; then
     echo "Usage: $0 CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]"
     echo ""
-    echo "Example: $0 145.0.23 145.0.7632.75 1~deb13u1"
+    echo "Example: $0 145.0.23 145.0.7632.159 2"
     echo ""
     echo "Arguments:"
-    echo "  CEF_VERSION      - New CEF version (e.g., 145.0.23)"
-    echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 145.0.7632.75)"
+    echo "  CEF_VERSION      - CEF upstream version (e.g., 145.0.23)"
+    echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 145.0.7632.159)"
     echo "  CHROMIUM_REV     - Debian revision (default: 2)"
+    echo ""
+    echo "The +dsN suffix is computed automatically based on what changed."
     exit 1
 fi
 
@@ -55,28 +62,51 @@ echo "============================================================"
 echo ""
 
 # Get current versions from files
-CURRENT_CEF=$(dpkg-parsechangelog -l "${DEBIAN_DIR}/changelog" -S Version 2>/dev/null | cut -d- -f1 || echo "unknown")
+# Full upstream version from changelog (e.g., 145.0.23+ds1)
+CURRENT_FULL=$(dpkg-parsechangelog -l "${DEBIAN_DIR}/changelog" -S Version 2>/dev/null | sed 's/-[^-]*$//' || echo "unknown")
+# Base CEF version without +ds suffix (e.g., 145.0.23)
+CURRENT_CEF_BASE=$(echo "$CURRENT_FULL" | sed 's/+ds[0-9]*$//')
+# Current +ds number (e.g., 1); 0 if no +ds suffix
+CURRENT_DS=$(echo "$CURRENT_FULL" | sed -n 's/.*+ds\([0-9]*\)$/\1/p')
+CURRENT_DS="${CURRENT_DS:-0}"
 CURRENT_CHROMIUM=$(grep "^CHROMIUM_VERSION :=" "${DEBIAN_DIR}/rules" 2>/dev/null | sed 's/.*:= *//' || echo "unknown")
 
+# Compute new +ds suffix
+if [ "$CURRENT_CEF_BASE" != "$CEF_VERSION" ]; then
+    # New CEF version: reset to +ds1
+    NEW_DS=1
+elif [ "$CURRENT_CHROMIUM" != "$CHROMIUM_VERSION" ]; then
+    # Same CEF, new Chromium (or other MUT input): increment +ds
+    NEW_DS=$((CURRENT_DS + 1))
+else
+    # Nothing changed
+    NEW_DS="$CURRENT_DS"
+fi
+
+NEW_FULL="${CEF_VERSION}+ds${NEW_DS}"
+
 echo "Current versions:"
-echo "  CEF: ${CURRENT_CEF}"
+echo "  CEF: ${CURRENT_FULL} (base: ${CURRENT_CEF_BASE}, ds: ${CURRENT_DS})"
 echo "  Chromium: ${CURRENT_CHROMIUM}"
 echo ""
 echo "New versions:"
-echo "  CEF: ${CEF_VERSION}"
+echo "  CEF: ${NEW_FULL}"
 echo "  Chromium: ${CHROMIUM_VERSION}-${CHROMIUM_REV}"
 echo ""
 
+# For compatibility with the rest of the script
+CURRENT_CEF="$CURRENT_CEF_BASE"
+
 # 1. Update debian/changelog version
 echo "==> [1/6] Updating debian/changelog"
-if [ "$CURRENT_CEF" != "$CEF_VERSION" ]; then
+if [ "$CURRENT_FULL" != "$NEW_FULL" ]; then
     # Update the version in the first line of changelog
-    sed -i "1s/([^)]*)/($CEF_VERSION-1)/" "${DEBIAN_DIR}/changelog"
+    sed -i "1s/([^)]*)/($NEW_FULL-1)/" "${DEBIAN_DIR}/changelog"
     # Update the timestamp
     sed -i "0,/^ -- .*$/s/^ -- \(.*<.*>\)  .*/ -- \1  $(date -R)/" "${DEBIAN_DIR}/changelog"
-    echo "    Updated version: ${CURRENT_CEF} -> ${CEF_VERSION}-1"
+    echo "    Updated version: ${CURRENT_FULL} -> ${NEW_FULL}-1"
 else
-    echo "    Already at version ${CEF_VERSION}"
+    echo "    Already at version ${NEW_FULL}"
 fi
 
 # 2. Update debian/rules CHROMIUM_VERSION

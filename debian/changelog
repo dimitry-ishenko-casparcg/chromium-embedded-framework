@@ -1,4 +1,4 @@
-chromium-embedded-framework (145.0.23-1) experimental; urgency=medium
+chromium-embedded-framework (145.0.23+ds1-1) experimental; urgency=medium
 
   * Initial release (Closes: #915400)
 

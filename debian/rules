@@ -3,8 +3,10 @@
 # Get package version from debian/changelog (provides DEB_VERSION_UPSTREAM, etc.)
 include /usr/share/dpkg/pkg-info.mk
 
-# CEF version derived from changelog (e.g., "145.0.23" from "145.0.23-1")
-CEF_VERSION := $(DEB_VERSION_UPSTREAM)
+# CEF upstream version without +ds suffix (e.g., "145.0.23" from "145.0.23+ds1-1")
+# Used for library filenames (libcef.so.145.0.23) which reflect the actual CEF version.
+# For tarball names (which include +ds), use DEB_VERSION_UPSTREAM directly.
+CEF_VERSION := $(firstword $(subst +, ,$(DEB_VERSION_UPSTREAM)))
 
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
@@ -1132,7 +1134,7 @@ override_dh_auto_build:
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot-tools \
 		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_$(CEF_VERSION).orig-chromium.tar.xz \
+		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_$(DEB_VERSION_UPSTREAM).orig-chromium.tar.xz \
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \
