@@ -14,7 +14,7 @@
 
 set -e
 
-VERSION="${1:-145.0.23}"
+VERSION="${1:-145.0.23+ds1}"
 CEF_BRANCH="${2:-7632}"
 CHROMIUM_VERSION="${3:-}"
 PKG="chromium-embedded-framework"
@@ -167,13 +167,9 @@ echo "Total size:"
 du -ch "${PKG}_${VERSION}".orig*.tar.xz | tail -1
 echo ""
 echo "Next steps:"
-echo "  1. Update debian/ files with version references:"
-echo "     ./${PKG}/debian/scripts/upgrade-helper.sh ${VERSION} ${CHROMIUM_VERSION:-CHROMIUM_VERSION} ${CHROMIUM_REV:-DEBIAN_REV}"
-echo ""
-echo "  2. Build the package:"
-echo "     cd ${PKG}"
-echo "     dpkg-source -b ."
-echo "     cd .."
-echo "     dpkg-source -x ${PKG}_*.dsc build-test"
-echo "     cd build-test"
-echo "     dpkg-buildpackage -us -uc"
+echo "  cd ${PKG}"
+echo "  dpkg-source -b ."
+echo "  cd .."
+echo "  dpkg-source -x ${PKG}_*.dsc build-dir"
+echo "  cd build-dir"
+echo "  dpkg-buildpackage -us -uc"
