@@ -14,8 +14,8 @@
 
 set -e
 
-VERSION="${1:-145.0.23+ds1}"
-CEF_BRANCH="${2:-7632}"
+VERSION="${1:-146.0.5+ds1}"
+CEF_BRANCH="${2:-7680}"
 CHROMIUM_VERSION="${3:-}"
 PKG="chromium-embedded-framework"
 

@@ -13,7 +13,7 @@
 # before processing command-line switches like --resources-dir-path.
 # These symlinks allow CEF to find its resources when using Debian's split
 # package layout (library in /usr/lib, resources in /usr/share).
-# Note: These are in libcef145 (not libcef-common) because they use arch-specific paths.
+# Note: These are in libcef146 (not libcef-common) because they use arch-specific paths.
 
 # ICU data (internationalization)
 usr/share/cef/icudtl.dat usr/lib/x86_64-linux-gnu/icudtl.dat
