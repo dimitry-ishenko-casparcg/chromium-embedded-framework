@@ -21,6 +21,7 @@
 #   - debian/control Breaks/Replaces (adds old libcefN on major version change)
 #   - debian/libcefN.lintian-overrides (library version in paths)
 #   - debian/libcefN-dbgsym.lintian-overrides (renamed on major version change)
+#   - debian/libcef-dev.links (soname symlink target on major version change)
 
 set -e
 
@@ -98,7 +99,7 @@ echo ""
 CURRENT_CEF="$CURRENT_CEF_BASE"
 
 # 1. Update debian/changelog version
-echo "==> [1/6] Updating debian/changelog"
+echo "==> [1/7] Updating debian/changelog"
 if [ "$CURRENT_FULL" != "$NEW_FULL" ]; then
     # Update the version in the first line of changelog
     sed -i "1s/([^)]*)/($NEW_FULL-1)/" "${DEBIAN_DIR}/changelog"
@@ -110,7 +111,7 @@ else
 fi
 
 # 2. Update debian/rules CHROMIUM_VERSION
-echo "==> [2/6] Updating debian/rules"
+echo "==> [2/7] Updating debian/rules"
 if grep -q "^CHROMIUM_VERSION := " "${DEBIAN_DIR}/rules"; then
     sed -i "s/^CHROMIUM_VERSION := .*/CHROMIUM_VERSION := ${CHROMIUM_VERSION}/" "${DEBIAN_DIR}/rules"
     echo "    Updated CHROMIUM_VERSION: ${CURRENT_CHROMIUM} -> ${CHROMIUM_VERSION}"
@@ -150,15 +151,15 @@ update_version_refs() {
 }
 
 # 3. Update debian/README.Debian
-echo "==> [3/6] Updating debian/README.Debian"
+echo "==> [3/7] Updating debian/README.Debian"
 update_version_refs "${DEBIAN_DIR}/README.Debian" "README.Debian"
 
 # 4. Update debian/README.source
-echo "==> [4/6] Updating debian/README.source"
+echo "==> [4/7] Updating debian/README.source"
 update_version_refs "${DEBIAN_DIR}/README.source" "README.source"
 
 # 5. Update debian/control Breaks/Replaces (add old libcefN on major version change)
-echo "==> [5/6] Updating debian/control Breaks/Replaces"
+echo "==> [5/7] Updating debian/control Breaks/Replaces"
 if [ "$CURRENT_CEF_MAJOR" != "$NEW_CEF_MAJOR" ]; then
     OLD_PKG="libcef${CURRENT_CEF_MAJOR}"
     if grep -q "^Breaks:" "${DEBIAN_DIR}/control"; then
@@ -176,7 +177,7 @@ else
 fi
 
 # 6. Update lintian-overrides files
-echo "==> [6/6] Updating lintian-overrides"
+echo "==> [6/7] Updating lintian-overrides"
 for LINTIAN_FILE in "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}.lintian-overrides" \
                     "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}-dbgsym.lintian-overrides"; do
     if [ -f "$LINTIAN_FILE" ]; then
@@ -194,6 +195,18 @@ for LINTIAN_FILE in "${DEBIAN_DIR}/libcef${CURRENT_CEF_MAJOR}.lintian-overrides"
         echo "    Updated: $(basename "${LINTIAN_FILE}")"
     fi
 done
+
+# 7. Update libcef-dev.links (soname symlink target)
+echo "==> [7/7] Updating libcef-dev.links"
+DEV_LINKS="${DEBIAN_DIR}/libcef-dev.links"
+if [ -f "$DEV_LINKS" ]; then
+    if [ "$CURRENT_CEF_MAJOR" != "$NEW_CEF_MAJOR" ]; then
+        sed -i "s/libcef\.so\.${CURRENT_CEF_MAJOR}/libcef.so.${NEW_CEF_MAJOR}/g" "$DEV_LINKS"
+        echo "    Updated soname: libcef.so.${CURRENT_CEF_MAJOR} -> libcef.so.${NEW_CEF_MAJOR}"
+    else
+        echo "    Same major version, no update needed"
+    fi
+fi
 
 echo ""
 echo "============================================================"
