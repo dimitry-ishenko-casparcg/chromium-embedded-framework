@@ -159,27 +159,27 @@ The relationship is:
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
   CEF 138        7499          143.0.7499.x         previous
-  CEF 146        7632          145.0.7632.x         current (146.0.7680.71)
+  CEF 146        7632          145.0.7632.x         current (146.0.7680.80)
 
 **Why This Matters:**
 
 This package (libcef146) was chosen specifically to align with Debian Chromium
-in testing (146.0.7680.71). The CEF branch number (7632) corresponds to the
+in testing (146.0.7680.80). The CEF branch number (7632) corresponds to the
 Chromium build number (145.0.**7632**.x).
 
 **CEF Version Scheme:**
 
   - CEF version number (e.g., 145) is the CEF project's own major version
   - CEF branch number (e.g., 7632) maps directly to Chromium build number
-  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 146.0.7680.71)
+  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 146.0.7680.80)
   - CEF branch 7680 = Chromium 145.0.7632.x
 
 **Upstream CEF Source:**
 
   - Upstream URL: https://bitbucket.org/chromiumembedded/cef
   - Branch: 7632 (CEF 146)
-  - CEF expects: refs/tags/146.0.7680.71
-  - Debian Chromium provides: 146.0.7680.71
+  - CEF expects: refs/tags/146.0.7680.80
+  - Debian Chromium provides: 146.0.7680.80
 
 Note: CEF specifies the exact Chromium tag it was developed against.
 For this release, CEF and Debian Chromium versions match exactly.
