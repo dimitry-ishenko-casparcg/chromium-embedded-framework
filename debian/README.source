@@ -90,16 +90,16 @@ Quick Start (copy-paste these commands):
 
     # 2. Find the Chromium version available in Debian
     apt-cache policy chromium | grep Candidate
-    # Example output: Candidate: 146.0.7680.80-2
+    # Example output: Candidate: 146.0.7680.153-2
 
     # 3. Download MUT tarballs (use the version from step 2)
     #
     #    Parameters:
     #      146.0.5+ds1       = CEF package version with +ds suffix (from debian/changelog)
     #      7680              = CEF upstream branch (from cef/CHROMIUM_BUILD_COMPATIBILITY.txt)
-    #      146.0.7680.80-1~deb13u1 = Chromium Debian version (from step 2)
+    #      146.0.7680.153-1~deb13u1 = Chromium Debian version (from step 2)
     #
-    ./debian/scripts/get-orig-tarballs.sh 146.0.5+ds1 7680 146.0.7680.80-1~deb13u1
+    ./debian/scripts/get-orig-tarballs.sh 146.0.5+ds1 7680 146.0.7680.153-1~deb13u1
 
     # 4. Create source package
     dpkg-source -b .
@@ -137,7 +137,7 @@ requirements. Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for the required versio
 For CEF branch 7680, this is Chromium 146.0.7680.x.
 
 Command (with specific version):
-    apt-get source --download-only chromium=146.0.7680.80-1~deb13u1
+    apt-get source --download-only chromium=146.0.7680.153-1~deb13u1
 
 To find available versions:
     apt-cache policy chromium
@@ -404,8 +404,8 @@ The debian/watch file uses Version 5 format with the Untrackable field.
 
 uscan cannot automatically track CEF upstream versions because the CEF
 Bitbucket repository has no git tags. CEF uses only branch numbers (e.g.,
-7632) which correspond to Chromium build numbers, not CEF versions. The
-actual CEF version (e.g., 145.0.23) is derived from a VERSION file inside
+7680) which correspond to Chromium build numbers, not CEF versions. The
+actual CEF version (e.g., 146.0.5) is derived from a VERSION file inside
 the source tree, which uscan cannot extract from git refs.
 
 The MUT component tarballs (chromium and depot-tools) could be tracked
@@ -431,7 +431,7 @@ in MUT component tarballs. The upstream version format is:
     CEF_VERSION+dsN
 
 Where:
-    CEF_VERSION = CEF upstream version (e.g., 145.0.23)
+    CEF_VERSION = CEF upstream version (e.g., 146.0.5)
     N           = repackaging counter, incremented when any MUT input changes
 
 The +dsN counter increments whenever a MUT component tarball changes content,
@@ -441,10 +441,10 @@ content requires a new upstream version.
 
 Example version progression:
 
-    146.0.5+ds1-1     <- initial (chromium 146.0.7680.80)
+    146.0.5+ds1-1     <- initial (chromium 146.0.7680.71)
     146.0.5+ds1-2     <- packaging fix only (same tarballs)
-    146.0.5+ds2-1     <- chromium security update (146.0.7680.100)
-    146.0.5+ds3-1     <- another chromium security update (146.0.7680.150)
+    146.0.5+ds2-1     <- chromium security update (146.0.7680.80)
+    146.0.5+ds3-1     <- another chromium security update (146.0.7680.153)
     147.0.1+ds1-1     <- new CEF version (resets +ds counter)
 
 The upgrade-helper.sh script computes the +ds suffix automatically:
@@ -479,15 +479,15 @@ Updating CEF Version:
 Updating Chromium Version (same CEF branch, new Chromium security release):
 
 When Debian releases a new Chromium version within the same branch (e.g.,
-146.0.7680.80 -> 146.0.7680.100), first run upgrade-helper.sh to bump the
+146.0.7680.153 -> 146.0.7680.200), first run upgrade-helper.sh to bump the
 +ds counter and update version references, then get-orig-tarballs.sh to
 create new tarballs matching the updated version:
 
    # 1. Bump +ds counter and update Chromium version in debian/ files
-   $ ./debian/scripts/upgrade-helper.sh 146.0.5 146.0.7680.100
+   $ ./debian/scripts/upgrade-helper.sh 146.0.5 146.0.7680.200
 
-   # 2. Create new MUT tarballs (version from debian/changelog: 146.0.5+ds2)
-   $ ./debian/scripts/get-orig-tarballs.sh 146.0.5+ds2 7680 146.0.7680.100-1
+   # 2. Create new MUT tarballs (version from debian/changelog: 146.0.5+ds4)
+   $ ./debian/scripts/get-orig-tarballs.sh 146.0.5+ds4 7680 146.0.7680.200-1
 
    # 3. Build
    $ dpkg-source -b .
