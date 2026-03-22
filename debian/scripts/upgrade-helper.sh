@@ -6,11 +6,11 @@
 #
 # Usage: ./debian/scripts/upgrade-helper.sh CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]
 #
-# Example: ./debian/scripts/upgrade-helper.sh 145.0.23 145.0.7632.159 2
+# Example: ./debian/scripts/upgrade-helper.sh 146.0.5 146.0.7680.153 1
 #
 # The +dsN suffix is managed automatically:
-#   - New CEF version: resets to +ds1 (e.g., 146.0.1+ds1)
-#   - Same CEF version, new Chromium: increments +ds (e.g., 145.0.23+ds2)
+#   - New CEF version: resets to +ds1 (e.g., 147.0.1+ds1)
+#   - Same CEF version, new Chromium: increments +ds (e.g., 146.0.5+ds4)
 #   - Same CEF and Chromium: no version change
 #
 # This script updates:
@@ -32,11 +32,11 @@ CHROMIUM_REV="${3:-2}"
 if [ -z "$CEF_VERSION" ] || [ -z "$CHROMIUM_VERSION" ]; then
     echo "Usage: $0 CEF_VERSION CHROMIUM_VERSION [CHROMIUM_REV]"
     echo ""
-    echo "Example: $0 145.0.23 145.0.7632.159 2"
+    echo "Example: $0 146.0.5 146.0.7680.153 1"
     echo ""
     echo "Arguments:"
-    echo "  CEF_VERSION      - CEF upstream version (e.g., 145.0.23)"
-    echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 145.0.7632.159)"
+    echo "  CEF_VERSION      - CEF upstream version (e.g., 146.0.5)"
+    echo "  CHROMIUM_VERSION - Debian Chromium version (e.g., 146.0.7680.153)"
     echo "  CHROMIUM_REV     - Debian revision (default: 2)"
     echo ""
     echo "The +dsN suffix is computed automatically based on what changed."

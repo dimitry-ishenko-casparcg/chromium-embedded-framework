@@ -159,27 +159,27 @@ The relationship is:
   CEF Version    CEF Branch    Chromium Version     Debian Status
   -----------    ----------    ----------------     -------------
   CEF 138        7499          143.0.7499.x         previous
-  CEF 146        7632          145.0.7632.x         current (146.0.7680.80)
+  CEF 146        7680          146.0.7680.x         current (146.0.7680.153)
 
 **Why This Matters:**
 
 This package (libcef146) was chosen specifically to align with Debian Chromium
-in testing (146.0.7680.80). The CEF branch number (7632) corresponds to the
-Chromium build number (145.0.**7632**.x).
+in testing (146.0.7680.153). The CEF branch number (7680) corresponds to the
+Chromium build number (146.0.**7680**.x).
 
 **CEF Version Scheme:**
 
-  - CEF version number (e.g., 145) is the CEF project's own major version
-  - CEF branch number (e.g., 7632) maps directly to Chromium build number
-  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 146.0.7680.80)
-  - CEF branch 7680 = Chromium 145.0.7632.x
+  - CEF version number (e.g., 146) is the CEF project's own major version
+  - CEF branch number (e.g., 7680) maps directly to Chromium build number
+  - Chromium version format: MAJOR.MINOR.BUILD.PATCH (e.g., 146.0.7680.153)
+  - CEF branch 7680 = Chromium 146.0.7680.x
 
 **Upstream CEF Source:**
 
   - Upstream URL: https://bitbucket.org/chromiumembedded/cef
-  - Branch: 7632 (CEF 146)
-  - CEF expects: refs/tags/146.0.7680.80
-  - Debian Chromium provides: 146.0.7680.80
+  - Branch: 7680 (CEF 146)
+  - CEF expects: refs/tags/146.0.7680.153
+  - Debian Chromium provides: 146.0.7680.153
 
 Note: CEF specifies the exact Chromium tag it was developed against.
 For this release, CEF and Debian Chromium versions match exactly.
@@ -222,7 +222,7 @@ Security Updates
 CEF inherits its security posture from the Chromium version it is built against.
 Security updates are delivered by rebuilding CEF against the latest Debian
 Chromium source package, which increments the +dsN repackaging suffix (e.g.,
-145.0.23+ds1 -> 145.0.23+ds2). See debian/README.source for the versioning
+146.0.5+ds1 -> 146.0.5+ds2). See debian/README.source for the versioning
 scheme. When the chromium-source binary package becomes available (bug #893448),
 this process will be simplified to a Build-Depends version bump.
 

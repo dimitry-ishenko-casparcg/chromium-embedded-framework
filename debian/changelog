@@ -1,5 +1,5 @@
-chromium-embedded-framework (146.0.5+ds2-1) experimental; urgency=medium
+chromium-embedded-framework (146.0.5+ds3-1) experimental; urgency=medium
 
   * Initial release (Closes: #915400)
 
- -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Mon, 16 Mar 2026 08:28:08 +0100
+ -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sun, 22 Mar 2026 14:40:00 +0100

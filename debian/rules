@@ -11,7 +11,7 @@ CEF_MAJOR := $(firstword $(subst ., ,$(CEF_VERSION)))
 
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
-CHROMIUM_VERSION := 146.0.7680.80
+CHROMIUM_VERSION := 146.0.7680.153
 
 include /usr/share/dpkg/buildopts.mk
 
@@ -185,7 +185,7 @@ export GN_DEFINES += build_tflite_with_xnnpack=false
 # Note: GN_DEFINES is set in the automate-git.py invocation (line ~797)
 # Individual settings like use_custom_libcxx=false and use_thin_lto=false are there
 
-# CEF branch (derived from CHROMIUM_VERSION - 3rd component: 145.0.7632.75 -> 7632)
+# CEF branch (derived from CHROMIUM_VERSION - 3rd component: 146.0.7680.153 -> 7680)
 CEF_BRANCH := $(word 3,$(subst ., ,$(CHROMIUM_VERSION)))
 
 %:
@@ -252,7 +252,7 @@ override_dh_auto_build:
 
 	# Step 4: Fix version mismatch (CEF source may target different Chromium version)
 	# The CEF orig tarball may reference a different Chromium version (e.g., 144.0.7559.133)
-	# than the Chromium tarball we actually ship (e.g., 145.0.7632.75).
+	# than the Chromium tarball we actually ship (e.g., 146.0.7680.153).
 	# Match any version pattern in the chromium_checkout line.
 	sed -i "s|'refs/tags/[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+'|'refs/tags/$(CHROMIUM_VERSION)'|" \
 		$(CURDIR)/chromium_src/cef/CHROMIUM_BUILD_COMPATIBILITY.txt
@@ -529,7 +529,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-angle-libs-cef-subdir.chromium.patch
 	# NOTE: Patch 0049 removed - fix merged upstream in Chromium 146
 	# Patch 0050: Add CEF resources dependency to about_ui BUILD.gn
-	# Required for Chromium 145.0.7632.75+ where build order needs explicit CEF dependency
+	# Required for Chromium 146.0.7680.x+ where build order needs explicit CEF dependency
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0050-add-cef-resources-dep-about-ui.chromium.patch
 	# Patch 0051: Work around missing string_hash() in system GN (based on Debian Chromium trixie/gn-string-hash.patch)
 	# Debian bug #1127702 - generate-ninja needs update for string_hash()

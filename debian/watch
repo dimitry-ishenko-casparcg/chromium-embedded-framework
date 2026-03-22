@@ -4,8 +4,8 @@ Untrackable: CEF has no git tags; version derived from internal VERSION file
 # CEF upstream version tracking
 #
 # CEF's Bitbucket repository has no git tags. Releases are branches numbered
-# by Chromium build number (e.g., branch 7632 for Chromium 145.x). The actual
-# CEF version (e.g., 145.0.23) is derived from the VERSION file inside the
+# by Chromium build number (e.g., branch 7680 for Chromium 146.x). The actual
+# CEF version (e.g., 146.0.5) is derived from the VERSION file inside the
 # source tree, which uscan cannot extract from git refs.
 #
 # The chromium component comes from Debian's chromium source package, and
