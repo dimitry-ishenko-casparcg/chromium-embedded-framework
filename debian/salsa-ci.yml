@@ -33,8 +33,8 @@ build-cef:
     - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
     - echo "Chromium ${CHROMIUM_VERSION}, CEF branch ${CEF_BRANCH}"
 
-    # Clean stale tarballs from previous runs to ensure correct versions
-    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc
+    # Clean stale files from previous runs to ensure only current-version files are published
+    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc *.deb *.buildinfo *.changes
 
     # Obtain MUT tarballs (4 components: cef, chromium, chromium-debian, depot-tools)
     - chmod +x ./${PKG}/debian/scripts/get-orig-tarballs.sh
