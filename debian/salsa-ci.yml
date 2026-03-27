@@ -49,30 +49,16 @@ build-cef:
     - cd build-dir
     - dpkg-buildpackage -b -us -uc
 
-    # Publish each file individually to the Generic Package Registry
-    # Debian developers can download files one by one or dget the .dsc directly:
-    #   dget https://salsa.debian.org/mendezr/chromium-embedded-framework/-/package_files/.../download
-    - DEB_VERSION=$(dpkg-parsechangelog -S Version)
-    - |
-      for f in ../*.deb ../*.dsc ../*.buildinfo ../*.changes; do
-        [ -f "$f" ] || continue
-        FILENAME=$(basename "$f")
-        echo "Uploading ${FILENAME} ..."
-        curl --silent --show-error --fail \
-          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-          --upload-file "$f" \
-          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PKG}/${DEB_VERSION}/${FILENAME}"
-      done
-
-    # Keep .deb files as job artifacts for the lintian stage
+    # Collect build output — files are individually browsable and downloadable
+    # via the GitLab job artifacts browser (CI/CD → Jobs → browse artifacts)
     - rm -rf ${CI_PROJECT_DIR}/build-output
     - mkdir -p ${CI_PROJECT_DIR}/build-output
-    - cp ../*.deb ${CI_PROJECT_DIR}/build-output/
+    - cp ../*.deb ../*.dsc ../*.buildinfo ../*.changes ${CI_PROJECT_DIR}/build-output/
 
   artifacts:
     paths:
       - build-output/
-    expire_in: 7 days
+    expire_in: 30 days
     when: on_success
 
 lintian:
