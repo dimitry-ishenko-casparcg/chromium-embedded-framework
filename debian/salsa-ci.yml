@@ -52,7 +52,7 @@ build-cef:
     # Publish each file individually to the Generic Package Registry
     # Debian developers can download files one by one or dget the .dsc directly:
     #   dget https://salsa.debian.org/mendezr/chromium-embedded-framework/-/package_files/.../download
-    - DEB_VERSION=$(dpkg-parsechangelog --file build-dir/debian/changelog -S Version)
+    - DEB_VERSION=$(dpkg-parsechangelog -S Version)
     - |
       for f in ../*.deb ../*.dsc ../*.buildinfo ../*.changes; do
         [ -f "$f" ] || continue
