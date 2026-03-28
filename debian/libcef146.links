@@ -1,30 +1,5 @@
-# chrome-sandbox symlink: CEF looks for chrome-sandbox next to libcef.so
-# (via dladdr/DIR_ASSETS override in setuid_sandbox_host.cc).
-# Reuse Debian's chromium-sandbox package instead of shipping a duplicate.
-/usr/lib/chromium/chrome-sandbox /usr/lib/x86_64-linux-gnu/chrome-sandbox
-
 # ANGLE library version symlinks
 # CEF's dlopen looks for versioned sonames (libEGL.so.1, libGLESv2.so.2)
 # but ANGLE only provides unversioned .so files
 /usr/lib/x86_64-linux-gnu/cef/libEGL.so /usr/lib/x86_64-linux-gnu/cef/libEGL.so.1
 /usr/lib/x86_64-linux-gnu/cef/libGLESv2.so /usr/lib/x86_64-linux-gnu/cef/libGLESv2.so.2
-
-# CEF resource symlinks - CEF loads resources relative to libcef.so location
-# before processing command-line switches like --resources-dir-path.
-# These symlinks allow CEF to find its resources when using Debian's split
-# package layout (library in /usr/lib, resources in /usr/share).
-# Note: These are in libcef146 (not libcef-common) because they use arch-specific paths.
-
-# ICU data (internationalization)
-usr/share/cef/icudtl.dat usr/lib/x86_64-linux-gnu/icudtl.dat
-
-# V8 JavaScript engine snapshot
-usr/share/cef/v8_context_snapshot.bin usr/lib/x86_64-linux-gnu/v8_context_snapshot.bin
-
-# Chrome PAK resource files
-usr/share/cef/chrome_100_percent.pak usr/lib/x86_64-linux-gnu/chrome_100_percent.pak
-usr/share/cef/chrome_200_percent.pak usr/lib/x86_64-linux-gnu/chrome_200_percent.pak
-usr/share/cef/resources.pak usr/lib/x86_64-linux-gnu/resources.pak
-
-# Locales directory
-usr/share/cef/locales usr/lib/x86_64-linux-gnu/locales

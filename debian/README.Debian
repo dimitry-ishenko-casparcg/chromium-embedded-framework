@@ -109,15 +109,6 @@ automatically. This follows Debian policy for private shared libraries:
 Applications using CEF will automatically use the correct ANGLE libraries
 without needing to set LD_LIBRARY_PATH.
 
-**Chrome Sandbox:**
-
-CEF reuses Debian's chromium-sandbox package for process isolation. A symlink
-at /usr/lib/x86_64-linux-gnu/chrome-sandbox points to /usr/lib/chromium/chrome-sandbox
-(which has the required SUID 4755 permissions).
-
-On modern kernels with unprivileged user namespaces, the namespace sandbox is
-preferred and the SUID sandbox serves as a fallback.
-
 **SwiftShader (Software Rendering):**
 
 CEF includes SwiftShader for software Vulkan rendering when hardware
@@ -147,8 +138,28 @@ package, installed to:
 
   /usr/share/cef/
 
-Applications need to set CefSettings.resources_dir_path to this location,
-or symlink these files to the application's working directory.
+Applications MUST configure CefSettings before calling CefInitialize():
+
+  CefSettings settings;
+  settings.resources_dir_path = CefString("/usr/share/cef");
+  settings.locales_dir_path   = CefString("/usr/share/cef/locales");
+
+For CMake-based projects, libcef-dev installs cef-debian-paths.cmake which
+exports these as CMake variables:
+
+  find_package(CEF REQUIRED)
+  include(cef-debian-paths)
+  # CEF_RESOURCES_DIR and CEF_LOCALES_DIR are now set
+
+**Chrome Sandbox:**
+
+On modern Linux kernels (>= 3.8) with unprivileged user namespaces enabled
+(the default on Debian), CEF uses the namespace sandbox without requiring a
+SUID binary. Applications that explicitly need the SUID sandbox fallback must
+set the sandbox path in their launcher:
+
+  CefSettings settings;
+  settings.browser_subprocess_path = CefString("/path/to/subprocess");
 
 CEF and Chromium Version Alignment
 ----------------------------------

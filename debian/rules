@@ -268,9 +268,9 @@ override_dh_auto_build:
 	mv $(CURDIR)/chromium $(CURDIR)/chromium_src/chromium/src
 	@echo "==> Chromium moved successfully"
 
-	# Step 5.3: Apply CEF patches to vanilla Chromium (BEFORE Debian patches)
+	# Step 5.1: Apply CEF patches to vanilla Chromium (BEFORE Debian patches)
 	# CEF's patcher.py applies ~111 patches designed for vanilla Chromium.
-	# These MUST run before Debian Chromium patches (Step 5.5) to avoid conflicts.
+	# These MUST run before Debian Chromium patches (Step 5.3) to avoid conflicts.
 	# patcher.py uses git apply, so we need a temporary git repo.
 	@echo "==> Applying CEF patches to vanilla Chromium source"
 	cd $(CURDIR)/chromium_src/chromium/src && \
@@ -285,7 +285,7 @@ override_dh_auto_build:
 	rm -rf $(CURDIR)/chromium_src/chromium/src/cef
 	@echo "==> CEF patches applied to vanilla Chromium"
 
-	# Step 5.1: Setup system Node.js and rollup (following Debian Chromium approach)
+	# Step 5.2: Setup system Node.js and rollup (following Debian Chromium approach)
 	# Source: debian/rules lines 186-191 from Debian Chromium package
 	# This ensures devtools-frontend can use system rollup instead of bundled version
 	@echo "==> Setting up system Node.js and rollup"
@@ -297,7 +297,7 @@ override_dh_auto_build:
 		ln -s /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3
 	@echo "==> Node.js and rollup3 symlink created"
 
-	# Step 5.5: Apply Debian Chromium patches on top of CEF-patched source
+	# Step 5.3: Apply Debian Chromium patches on top of CEF-patched source
 	# The MUT chromium tarball is vanilla - we need to apply Debian patches here
 	# The chromium-debian/ MUT component contains Debian Chromium packaging
 	# (patches, build configuration) from the Debian chromium source package
@@ -1181,6 +1181,14 @@ override_dh_auto_install:
 		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/cmake/* \
 			$(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
 	fi
+	# Install Debian-specific CMake paths file so downstream packages know
+	# where resources live without hardcoding /usr/share/cef.
+	# Applications must pass these to CefSettings.resources_dir_path / locales_dir_path.
+	printf '%s\n' \
+		'# Debian CEF resource paths' \
+		'set(CEF_RESOURCES_DIR "/usr/share/cef")' \
+		'set(CEF_LOCALES_DIR   "/usr/share/cef/locales")' \
+		> $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/cef-debian-paths.cmake
 
 	# Install resources (PAK files) - use _linux64_minimal pattern
 	# PAK files are in Resources/ directory, NOT Release/
