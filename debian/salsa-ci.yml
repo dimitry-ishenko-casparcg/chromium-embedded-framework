@@ -5,6 +5,7 @@
 stages:
   - build
   - check
+  - publish
 
 variables:
   DEBIAN_FRONTEND: noninteractive
@@ -55,9 +56,14 @@ build-cef:
     - mkdir -p ${CI_PROJECT_DIR}/build-output
     - cp ../*.deb ../*.dsc ../*.buildinfo ../*.changes ${CI_PROJECT_DIR}/build-output/
 
+    # Export build job ID so the publish job can link to these exact artifacts
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build.env
+
   artifacts:
     paths:
       - build-output/
+    reports:
+      dotenv: build.env
     expire_in: 30 days
     when: on_success
 
@@ -68,3 +74,87 @@ lintian:
   script:
     - lintian --info --display-info --pedantic build-output/*.deb || true
   allow_failure: true
+
+publish-release:
+  stage: publish
+  tags: ["cef-builder"]
+  needs: ["build-cef"]
+  rules:
+    - if: $GITLAB_USER_LOGIN == "mendezr"
+      when: on_success
+    - when: never
+  script:
+    - DEB_VERSION=$(dpkg-parsechangelog -S Version)
+    - CEF_MAJOR=$(echo "$DEB_VERSION" | cut -d. -f1)
+    - TAG_NAME="debian/${DEB_VERSION}"
+    - echo "Creating release ${TAG_NAME} pointing to job ${BUILD_JOB_ID}"
+
+    # Create and push version tag (idempotent — skip if already exists)
+    - git tag "${TAG_NAME}" 2>/dev/null || true
+    - git push "https://gitlab-ci-token:${CI_JOB_TOKEN}@salsa.debian.org/${CI_PROJECT_PATH}.git" "${TAG_NAME}" 2>/dev/null || true
+
+    # Build per-file artifact URLs using the build job's ID (stable, permanent link)
+    - BASE="${CI_PROJECT_URL}/-/jobs/${BUILD_JOB_ID}/artifacts/raw/build-output"
+
+    # Create GitLab Release with individual file download links.
+    # JOB-TOKEN is sufficient for release creation (GitLab >= 15.2).
+    # If the release already exists this returns 409 — treat as success.
+    - |
+      python3 - <<'EOF'
+      import json, os, urllib.request, urllib.error
+
+      ver      = os.environ["DEB_VERSION"]
+      major    = os.environ["CEF_MAJOR"]
+      tag      = os.environ["TAG_NAME"]
+      base     = os.environ["BASE"]
+      api      = os.environ["CI_API_V4_URL"]
+      proj     = os.environ["CI_PROJECT_ID"]
+      token    = os.environ["CI_JOB_TOKEN"]
+
+      links = [
+          {"name": f"libcef{major}_{ver}_amd64.deb",
+           "url":  f"{base}/libcef{major}_{ver}_amd64.deb",          "link_type": "package"},
+          {"name": f"libcef{major}-dbgsym_{ver}_amd64.deb",
+           "url":  f"{base}/libcef{major}-dbgsym_{ver}_amd64.deb",   "link_type": "package"},
+          {"name": f"libcef-dev_{ver}_amd64.deb",
+           "url":  f"{base}/libcef-dev_{ver}_amd64.deb",             "link_type": "package"},
+          {"name": f"libcef-common_{ver}_all.deb",
+           "url":  f"{base}/libcef-common_{ver}_all.deb",            "link_type": "package"},
+          {"name": f"chromium-embedded-framework_{ver}.dsc",
+           "url":  f"{base}/chromium-embedded-framework_{ver}.dsc",  "link_type": "other"},
+          {"name": f"chromium-embedded-framework_{ver}_amd64.buildinfo",
+           "url":  f"{base}/chromium-embedded-framework_{ver}_amd64.buildinfo", "link_type": "other"},
+          {"name": f"chromium-embedded-framework_{ver}_amd64.changes",
+           "url":  f"{base}/chromium-embedded-framework_{ver}_amd64.changes",   "link_type": "other"},
+      ]
+      payload = json.dumps({
+          "name":        ver,
+          "tag_name":    tag,
+          "description": f"Debian binary package for Chromium Embedded Framework {ver}.",
+          "assets":      {"links": links},
+      }).encode()
+      req = urllib.request.Request(
+          f"{api}/projects/{proj}/releases",
+          data=payload,
+          headers={"Content-Type": "application/json", "JOB-TOKEN": token},
+          method="POST",
+      )
+      try:
+          urllib.request.urlopen(req)
+          print(f"Release {tag} created")
+      except urllib.error.HTTPError as e:
+          body = e.read().decode()
+          if e.code == 409:
+              print(f"Release {tag} already exists — skipping")
+          else:
+              print(f"ERROR {e.code}: {body}")
+              raise
+      EOF
+
+    # Mark the build job's artifacts as permanent so release links never expire
+    - |
+      curl --silent \
+        --request POST \
+        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${BUILD_JOB_ID}/artifacts/keep" \
+        && echo "Artifacts for job ${BUILD_JOB_ID} marked as permanent"
