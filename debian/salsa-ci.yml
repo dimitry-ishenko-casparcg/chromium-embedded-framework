@@ -108,14 +108,14 @@ publish-release:
       tag      = os.environ["TAG_NAME"]
       base     = os.environ["BASE"]
       base_api = f"{os.environ['CI_API_V4_URL']}/projects/{os.environ['CI_PROJECT_ID']}"
-      token    = os.environ["CI_JOB_TOKEN"]
+      token    = os.environ["SALSA_API_TOKEN"]   # PAT stored as masked CI variable
       sha      = os.environ["CI_COMMIT_SHA"]
 
       def api(method, url, data=None):
           payload = json.dumps(data).encode() if data else None
           req = urllib.request.Request(
               url, data=payload,
-              headers={"Content-Type": "application/json", "JOB-TOKEN": token},
+              headers={"Content-Type": "application/json", "PRIVATE-TOKEN": token},
               method=method,
           )
           try:
@@ -186,8 +186,8 @@ publish-release:
 
     # Mark the build job's artifacts as permanent so release links never expire
     - |
-      curl --silent \
+      curl --silent --show-error \
         --request POST \
-        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        --header "PRIVATE-TOKEN: ${SALSA_API_TOKEN}" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${BUILD_JOB_ID}/artifacts/keep" \
         && echo "Artifacts for job ${BUILD_JOB_ID} marked as permanent"
