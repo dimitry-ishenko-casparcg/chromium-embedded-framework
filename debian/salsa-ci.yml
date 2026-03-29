@@ -123,7 +123,7 @@ publish-release:
               return True
           except urllib.error.HTTPError as e:
               body = e.read().decode()
-              if e.code in (404, 409):
+              if e.code in (400, 404, 409):
                   return False
               print(f"ERROR {e.code}: {body}")
               raise
