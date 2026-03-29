@@ -96,6 +96,9 @@ publish-release:
     # Build per-file artifact URLs using the build job's ID (stable, permanent link)
     - BASE="${CI_PROJECT_URL}/-/jobs/${BUILD_JOB_ID}/artifacts/raw/build-output"
 
+    # Export shell variables so the Python subprocess can read them via os.environ
+    - export DEB_VERSION CEF_MAJOR TAG_NAME BASE
+
     # Create GitLab Release with individual file download links.
     # JOB-TOKEN is sufficient for release creation (GitLab >= 15.2).
     # If the release already exists this returns 409 — treat as success.
