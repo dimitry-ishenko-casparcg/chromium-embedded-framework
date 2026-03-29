@@ -89,19 +89,16 @@ publish-release:
     - TAG_NAME="debian/${DEB_VERSION}"
     - echo "Creating release ${TAG_NAME} pointing to job ${BUILD_JOB_ID}"
 
-    # Create and push version tag (idempotent — skip if already exists)
-    - git tag "${TAG_NAME}" 2>/dev/null || true
-    - git push "https://gitlab-ci-token:${CI_JOB_TOKEN}@salsa.debian.org/${CI_PROJECT_PATH}.git" "${TAG_NAME}" 2>/dev/null || true
-
     # Build per-file artifact URLs using the build job's ID (stable, permanent link)
     - BASE="${CI_PROJECT_URL}/-/jobs/${BUILD_JOB_ID}/artifacts/raw/build-output"
 
     # Export shell variables so the Python subprocess can read them via os.environ
     - export DEB_VERSION CEF_MAJOR TAG_NAME BASE
 
-    # Create GitLab Release with individual file download links.
-    # JOB-TOKEN is sufficient for release creation (GitLab >= 15.2).
-    # If the release already exists this returns 409 — treat as success.
+    # Create tag (via API, more reliable than git push with CI_JOB_TOKEN) and
+    # GitLab Release with individual file download links.
+    # JOB-TOKEN is sufficient for both (GitLab >= 15.2).
+    # 409 on either means it already exists — treated as success.
     - |
       python3 - <<'EOF'
       import json, os, urllib.request, urllib.error
@@ -113,7 +110,31 @@ publish-release:
       api      = os.environ["CI_API_V4_URL"]
       proj     = os.environ["CI_PROJECT_ID"]
       token    = os.environ["CI_JOB_TOKEN"]
+      sha      = os.environ["CI_COMMIT_SHA"]
 
+      def api_post(url, data, ok_codes=(200, 201)):
+          payload = json.dumps(data).encode()
+          req = urllib.request.Request(
+              url, data=payload,
+              headers={"Content-Type": "application/json", "JOB-TOKEN": token},
+              method="POST",
+          )
+          try:
+              urllib.request.urlopen(req)
+              return True
+          except urllib.error.HTTPError as e:
+              body = e.read().decode()
+              if e.code == 409:
+                  return False  # already exists
+              print(f"ERROR {e.code}: {body}")
+              raise
+
+      # Step 1: create tag pointing at the current pipeline commit
+      created = api_post(f"{api}/projects/{proj}/repository/tags",
+                         {"tag_name": tag, "ref": sha})
+      print(f"Tag {tag} {'created' if created else 'already exists'}")
+
+      # Step 2: create release
       links = [
           {"name": f"libcef{major}_{ver}_amd64.deb",
            "url":  f"{base}/libcef{major}_{ver}_amd64.deb",          "link_type": "package"},
@@ -130,28 +151,13 @@ publish-release:
           {"name": f"chromium-embedded-framework_{ver}_amd64.changes",
            "url":  f"{base}/chromium-embedded-framework_{ver}_amd64.changes",   "link_type": "other"},
       ]
-      payload = json.dumps({
+      created = api_post(f"{api}/projects/{proj}/releases", {
           "name":        ver,
           "tag_name":    tag,
           "description": f"Debian binary package for Chromium Embedded Framework {ver}.",
           "assets":      {"links": links},
-      }).encode()
-      req = urllib.request.Request(
-          f"{api}/projects/{proj}/releases",
-          data=payload,
-          headers={"Content-Type": "application/json", "JOB-TOKEN": token},
-          method="POST",
-      )
-      try:
-          urllib.request.urlopen(req)
-          print(f"Release {tag} created")
-      except urllib.error.HTTPError as e:
-          body = e.read().decode()
-          if e.code == 409:
-              print(f"Release {tag} already exists — skipping")
-          else:
-              print(f"ERROR {e.code}: {body}")
-              raise
+      })
+      print(f"Release {tag} {'created' if created else 'already exists'}")
       EOF
 
     # Mark the build job's artifacts as permanent so release links never expire
