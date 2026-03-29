@@ -101,40 +101,52 @@ publish-release:
     # 409 on either means it already exists — treated as success.
     - |
       python3 - <<'EOF'
-      import json, os, urllib.request, urllib.error
+      import json, os, urllib.request, urllib.error, urllib.parse
 
       ver      = os.environ["DEB_VERSION"]
       major    = os.environ["CEF_MAJOR"]
       tag      = os.environ["TAG_NAME"]
       base     = os.environ["BASE"]
-      api      = os.environ["CI_API_V4_URL"]
-      proj     = os.environ["CI_PROJECT_ID"]
+      base_api = f"{os.environ['CI_API_V4_URL']}/projects/{os.environ['CI_PROJECT_ID']}"
       token    = os.environ["CI_JOB_TOKEN"]
       sha      = os.environ["CI_COMMIT_SHA"]
 
-      def api_post(url, data, ok_codes=(200, 201)):
-          payload = json.dumps(data).encode()
+      def api(method, url, data=None):
+          payload = json.dumps(data).encode() if data else None
           req = urllib.request.Request(
               url, data=payload,
               headers={"Content-Type": "application/json", "JOB-TOKEN": token},
-              method="POST",
+              method=method,
           )
           try:
               urllib.request.urlopen(req)
               return True
           except urllib.error.HTTPError as e:
               body = e.read().decode()
-              if e.code == 409:
-                  return False  # already exists
+              if e.code in (404, 409):
+                  return False
               print(f"ERROR {e.code}: {body}")
               raise
 
-      # Step 1: create tag pointing at the current pipeline commit
-      created = api_post(f"{api}/projects/{proj}/repository/tags",
-                         {"tag_name": tag, "ref": sha})
-      print(f"Tag {tag} {'created' if created else 'already exists'}")
+      # Step 1: create tag pointing at the current pipeline commit.
+      # If it exists but points to a different commit (rebuilt same version),
+      # delete it first so the tag always reflects the latest build.
+      created = api("POST", f"{base_api}/repository/tags",
+                    {"tag_name": tag, "ref": sha})
+      if not created:
+          existing = urllib.request.urlopen(
+              urllib.request.Request(
+                  f"{base_api}/repository/tags/{urllib.parse.quote(tag, safe='')}",
+                  headers={"JOB-TOKEN": token},
+              )
+          ).read()
+          if json.loads(existing)["commit"]["id"] != sha:
+              api("DELETE", f"{base_api}/repository/tags/{urllib.parse.quote(tag, safe='')}")
+              api("POST",   f"{base_api}/repository/tags", {"tag_name": tag, "ref": sha})
+              print(f"Tag {tag} replaced (new commit)")
+          else:
+              print(f"Tag {tag} already exists at same commit — keeping")
 
-      # Step 2: create release
       links = [
           {"name": f"libcef{major}_{ver}_amd64.deb",
            "url":  f"{base}/libcef{major}_{ver}_amd64.deb",          "link_type": "package"},
@@ -151,13 +163,25 @@ publish-release:
           {"name": f"chromium-embedded-framework_{ver}_amd64.changes",
            "url":  f"{base}/chromium-embedded-framework_{ver}_amd64.changes",   "link_type": "other"},
       ]
-      created = api_post(f"{api}/projects/{proj}/releases", {
+      # Step 2: create release; if it exists delete and recreate so asset
+      # links always point to the latest build job's artifacts.
+      created = api("POST", f"{base_api}/releases", {
           "name":        ver,
           "tag_name":    tag,
           "description": f"Debian binary package for Chromium Embedded Framework {ver}.",
           "assets":      {"links": links},
       })
-      print(f"Release {tag} {'created' if created else 'already exists'}")
+      if not created:
+          api("DELETE", f"{base_api}/releases/{urllib.parse.quote(tag, safe='')}")
+          api("POST",   f"{base_api}/releases", {
+              "name":        ver,
+              "tag_name":    tag,
+              "description": f"Debian binary package for Chromium Embedded Framework {ver}.",
+              "assets":      {"links": links},
+          })
+          print(f"Release {tag} replaced (updated artifact links)")
+      else:
+          print(f"Release {tag} created")
       EOF
 
     # Mark the build job's artifacts as permanent so release links never expire
