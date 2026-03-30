@@ -108,7 +108,7 @@ publish-release:
       tag      = os.environ["TAG_NAME"]
       base     = os.environ["BASE"]
       base_api = f"{os.environ['CI_API_V4_URL']}/projects/{os.environ['CI_PROJECT_ID']}"
-      token    = os.environ["SALSA_API_TOKEN"]   # PAT stored as masked CI variable
+      token    = os.environ["SALSA_API_TOKEN"].strip()  # PAT stored as masked CI variable
       sha      = os.environ["CI_COMMIT_SHA"]
 
       def api(method, url, data=None):
