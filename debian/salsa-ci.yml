@@ -137,7 +137,7 @@ publish-release:
           existing = urllib.request.urlopen(
               urllib.request.Request(
                   f"{base_api}/repository/tags/{urllib.parse.quote(tag, safe='')}",
-                  headers={"JOB-TOKEN": token},
+                  headers={"PRIVATE-TOKEN": token},
               )
           ).read()
           if json.loads(existing)["commit"]["id"] != sha:
