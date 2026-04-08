@@ -1,0 +1,30 @@
+Description: Disable bytemuck nightly_portable_simd feature (incompatible with rustc-1.92.0)
+ The bytemuck crate version 1.25.0 enables the nightly_portable_simd feature
+ which adds Zeroable/Pod impls for core::simd::Simd<T, N>. This requires the
+ portable_simd nightly feature via -Zallow-features=portable_simd. However,
+ with rustc-1.92.0 (Debian system Rust), the stabilized portable_simd API
+ requires an explicit "where LaneCount<N>: SupportedLaneCount" bound on
+ generic impls, which bytemuck 1.25.0 does not supply. Removing this feature
+ is safe because no Chromium code uses SIMD bytemuck traits in the CEF build.
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-07
+
+diff --git a/third_party/rust/bytemuck/v1/BUILD.gn b/third_party/rust/bytemuck/v1/BUILD.gn
+index 028a8e7..5e4c7ae 100644
+--- a/third_party/rust/bytemuck/v1/BUILD.gn
++++ b/third_party/rust/bytemuck/v1/BUILD.gn
+@@ -52,13 +52,9 @@ cargo_crate("lib") {
+     "derive",
+     "extern_crate_alloc",
+     "min_const_generics",
+-    "nightly_portable_simd",
+     "rustversion",
+   ]
+
+-  # `gnrt_config.toml` for this crate specifies `allow_unstable_features`.
+-  rustflags = [ "-Zallow-features=portable_simd" ]
+-
+   #####################################################################
+   # Tweaking which GN `config`s apply to this target.
