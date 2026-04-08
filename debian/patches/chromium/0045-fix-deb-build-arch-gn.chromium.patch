@@ -5,7 +5,7 @@ Description: Remove buggy deb_build_arch self-assignment in gcc_toolchain.gni
  getenv() on line 798 and is used correctly inside toolchain_args on line 822.
  The self-assignment causes either "Assignment had no effect" (when env var is empty)
  or "Undefined identifier" (depending on GN version). Simply remove the buggy lines.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-12

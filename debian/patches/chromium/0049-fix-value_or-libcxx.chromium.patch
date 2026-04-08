@@ -3,7 +3,7 @@ Description: Fix libc++ value_or template deduction issues
  like {} or {0, 0}. This is a known difference between libc++ and libstdc++.
  .
  Based on Debian Chromium's trixie/value-or.patch.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2026-01-15
 

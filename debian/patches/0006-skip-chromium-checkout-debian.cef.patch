@@ -13,7 +13,7 @@ Description: Skip chromium checkout for Debian tarball/package builds
  This is forward-compatible: when Debian provides chromium-source package with
  real git repository and tags, this patch will skip checkout operations and
  preserve the real git repo intact.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2025-11-04
 

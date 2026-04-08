@@ -14,6 +14,34 @@ CEF_MAJOR := $(firstword $(subst ., ,$(CEF_VERSION)))
 CHROMIUM_VERSION := 146.0.7680.177
 
 include /usr/share/dpkg/buildopts.mk
+include /usr/share/dpkg/architecture.mk
+
+# Architecture-specific variables for CEF build.
+# Maps Debian arch names to CEF/LLVM/Node naming conventions.
+ifeq ($(DEB_HOST_ARCH),amd64)
+  CEF_ARCH_FLAG   := --x64-build
+  CEF_DISTRIB_DIR := linux64
+  GN_BUILDTOOLS   := linux64
+  LLVM_TRIPLE     := x86_64-unknown-linux-gnu
+  LLVM_ARCH       := x86_64
+  NODE_ARCH       := x64
+else ifeq ($(DEB_HOST_ARCH),arm64)
+  CEF_ARCH_FLAG   := --arm64-build
+  CEF_DISTRIB_DIR := linuxarm64
+  GN_BUILDTOOLS   := linux-arm64
+  LLVM_TRIPLE     := aarch64-unknown-linux-gnu
+  LLVM_ARCH       := aarch64
+  NODE_ARCH       := arm64
+else ifeq ($(DEB_HOST_ARCH),armhf)
+  CEF_ARCH_FLAG   := --arm-build
+  CEF_DISTRIB_DIR := linuxarm
+  GN_BUILDTOOLS   := linux-arm
+  LLVM_TRIPLE     := armv7-unknown-linux-gnueabihf
+  LLVM_ARCH       := arm
+  NODE_ARCH       := arm
+else
+  $(error Unsupported architecture: $(DEB_HOST_ARCH). CEF supports amd64, arm64, armhf.)
+endif
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DEBIAN_BUILD = 1
@@ -289,8 +317,8 @@ override_dh_auto_build:
 	# Source: debian/rules lines 186-191 from Debian Chromium package
 	# This ensures devtools-frontend can use system rollup instead of bundled version
 	@echo "==> Setting up system Node.js and rollup"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
-	-ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node 2>/dev/null || true
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH)/bin
+	-ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH)/bin/node 2>/dev/null || true
 	# use system rollup
 	cp -ra /usr/share/nodejs/rollup $(CURDIR)/chromium_src/chromium/src/third_party/node/node_modules/
 	-test -L $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 || \
@@ -303,7 +331,7 @@ override_dh_auto_build:
 	# (patches, build configuration) from the Debian chromium source package
 	@echo "==> Applying Debian Chromium patches for system integration"
 	# Apply patches from series file in order, skipping arch/release-specific directories
-	# Skipped: ppc64le/ loongarch64/ i386/ bookworm/ trixie/ bullseye/ (not relevant for amd64 sid)
+	# Skipped: ppc64le/ loongarch64/ i386/ bookworm/ trixie/ bullseye/ (not relevant for this sid build)
 	@cd $(CURDIR)/chromium_src/chromium/src && \
 		grep -v '^\#' $(CURDIR)/chromium-debian/patches/series | grep -v '^\s*$$' | \
 		grep -v '^ppc64le/' | grep -v '^loongarch64/' | grep -v '^i386/' | \
@@ -525,7 +553,7 @@ override_dh_auto_build:
 	# Patch 0047: Fix cookie_util.cc iterator type mismatch for system libc++
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0047-fix-cookie-util-iterator-types.chromium.patch
 	# Patch 0036-angle: Look for ANGLE libs in cef/ subdirectory on Linux
-	# Debian installs ANGLE to /usr/lib/x86_64-linux-gnu/cef/ to avoid GLVND/Mesa conflicts
+	# Debian installs ANGLE to /usr/lib/$(DEB_HOST_MULTIARCH)/cef/ to avoid GLVND/Mesa conflicts
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-angle-libs-cef-subdir.chromium.patch
 	# NOTE: Patch 0049 removed - fix merged upstream in Chromium 146
 	# Patch 0050: Add CEF resources dependency to about_ui BUILD.gn
@@ -537,6 +565,20 @@ override_dh_auto_build:
 	# Patch 0052: Disable len() assert in rust_bindgen.gni (based on Debian Chromium trixie/gn-len.patch)
 	# Debian bug #1127702 - generate-ninja needs update for len()
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0052-gn-len-workaround.chromium.patch
+	# Patch 0054: Skipped - already applied by Debian Chromium catapult.patch in step 5.3
+	# Patch 0055: Skipped - already applied by Debian Chromium llvm-22/ignore-for-ubsan.patch in step 5.3
+	# Patch 0056: Disable bytemuck nightly_portable_simd (API changed in rustc-1.92.0)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0056-disable-bytemuck-nightly-portable-simd.chromium.patch
+	# Patches 0057-0065: Skipped - already applied by Debian Chromium patches in step 5.3
+	# 0057 (paint_vector_icon value_or) → llvm-19/value-or.patch
+	# 0058 (sanitize_c_array_bounds ICE) → llvm-19/clang-19-crash.patch or llvm-22
+	# 0059 (origin wildcards spaceship ICE) → llvm-19/clang-19-crash.patch
+	# 0060 (full_card_request value_or) → llvm-19/value-or.patch
+	# 0061 (mojo clone traits vector<bool>) → llvm-19/clone-traits.patch
+	# 0062 (private_key_factory iterator) → llvm-19/keyfactory.patch
+	# 0063 (octal literal clang-19) → llvm-19/octal.patch
+	# 0064 (pdf viewer glic stub) → disable/disable-ai.patch
+	# 0065 (profile_network value_or) → llvm-19/value-or.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -549,8 +591,8 @@ override_dh_auto_build:
 
 	# Step 7: Create symlink to system GN executable
 	@echo "==> Configuring to use system GN executable"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/
-	ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/linux64/gn/gn
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/$(GN_BUILDTOOLS)/gn/
+	ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/$(GN_BUILDTOOLS)/gn/gn
 	@echo "==> GN symlink created"
 
 	# Step 7.5: Create stub files for Debian-stripped directories
@@ -745,7 +787,7 @@ override_dh_auto_build:
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/third_party/esbuild
 	ln -sf /usr/bin/esbuild $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/third_party/esbuild/esbuild
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules
-	ln -sf /usr/lib/x86_64-linux-gnu/nodejs/esbuild $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/esbuild
+	ln -sf /usr/lib/$(DEB_HOST_MULTIARCH)/nodejs/esbuild $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/esbuild
 	@echo "==> Creating stub third_party/llvm-build/Release+Asserts/cr_build_revision (Debian uses system clang)"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts
 	echo 'llvmorg-19-init-19711-g6cecc0c9-1' > $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/cr_build_revision
@@ -977,36 +1019,36 @@ override_dh_auto_build:
 	## Why: Chromium expects compiler-rt libraries at third_party/llvm-build/Release+Asserts/
 	## But Debian clang-19 provides them at /usr/lib/llvm-19/lib/clang/19/lib/linux/
 	## Path mapping:
-	##   Chromium expects: third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a
-	##   Debian provides: /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a
+	##   Chromium expects: third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/libclang_rt.builtins.a
+	##   Debian provides: /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-$(LLVM_ARCH).a
 	@echo "==> Creating symlinks from system clang-19 to bundled LLVM location"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)
 	# Symlink compiler-rt builtins library (primary dependency for Rust builds)
-	ln -sf /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-x86_64.a \
-		$(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a
+	ln -sf /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-$(LLVM_ARCH).a \
+		$(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/libclang_rt.builtins.a
 	# Symlink all other compiler-rt libraries (for completeness)
-	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-x86_64.a; do \
+	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-$(LLVM_ARCH).a; do \
 		base=$$(basename $$lib); \
-		target=$$(echo $$base | sed 's/-x86_64\.a$$/.a/'); \
-		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/$$target; \
+		target=$$(echo $$base | sed 's/-$(LLVM_ARCH)\.a$$/.a/'); \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target; \
 	done
-	# Symlink i386 libraries (in case needed for 32-bit targets)
+	# Symlink i386 libraries (in case needed for 32-bit targets on x86_64)
 	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-i386.a; do \
 		base=$$(basename $$lib); \
 		target=$$(echo $$base | sed 's/-i386\.a$$/.a/'); \
-		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/x86_64-unknown-linux-gnu/$$target; \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target; \
 	done
 	@echo "==> LLVM symlinks created successfully"
 	# libclang discovery is handled by patch 0019-bindgen-libclang-abspath.chromium.patch
 	# which converts relative paths to absolute paths in run_bindgen.py
 
 	## Step 7d: Symlink system Node.js to expected location
-	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node
+	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-$(NODE_ARCH)/bin/node
 	## But Debian uses system Node.js from nodejs package (/usr/bin/node)
 	## Solution: Create directory structure and symlink system node binary
 	@echo "==> Symlinking system Node.js"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
-	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH)/bin
+	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH)/bin/node
 	@echo "==> Node.js symlink created successfully"
 
 	## Step 7e: Copy Rust std library from system rust-src package
@@ -1137,20 +1179,20 @@ override_dh_auto_build:
 		--no-cef-update \
 		--no-depot-tools-update \
 		--force-build \
-		--x64-build \
+		$(CEF_ARCH_FLAG) \
 		--no-debug-build \
 		--no-distrib-archive \
 		--minimal-distrib-only
 
 override_dh_auto_install:
 	# Create package directories first
-	mkdir -p $(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu
+	mkdir -p $(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include
 	mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef
 
-	# Install libcef.so (use _linux64_minimal pattern for minimal-only distribution)
-	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libcef.so \
-		$(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_VERSION)
+	# Install libcef.so (use _$(CEF_DISTRIB_DIR)_minimal pattern for minimal-only distribution)
+	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/libcef.so \
+		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
 
 	# Add RPATH for CEF's private ANGLE libraries (libEGL.so, libGLESv2.so)
 	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
@@ -1158,28 +1200,28 @@ override_dh_auto_install:
 	# See: https://wiki.debian.org/RpathIssue
 	# The ANGLE libraries must be in a separate directory to avoid conflicts with system Mesa.
 	# libcef.so already has $ORIGIN RUNPATH from upstream, we append the CEF private lib dir.
-	patchelf --set-rpath '$$ORIGIN:/usr/lib/x86_64-linux-gnu/cef' \
-		$(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_VERSION)
+	patchelf --set-rpath '$$ORIGIN:/usr/lib/$(DEB_HOST_MULTIARCH)/cef' \
+		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
 
 	# Fix SONAME for proper library versioning (upstream uses unversioned "libcef.so")
 	# This ensures proper library dependency tracking and ldconfig symlink creation
 	patchelf --set-soname libcef.so.$(CEF_MAJOR) \
-		$(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_VERSION)
+		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
 
 	# Create soname symlink
 	ln -s libcef.so.$(CEF_VERSION) \
-		$(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/libcef.so.$(CEF_MAJOR)
+		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_MAJOR)
 
-	# Install headers (use _linux64_minimal pattern for minimal-only distribution)
+	# Install headers (use _$(CEF_DISTRIB_DIR)_minimal pattern for minimal-only distribution)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
-	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/include \
+	cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/include \
 		$(CURDIR)/debian/libcef-dev/usr/include/cef
 
-	# Install cmake config files if they exist (use _linux64_minimal pattern)
-	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/cmake ]; then \
-		mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
-		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/cmake/* \
-			$(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/; \
+	# Install cmake config files if they exist (use _$(CEF_DISTRIB_DIR)_minimal pattern)
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/cmake ]; then \
+		mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/$(DEB_HOST_MULTIARCH)/cmake/cef/; \
+		cp -r chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/cmake/* \
+			$(CURDIR)/debian/libcef-dev/usr/lib/$(DEB_HOST_MULTIARCH)/cmake/cef/; \
 	fi
 	# Install Debian-specific CMake paths file so downstream packages know
 	# where resources live without hardcoding /usr/share/cef.
@@ -1188,53 +1230,53 @@ override_dh_auto_install:
 		'# Debian CEF resource paths' \
 		'set(CEF_RESOURCES_DIR "/usr/share/cef")' \
 		'set(CEF_LOCALES_DIR   "/usr/share/cef/locales")' \
-		> $(CURDIR)/debian/libcef-dev/usr/lib/x86_64-linux-gnu/cmake/cef/cef-debian-paths.cmake
+		> $(CURDIR)/debian/libcef-dev/usr/lib/$(DEB_HOST_MULTIARCH)/cmake/cef/cef-debian-paths.cmake
 
-	# Install resources (PAK files) - use _linux64_minimal pattern
+	# Install resources (PAK files) - use _$(CEF_DISTRIB_DIR)_minimal pattern
 	# PAK files are in Resources/ directory, NOT Release/
 	mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef/
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/*.pak \
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Resources/*.pak \
 		$(CURDIR)/debian/libcef-common/usr/share/cef/
 
-	# Install ICU data file (CRITICAL for internationalization) - use _linux64_minimal pattern
+	# Install ICU data file (CRITICAL for internationalization) - use _$(CEF_DISTRIB_DIR)_minimal pattern
 	# icudtl.dat is in Resources/ directory, NOT Release/
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/icudtl.dat \
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Resources/icudtl.dat \
 		$(CURDIR)/debian/libcef-common/usr/share/cef/
 
-	# Install V8 context snapshot (CRITICAL for JavaScript) - use _linux64_minimal pattern
-	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/v8_context_snapshot.bin \
+	# Install V8 context snapshot (CRITICAL for JavaScript) - use _$(CEF_DISTRIB_DIR)_minimal pattern
+	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/v8_context_snapshot.bin \
 		$(CURDIR)/debian/libcef-common/usr/share/cef/ || true
 
-	# Install locales - use _linux64_minimal pattern
+	# Install locales - use _$(CEF_DISTRIB_DIR)_minimal pattern
 	# Locales are in Resources/ directory, NOT Release/
-	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/locales ]; then \
+	if [ -d chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Resources/locales ]; then \
 		mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef/locales/; \
-		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Resources/locales/*.pak \
+		cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Resources/locales/*.pak \
 			$(CURDIR)/debian/libcef-common/usr/share/cef/locales/; \
 	fi
 
 	# Install other required libraries from Release directory
 	# Skip libvulkan.so (conflicts with system libvulkan1 package)
 	# Note: libEGL.so and libGLESv2.so are ANGLE libraries (NOT Mesa) - installed separately below
-	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/*.so*; do \
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/*.so*; do \
 		libname="$$(basename $$lib)"; \
 		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
 		   ! echo "$$libname" | grep -qE '^lib(EGL|GLESv2|vulkan)\.so'; then \
 			install -D -m644 "$$lib" \
-				"$(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/$$libname"; \
+				"$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/$$libname"; \
 		fi \
 	done
 
 	# Install ANGLE libraries (libEGL.so, libGLESv2.so) to CEF-specific directory
 	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
 	# CEF's GPU process requires these specific ANGLE libraries for hardware acceleration.
-	# Installing to /usr/lib/x86_64-linux-gnu/cef/ avoids conflicts with system Mesa (libegl1, libgles2).
+	# Installing to /usr/lib/$(DEB_HOST_MULTIARCH)/cef/ avoids conflicts with system Mesa (libegl1, libgles2).
 	# Applications using CEF should set LD_LIBRARY_PATH or use rpath to find these.
-	mkdir -p $(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/cef/
-	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libEGL.so \
-	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_linux64_minimal/Release/libGLESv2.so; do \
+	mkdir -p $(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/cef/
+	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/libEGL.so \
+	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/libGLESv2.so; do \
 		if [ -f "$$lib" ]; then \
-			install -m644 "$$lib" $(CURDIR)/debian/libcef146/usr/lib/x86_64-linux-gnu/cef/; \
+			install -m644 "$$lib" $(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/cef/; \
 		fi \
 	done
 
@@ -1242,7 +1284,7 @@ override_dh_auto_install:
 	# Generate with absolute path instead of relative path (original has ./libvk_swiftshader.so)
 	# This is needed for Vulkan loader to find the library from any working directory
 	mkdir -p $(CURDIR)/debian/libcef146/usr/share/vulkan/icd.d/
-	echo '{"file_format_version": "1.0.0", "ICD": {"library_path": "/usr/lib/x86_64-linux-gnu/libvk_swiftshader.so", "api_version": "1.0.5"}}' \
+	echo '{"file_format_version": "1.0.0", "ICD": {"library_path": "/usr/lib/$(DEB_HOST_MULTIARCH)/libvk_swiftshader.so", "api_version": "1.0.5"}}' \
 		> $(CURDIR)/debian/libcef146/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
 	# chrome-sandbox: CEF looks for it next to libcef.so (via dladdr/DIR_ASSETS).
@@ -1255,7 +1297,7 @@ override_dh_auto_test:
 override_dh_auto_clean:
 	# Clean Node.js and rollup symlinks (following Debian Chromium approach)
 	# These are inside chromium_src/ but we clean them explicitly for clarity
-	rm -rf chromium_src/chromium/src/third_party/node/linux/node-linux-x64 2>/dev/null || true
+	rm -rf chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH) 2>/dev/null || true
 	rm -rf chromium_src/chromium/src/third_party/node/node_modules/rollup 2>/dev/null || true
 	rm -f chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 2>/dev/null || true
 	# Clean entire build directory

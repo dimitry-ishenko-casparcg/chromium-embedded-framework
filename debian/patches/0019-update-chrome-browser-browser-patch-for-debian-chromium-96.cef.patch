@@ -4,7 +4,7 @@ Description: Update chrome_browser_browser.patch for Debian Chromium 144.0.7559.
  shift line numbers compared to vanilla Chromium. This patch ensures the CEF
  browser integration patch applies cleanly to Debian Chromium. Includes fix for
  WindowFeature parameter type cast.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-24

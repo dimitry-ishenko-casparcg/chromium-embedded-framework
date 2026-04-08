@@ -10,7 +10,7 @@ Description: Disable warning suppression mappings for system clang compatibility
  .
  This is necessary for Debian builds which use system clang instead of
  Chromium's bundled proprietary clang toolchain.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-17

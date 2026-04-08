@@ -8,7 +8,7 @@ Description: Fix bindgen libclang path resolution for Debian builds
  instead of bundled tools. The GN build system passes relative paths which resolve to
  wrong locations (e.g., /usr/lib instead of /usr/lib/llvm-19/lib) when bindgen executes
  from a different working directory.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-17

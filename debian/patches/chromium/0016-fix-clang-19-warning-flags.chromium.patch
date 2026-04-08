@@ -8,7 +8,7 @@ Description: Fix Clang 19 warning flag names
  .
  These are cosmetic changes that eliminate hundreds of "unknown warning option"
  warnings during compilation without affecting build correctness.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-19

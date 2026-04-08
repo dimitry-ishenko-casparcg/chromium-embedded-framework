@@ -3,7 +3,7 @@ Description: Fix cookie_util.cc iterator type mismatch for system libc++
  std::string::const_iterator is __wrap_iter<const char*>. These types are
  not implicitly convertible, causing compilation errors. Use auto to let
  the compiler deduce the correct iterator type from header_value.begin().
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-12

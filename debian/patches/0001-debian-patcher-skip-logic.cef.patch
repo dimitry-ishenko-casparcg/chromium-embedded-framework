@@ -5,7 +5,7 @@ Description: Skip all CEF patches when DEBIAN_BUILD=1 (pre-applied in debian/rul
  .
  This avoids conflicts between CEF patches (designed for vanilla Chromium) and
  Debian Chromium patches that modify the same files.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-15

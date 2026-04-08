@@ -5,7 +5,7 @@ Description: Use system clang when bundled version is not available
  .
  This is necessary for the version_manager.py script which uses clang to
  parse C++ headers for API hash generation.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2025-11-02
 

@@ -2,7 +2,7 @@ Description: Remove ui/gfx/ipc/skia dependency removed in Chromium 145
  Chromium 145 removed the ui/gfx/ipc/skia/ directory and its BUILD.gn
  target entirely. CEF's BUILD.gn still referenced this dependency,
  causing gn gen to fail with "Unable to load ui/gfx/ipc/skia/BUILD.gn".
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-16

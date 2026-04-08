@@ -18,7 +18,7 @@ Description: Remove Rust nightly-only flags for Debian stable rustc compatibilit
  .
  Impact: May affect incremental builds, debugging experience, and
  reproducibility, but allows building with Debian stable rustc.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2026-01-15
 

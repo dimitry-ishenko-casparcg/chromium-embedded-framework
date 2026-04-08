@@ -2,7 +2,7 @@ Description: Remove content/browser/tracing references for Chromium 145
  Chromium 145 removed the content/browser/tracing/BUILD.gn and its
  tracing_resources target entirely. CEF's BUILD.gn still referenced both
  the generated header and the GN dependency, causing gn gen to fail.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-15

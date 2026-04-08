@@ -10,7 +10,7 @@ Description: Disable assert macro redefinition for abseil compatibility
  .
  Fix by commenting out the assert redefinition. This is a cleaner fix than
  patching individual abseil headers.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-05

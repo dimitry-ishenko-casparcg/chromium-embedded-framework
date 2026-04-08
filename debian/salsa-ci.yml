@@ -15,6 +15,10 @@ build-cef:
   stage: build
   tags: ["cef-builder"]
   timeout: 24h
+  # Disable GitLab caching entirely — chromium_src must NEVER be reused across
+  # runs. Stale compiled objects hide fresh-build failures (e.g. missing files
+  # in ninja .pydeps inputs that are only checked when stamp files don't exist).
+  cache: []
   rules:
     - if: $GITLAB_USER_LOGIN == "mendezr"
       when: manual

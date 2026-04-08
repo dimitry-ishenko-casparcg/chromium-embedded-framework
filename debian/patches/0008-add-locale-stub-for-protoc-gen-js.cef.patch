@@ -21,7 +21,7 @@ Description: Add locale stub for protoc-gen-js linking (mangled symbol approach)
  Build 177: REVERTED to mangled symbol approach (Build 175h methodology)
             Cannot use C++ templates without including headers (glibc conflicts)
             Linker needs num_put<char, ostreambuf_iterator<...>>::id, not num_put<char, char*>::id
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-15

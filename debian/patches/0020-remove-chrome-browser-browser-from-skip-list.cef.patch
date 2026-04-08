@@ -1,7 +1,7 @@
 Description: Remove chrome_browser_browser from Debian skip list
  The chrome_browser_browser patch has been updated for Debian Chromium .96
  and should now apply cleanly.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-24

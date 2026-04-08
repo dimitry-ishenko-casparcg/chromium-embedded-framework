@@ -8,7 +8,7 @@ Description: Skip gclient revert for Debian tarball-based builds
  no local changes to revert anyway.
  .
  This patch skips the gclient revert step when DEBIAN_BUILD=1 is set.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2025-11-04
 

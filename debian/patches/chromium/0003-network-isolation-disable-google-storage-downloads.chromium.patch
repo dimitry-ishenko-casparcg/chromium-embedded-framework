@@ -12,7 +12,7 @@ Description: Disable Google Storage downloads for network isolation
  .
  Impact: Enforces Debian network isolation policy, prevents silent downloads
  during build, ensures all build artifacts come from source tarball only.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2025-11-10
 

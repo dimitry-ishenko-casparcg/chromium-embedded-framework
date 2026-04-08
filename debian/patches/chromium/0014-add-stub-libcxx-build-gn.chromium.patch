@@ -6,7 +6,7 @@ Description: Add stub BUILD.gn for bundled libc++ when using system libc++
  This stub provides an empty group target so GN can load the BUILD.gn file
  without errors. The actual libc++ headers and libraries come from the
  system libc++-19-dev package via -stdlib=libc++ compiler flags.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-18

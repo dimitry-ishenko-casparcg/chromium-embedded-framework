@@ -11,7 +11,7 @@ Description: Remove GCC libstdc++ optional header for system libc++ compatibilit
  This patch removes the entire GCC libstdc++ optional header file to allow clean
  compilation with system libc++ from libc++-19-dev package, aligning with Debian
  Chromium's approach of using system libraries instead of bundled versions.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-18

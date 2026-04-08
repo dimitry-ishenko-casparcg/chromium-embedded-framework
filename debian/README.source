@@ -545,7 +545,7 @@ Why Migration is Straightforward:
 REFERENCES
 ================================================================================
 
-Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Maintainer: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Upstream: https://bitbucket.org/chromiumembedded/cef
 
 Related Debian Bugs:

@@ -10,7 +10,7 @@ Description: Skip JS proto generation and create empty placeholder files
  .
  Error: Check failed: file != nullptr (in generated_message_reflection.cc:3860)
  Signal: SIGABRT (signal 6)
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2025-11-20
 
