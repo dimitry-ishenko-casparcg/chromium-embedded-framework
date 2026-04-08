@@ -8,7 +8,7 @@ Description: Add enable_cef to chrome_grit_defines for preprocess_if_expr
  This patch only adds it to the chrome_grit_defines list for WebUI preprocessing.
  .
  Related patch 0028 handles a similar issue for components_strings GRIT target.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-02

@@ -11,7 +11,7 @@ Description: Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types
  - cc/tiles/gpu_image_decode_cache.cc
  - third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h
  - third_party/blink/renderer/core/layout/inline/line_breaker.cc
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-01

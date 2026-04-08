@@ -8,7 +8,7 @@ Description: Fix depot-tools ninja.py to recognize hyphen directory name
  .
  This patch adds "depot-tools" (hyphen) to the check alongside the
  existing "depot_tools" (underscore) check.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-02

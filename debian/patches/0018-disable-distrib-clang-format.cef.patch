@@ -13,7 +13,7 @@ Description: Disable clang-format during distribution to prevent OOM
  - Headers are already properly formatted by upstream CEF
  - Distribution headers are read-only for end users
  - clang-format is purely cosmetic and doesn't affect functionality
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-04

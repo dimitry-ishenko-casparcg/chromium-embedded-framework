@@ -7,7 +7,7 @@ Description: Fix GRIT tracing resources by creating stub about_tracing files loc
  empty stub files using /usr/bin/touch (absolute path required because
  gn_run_binary.py prepends ./ to non-absolute paths), satisfying the GRIT
  resource generation dependencies without requiring catapult.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-01

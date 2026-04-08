@@ -2,7 +2,7 @@ Description: Add xcb library to ANGLE X11 libs for Vulkan XCB backend
  ANGLE's libGLESv2.so fails to link due to missing xcb symbols when the
  Vulkan XCB backend is enabled. The xcb library is needed by
  WindowSurfaceVkXcb.cpp and DisplayVkXcb.cpp.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-24

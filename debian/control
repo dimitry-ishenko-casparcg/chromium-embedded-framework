@@ -1,7 +1,7 @@
 Source: chromium-embedded-framework
 Section: libs
 Priority: optional
-Maintainer: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Maintainer: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Build-Depends: debhelper-compat (= 13),
                python3,
                clang-19,

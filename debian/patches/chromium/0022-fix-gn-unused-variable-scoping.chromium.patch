@@ -6,7 +6,7 @@ Description: Fix GN unused variable error in gcc_toolchain.gni
  build.ninja regeneration. This patch moves the getenv() calls inside the
  toolchain_args scope and prefixes them with underscore to indicate they
  are private to that scope.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-27

@@ -12,7 +12,7 @@ Description: Fix PulseAudio assert errors in official builds
  - media/audio/pulse/pulse_input.h
  - media/audio/pulse/pulse_loopback_manager.h
  - media/audio/pulse/pulse_output.cc
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-08

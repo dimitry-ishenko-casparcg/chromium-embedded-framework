@@ -9,7 +9,7 @@ Description: Disable assert macro redefinition in CEF cef_logging.h for abseil/p
  .
  This is the CEF companion patch to 0042 and 0043 Chromium patches, which fix
  the same issue in base/logging.h and partition_alloc/logging.h.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-05

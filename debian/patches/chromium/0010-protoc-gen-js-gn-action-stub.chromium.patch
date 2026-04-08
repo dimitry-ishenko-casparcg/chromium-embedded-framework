@@ -24,7 +24,7 @@ Description: Compile locale stub library using GN action to bypass ThinLTO
  - GN variables like $root_out_dir must be converted with rebase_path()
    before concatenation into shell command strings (fixed in build 196+)
  - deps = [ ":compile_locale_stub" ] ensures correct build order
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-20

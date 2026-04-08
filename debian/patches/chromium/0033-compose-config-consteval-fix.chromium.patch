@@ -8,7 +8,7 @@ Description: Fix compose config MakeFixedFlatSet consteval with std::string for 
  .
  Replace constexpr MakeFixedFlatSet with runtime-initialized functions using
  base::NoDestructor<base::flat_set<std::string>>.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-04

@@ -10,7 +10,7 @@ Description: Skip GCS dependencies when source_tarball is True
  .
  This ensures complete network isolation for Debian builds - all required
  files must be present in the source tarball.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-16

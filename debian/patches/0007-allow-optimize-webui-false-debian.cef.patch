@@ -3,7 +3,7 @@ Description: Allow optimize_webui=false for Debian builds
  Debian Chromium policy. Debian uses optimize_webui=false because it
  requires specific Node.js tooling that differs from Chromium's bundled
  version. This allows CEF to build with Debian's configuration.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-29

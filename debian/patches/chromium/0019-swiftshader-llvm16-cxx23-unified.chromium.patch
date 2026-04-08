@@ -12,7 +12,7 @@ Description: Fix LLVM-16 C++23/libc++ compatibility in SwiftShader
  Note: APFloat getFirst/getSecond getters, MIPatternMatch LLT parameter,
  and DiagnosticInfo templates are already fixed in Chromium 143 upstream.
  Only the destructor definition is needed for APFloat in this patch.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Forwarded: not-needed
 Last-Update: 2025-12-12
 

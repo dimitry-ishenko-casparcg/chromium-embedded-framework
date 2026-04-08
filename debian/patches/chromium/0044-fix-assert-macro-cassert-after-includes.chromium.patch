@@ -6,7 +6,7 @@ Description: Fix assert macro undefined errors in abseil and perfetto headers
  .
  Fix by explicitly defining assert as ((void)0) when it's not defined.
  This provides a constexpr-safe no-op that works in all contexts.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-12

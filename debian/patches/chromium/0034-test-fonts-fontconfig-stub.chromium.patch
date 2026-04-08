@@ -10,7 +10,7 @@ Description: Stub test_fonts/fontconfig BUILD.gn for missing test fonts
  Related to the existing third_party/test_fonts/BUILD.gn stub.
  Regenerated against Chromium 145 post-Debian-patches (which already removed
  data_deps from test_support).
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-16

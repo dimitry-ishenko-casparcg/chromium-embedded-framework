@@ -10,7 +10,7 @@ Description: Fix gclient_paths.py FindInPath to recognize depot-tools hyphen dir
  This is the same class of bug fixed in patch 0048 for ninja.py.
  This patch adds "depot-tools" (hyphen) to the check alongside the
  existing "depot_tools" (underscore) check.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-16

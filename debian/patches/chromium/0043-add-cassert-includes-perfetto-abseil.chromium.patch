@@ -8,7 +8,7 @@ Description: Add cassert includes to perfetto headers
  .
  Note: data_source_type.h fix was upstreamed in Chromium 145 (already has
  <cassert>), so that hunk was removed from this patch.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-16

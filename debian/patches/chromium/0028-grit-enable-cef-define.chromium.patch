@@ -7,7 +7,7 @@ Description: Import CEF enable_cef variable for components_strings GRIT target
  .
  Related patch 0029 handles a similar issue for Chrome WebUI preprocessing
  (chrome_grit_defines in chrome/common/features.gni).
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-01

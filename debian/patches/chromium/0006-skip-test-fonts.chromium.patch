@@ -8,7 +8,7 @@ Description: Skip test fonts copy in Chromium build for Debian
  .
  The test_fonts are referenced by Skia's BUILD.gn but are not needed for
  CEF builds or runtime functionality.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-16

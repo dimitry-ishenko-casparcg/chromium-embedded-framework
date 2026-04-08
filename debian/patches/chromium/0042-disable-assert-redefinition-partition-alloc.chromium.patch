@@ -8,7 +8,7 @@ Description: Disable assert macro redefinition in partition_alloc for abseil/per
  headers will fail with "use of undeclared identifier 'assert'" errors.
  .
  This is the companion patch to 0042, which fixes the same issue in base/logging.h.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-05

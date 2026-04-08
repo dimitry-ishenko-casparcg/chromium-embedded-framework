@@ -5,7 +5,7 @@ Description: Work around missing string_hash() in older GN versions
  .
  Based on Debian Chromium's trixie/gn-string-hash.patch by Andres Salomon.
  See Debian bug #1127702 for the generate-ninja update request.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-15

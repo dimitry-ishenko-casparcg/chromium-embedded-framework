@@ -5,7 +5,7 @@ Description: Run distribution commands sequentially instead of in parallel
  .
  The sequential execution runs one distribution command at a time, reducing
  peak memory usage at the cost of slightly longer build times.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-03

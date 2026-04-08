@@ -12,7 +12,7 @@ Description: Fix ToValueList to use std::move for projection results
  .
  Fix by using std::move(value) unconditionally since the projection result
  is always consumed exactly once and should be moved into the list.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-03

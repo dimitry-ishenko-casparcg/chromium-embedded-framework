@@ -10,7 +10,7 @@ Description: Add GetDebianArgs() function for Debian build configuration
  SwiftShader: Disable subzero backend, enable LLVM backend like Debian Chromium.
  The LLVM-16 bundled with Chromium handles C++23 APFloat correctly.
  Overrides supports_subzero from reactor.gni
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-18

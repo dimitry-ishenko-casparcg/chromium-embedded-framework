@@ -8,7 +8,7 @@ Description: Make siso module import optional for Debian tarball builds
  When siso is not available and use_siso is explicitly disabled, the build
  will fall back to using ninja instead. If the build logic attempts to use
  siso when it's not available, a clear error message is raised.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-15

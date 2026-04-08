@@ -258,4 +258,4 @@ For More Information
   - Bug #817285: Per-package security ACLs (IMPLEMENTED)
   - Bug #919382: casparcg-server HTTP support (blocked by lack of CEF)
 
- -- Juan Manuel Méndez Rey <vejeta@gmail.com>  Sat, 04 Jan 2026 04:00:00 +0100
+ -- Juan Manuel Méndez Rey <juan.mendezr@proton.me>  Sat, 04 Jan 2026 04:00:00 +0100

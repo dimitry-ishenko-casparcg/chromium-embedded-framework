@@ -3,7 +3,7 @@ Description: Fix StringPrintf format arguments for abseil strict checking
  requires %s arguments to be const char*, not std::string or std::string_view.
  Fix by using .c_str() for std::string and converting std::string_view to
  std::string before getting c_str().
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-05

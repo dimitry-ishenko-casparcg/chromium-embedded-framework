@@ -12,7 +12,7 @@ Description: Add Debian CEF library path to RPATH for ANGLE libraries
  built with CEF cmake will automatically find the ANGLE libraries. This ensures
  the GPU subprocess loads the correct ANGLE implementation for hardware-accelerated
  rendering.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-17

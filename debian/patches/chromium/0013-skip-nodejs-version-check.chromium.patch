@@ -5,7 +5,7 @@ Description: Skip Node.js version check for Debian builds
  .
  The target is kept (not removed) to satisfy GN dependencies from hundreds
  of WebUI and TypeScript build targets.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-01-17

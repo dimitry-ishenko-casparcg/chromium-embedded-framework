@@ -12,7 +12,7 @@ Description: Look for ANGLE libraries in cef/ subdirectory on Linux
  The DIR_EXE/DIR_MODULE to DIR_ASSETS changes are already handled by the
  Debian Chromium patches (linux_assets_path_1936.patch). This patch only
  adds the cef/ subdirectory lookup for ANGLE libraries in egl_util.cc.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-02-16

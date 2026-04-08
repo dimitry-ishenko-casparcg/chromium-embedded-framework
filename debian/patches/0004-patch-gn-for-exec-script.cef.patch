@@ -3,7 +3,7 @@ Description: Patch GN configuration for exec_script whitelist
  security-restricted by GN. This patch adds the exec_script_whitelist to
  Chromium's .gn file for Debian builds, allowing CEF's build scripts to
  run. Also reorders gclient sync/runhooks for proper Debian build flow.
-Author: Juan Manuel Mendez Rey <vejeta@gmail.com>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-12-29

@@ -7,7 +7,7 @@ Description: Add CEF resources dependency to about_ui BUILD.gn
  .
  This patch adds //cef:cef_resources to the deps list in BUILD.gn to ensure
  proper build order. Required for Chromium 144.0.7559.96 compatibility.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-01-23

@@ -11,7 +11,7 @@ Description: Create stub third_party/rust-toolchain/VERSION and Rust toolchain s
  .
  The symlinks allow Chromium's build system to find rustc and bindgen without
  downloading the full rust-toolchain from GCS.
-Author: Juan Manuel Méndez Rey <vejeta@gmail.com>
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2025-11-16
