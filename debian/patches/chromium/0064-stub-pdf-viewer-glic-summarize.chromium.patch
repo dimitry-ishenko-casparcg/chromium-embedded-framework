@@ -1,0 +1,88 @@
+Description: Stub PdfViewerPrivateGlicSummarizeFunction to avoid glic dependency
+ The pdf_viewer_private_api.cc references the glic (Google AI assistant)
+ namespace which is not available in Debian builds. A prior Debian Chromium
+ patch removed the glic includes but the function body was not updated due to
+ a partial patch application failure (.rej). This patch completes the stub by
+ replacing the full glic-dependent Run() body with a simple error return, and
+ removes the now-unused includes (tabs/tab_interface.h, absl/cleanup).
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-08
+
+diff --git a/chrome/browser/extensions/api/pdf_viewer_private/pdf_viewer_private_api.cc b/chrome/browser/extensions/api/pdf_viewer_private/pdf_viewer_private_api.cc
+index d8cf862..e9ab005 100644
+--- a/chrome/browser/extensions/api/pdf_viewer_private/pdf_viewer_private_api.cc
++++ b/chrome/browser/extensions/api/pdf_viewer_private/pdf_viewer_private_api.cc
+@@ -20,10 +20,8 @@
+ #include "chrome/common/pref_names.h"
+ #include "components/pdf/common/constants.h"
+ #include "components/prefs/pref_service.h"
+-#include "components/tabs/public/tab_interface.h"
+ #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+ #include "pdf/buildflags.h"
+-#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+ #include "url/url_constants.h"
+
+ #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+@@ -287,59 +285,7 @@ PdfViewerPrivateGlicSummarizeFunction::
+     ~PdfViewerPrivateGlicSummarizeFunction() = default;
+
+ ExtensionFunction::ResponseAction PdfViewerPrivateGlicSummarizeFunction::Run() {
+-  bool success = false;
+-  auto cleanup = absl::MakeCleanup([&success] {
+-    base::UmaHistogramBoolean("PDF.GlicSummarizeButtonClicked", success);
+-  });
+-
+-  content::WebContents* contents = GetSenderWebContents();
+-  if (!contents) {
+-    return RespondNow(Error("No web contents."));
+-  }
+-
+-  tabs::TabInterface* tab_interface =
+-      tabs::TabInterface::MaybeGetFromContents(contents);
+-  if (!tab_interface) {
+-    return RespondNow(Error("No tab."));
+-  }
+-
+-  if (!glic::GlicEnabling::IsEnabledForProfile(
+-          Profile::FromBrowserContext(contents->GetBrowserContext()))) {
+-    return RespondNow(Error("Glic is not enabled."));
+-  }
+-
+-  glic::GlicKeyedService* glic_service =
+-      glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+-          contents->GetBrowserContext());
+-  CHECK(glic_service);
+-
+-  int arm = features::kPdfGlicSummarizeArm.Get();
+-  bool has_consented = glic::GlicEnabling::HasConsentedForProfile(
+-      Profile::FromBrowserContext(contents->GetBrowserContext()));
+-
+-  glic::GlicInvokeOptions options{
+-      glic::mojom::InvocationSource::kPdfSummarizeButton};
+-  options.prompts.push_back("summarize the pdf");
+-  options.conversation = glic::NewConversation();
+-
+-  if (has_consented) {
+-    glic_service->InvokeWithAutoSubmit(
+-        glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab_interface,
+-        std::move(options));
+-  } else {
+-    if (arm == 3) {
+-      options.fre_override = glic::mojom::FreOverride::kTrustFirstInline;
+-      glic_service->InvokeWithAutoSubmit(
+-          glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
+-          tab_interface, std::move(options));
+-    } else {
+-      options.fre_override = glic::mojom::FreOverride::kTrustFirstText;
+-      glic_service->Invoke(tab_interface, std::move(options));
+-    }
+-  }
+-
+-  success = true;
+-  return RespondNow(NoArguments());
++  return RespondNow(Error("Glic is not enabled."));
+ }
+
+ }  // namespace extensions
