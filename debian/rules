@@ -11,7 +11,7 @@ CEF_MAJOR := $(firstword $(subst ., ,$(CEF_VERSION)))
 
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
-CHROMIUM_VERSION := 146.0.7680.177
+CHROMIUM_VERSION := 147.0.7727.55
 
 include /usr/share/dpkg/buildopts.mk
 include /usr/share/dpkg/architecture.mk
@@ -482,8 +482,7 @@ override_dh_auto_build:
 	# but GN still tries to load buildtools/third_party/libc++/BUILD.gn during parse phase
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-add-stub-libcxx-build-gn.chromium.patch
 	# NOTE: Patch 0015 removed - Chromium 145 no longer ships the GCC libstdc++ optional header
-	# Patch 0016: Fix Clang 19 warning flag names to eliminate warning spam
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-fix-clang-19-warning-flags.chromium.patch
+	# NOTE: Patch 0016 removed - Chromium 147 already removed the incorrect flag names upstream
 	# Patch 0017: Handle SwiftShader reactor conditional target (for subzero-disabled builds)
 	# With subzero disabled and LLVM enabled, this patch ensures proper GN target resolution
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-swiftshader-reactor-handle-no-backends.chromium.patch
@@ -513,7 +512,7 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-wayland-color-manager-flat-map-fix.chromium.patch
 	# Patch 0026: Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0026-wtf-string-codepoint-iterator-include.chromium.patch
-	# NOTE: Patch 0027 removed - tracing BUILD.gn was removed upstream in Chromium 145
+	# NOTE: Patch 0027 removed - tracing BUILD.gn removed by Debian Chromium disable/catapult.patch
 	# Patch 0028: Add enable_cef to GRIT defines for components_strings
 	# CEF patches add <if expr="enable_cef"> conditionals to GRD files, so GRIT needs enable_cef defined.
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-grit-enable-cef-define.chromium.patch
@@ -565,20 +564,29 @@ override_dh_auto_build:
 	# Patch 0052: Disable len() assert in rust_bindgen.gni (based on Debian Chromium trixie/gn-len.patch)
 	# Debian bug #1127702 - generate-ninja needs update for len()
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0052-gn-len-workaround.chromium.patch
-	# Patch 0054: Skipped - already applied by Debian Chromium catapult.patch in step 5.3
-	# Patch 0055: Skipped - already applied by Debian Chromium llvm-22/ignore-for-ubsan.patch in step 5.3
 	# Patch 0056: Disable bytemuck nightly_portable_simd (API changed in rustc-1.92.0)
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0056-disable-bytemuck-nightly-portable-simd.chromium.patch
-	# Patches 0057-0065: Skipped - already applied by Debian Chromium patches in step 5.3
+	# Skipped patches - already applied by Debian Chromium patches in step 5.3 or upstreamed:
+	# 0027 (tracing BUILD.gn stub) → disable/catapult.patch removes entire file
+	# 0049 (value_or libcxx) → merged upstream in Chromium 146
+	# 0054 (catapult/tracing) → disable/catapult.patch
+	# 0055-guard-unrar → upstreamed in Chromium 147
+	# 0055-remove-ubsan → llvm-22/ignore-for-ubsan.patch
 	# 0057 (paint_vector_icon value_or) → llvm-19/value-or.patch
-	# 0058 (sanitize_c_array_bounds ICE) → llvm-19/clang-19-crash.patch or llvm-22
-	# 0059 (origin wildcards spaceship ICE) → llvm-19/clang-19-crash.patch
 	# 0060 (full_card_request value_or) → llvm-19/value-or.patch
 	# 0061 (mojo clone traits vector<bool>) → llvm-19/clone-traits.patch
 	# 0062 (private_key_factory iterator) → llvm-19/keyfactory.patch
 	# 0063 (octal literal clang-19) → llvm-19/octal.patch
-	# 0064 (pdf viewer glic stub) → disable/disable-ai.patch
 	# 0065 (profile_network value_or) → llvm-19/value-or.patch
+	# Patch 0058: Disable sanitize_c_array_bounds to fix clang-19 ICE
+	# Applies after Debian Chromium llvm-22/ignore-for-ubsan.patch (which removed ubsan flag)
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0058-disable-sanitize-c-array-bounds-clang19-ice.chromium.patch
+	# Patch 0059: Remove operator<=> from .cc (now inline in .h) to fix clang-19 ICE
+	# Complements Debian Chromium llvm-19/clang-19-crash.patch which only fixed operator==
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0059-fix-origin-wildcards-spaceship-clang19-ice.chromium.patch
+	# Patch 0064: Stub PdfViewerPrivateGlicSummarizeFunction (glic disabled in Debian)
+	# Debian Chromium disable-ai.patch disables glic at build level but does not stub this function
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0064-stub-pdf-viewer-glic-summarize.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -1186,13 +1194,13 @@ override_dh_auto_build:
 
 override_dh_auto_install:
 	# Create package directories first
-	mkdir -p $(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)
+	mkdir -p $(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include
 	mkdir -p $(CURDIR)/debian/libcef-common/usr/share/cef
 
 	# Install libcef.so (use _$(CEF_DISTRIB_DIR)_minimal pattern for minimal-only distribution)
 	install -m644 chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/libcef.so \
-		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
+		$(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
 
 	# Add RPATH for CEF's private ANGLE libraries (libEGL.so, libGLESv2.so)
 	# These are Google's ANGLE implementation (OpenGL ES on Vulkan), NOT Mesa.
@@ -1201,16 +1209,16 @@ override_dh_auto_install:
 	# The ANGLE libraries must be in a separate directory to avoid conflicts with system Mesa.
 	# libcef.so already has $ORIGIN RUNPATH from upstream, we append the CEF private lib dir.
 	patchelf --set-rpath '$$ORIGIN:/usr/lib/$(DEB_HOST_MULTIARCH)/cef' \
-		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
+		$(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
 
 	# Fix SONAME for proper library versioning (upstream uses unversioned "libcef.so")
 	# This ensures proper library dependency tracking and ldconfig symlink creation
 	patchelf --set-soname libcef.so.$(CEF_MAJOR) \
-		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
+		$(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_VERSION)
 
 	# Create soname symlink
 	ln -s libcef.so.$(CEF_VERSION) \
-		$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_MAJOR)
+		$(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so.$(CEF_MAJOR)
 
 	# Install headers (use _$(CEF_DISTRIB_DIR)_minimal pattern for minimal-only distribution)
 	mkdir -p $(CURDIR)/debian/libcef-dev/usr/include/
@@ -1263,7 +1271,7 @@ override_dh_auto_install:
 		if [ -f "$$lib" ] && [ "$$libname" != "libcef.so" ] && \
 		   ! echo "$$libname" | grep -qE '^lib(EGL|GLESv2|vulkan)\.so'; then \
 			install -D -m644 "$$lib" \
-				"$(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/$$libname"; \
+				"$(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/$$libname"; \
 		fi \
 	done
 
@@ -1272,23 +1280,23 @@ override_dh_auto_install:
 	# CEF's GPU process requires these specific ANGLE libraries for hardware acceleration.
 	# Installing to /usr/lib/$(DEB_HOST_MULTIARCH)/cef/ avoids conflicts with system Mesa (libegl1, libgles2).
 	# Applications using CEF should set LD_LIBRARY_PATH or use rpath to find these.
-	mkdir -p $(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/cef/
+	mkdir -p $(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/cef/
 	for lib in chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/libEGL.so \
 	           chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/libGLESv2.so; do \
 		if [ -f "$$lib" ]; then \
-			install -m644 "$$lib" $(CURDIR)/debian/libcef146/usr/lib/$(DEB_HOST_MULTIARCH)/cef/; \
+			install -m644 "$$lib" $(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/cef/; \
 		fi \
 	done
 
 	# Install SwiftShader Vulkan ICD config (for software rendering fallback)
 	# Generate with absolute path instead of relative path (original has ./libvk_swiftshader.so)
 	# This is needed for Vulkan loader to find the library from any working directory
-	mkdir -p $(CURDIR)/debian/libcef146/usr/share/vulkan/icd.d/
+	mkdir -p $(CURDIR)/debian/libcef147/usr/share/vulkan/icd.d/
 	echo '{"file_format_version": "1.0.0", "ICD": {"library_path": "/usr/lib/$(DEB_HOST_MULTIARCH)/libvk_swiftshader.so", "api_version": "1.0.5"}}' \
-		> $(CURDIR)/debian/libcef146/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
+		> $(CURDIR)/debian/libcef147/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
 	# chrome-sandbox: CEF looks for it next to libcef.so (via dladdr/DIR_ASSETS).
-	# We depend on chromium-sandbox and symlink to it (see libcef146.links).
+	# We depend on chromium-sandbox and symlink to it (see libcef147.links).
 
 override_dh_auto_test:
 	# Skip tests for now - CEF tests require X display

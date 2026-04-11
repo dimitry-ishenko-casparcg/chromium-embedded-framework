@@ -1,0 +1,41 @@
+Description: Disable sanitize_c_array_bounds config to fix clang-19 ICE
+ clang-19 crashes (SIGSEGV, exit code 139) when -fsanitize=array-bounds is
+ combined with std::strong_ordering / spaceship operator (operator<=>). The
+ crash occurs in services/network/public/cpp/permissions_policy/
+ origin_with_possible_wildcards.cc and potentially other files. The entire
+ sanitize_c_array_bounds config is a Google-internal runtime hardening option
+ not required for Debian packaging, so disabling it is safe.
+ Applies after Debian Chromium llvm-22/ignore-for-ubsan.patch which already
+ removed the -fsanitize-ignore-for-ubsan-feature and -Wno-unsafe-buffer lines.
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-10
+
+diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
+index d5afc03..0f8b874 100644
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -1875,18 +1875,10 @@ config("clang_warning_suppression") {
+ #
+ # See also: https://crbug.com/40891132#comment10
+ config("sanitize_c_array_bounds") {
+-  if (!is_ubsan && is_clang && !(is_asan && target_cpu == "x86")) {
+-    cflags = [
+-      "-fsanitize=array-bounds",
+-      "-fsanitize-trap=array-bounds",
+-
+-      # Some code users feature detection to determine if UBSAN (or any
+-      # sanitizer) is enabled, they then do expensive debug like operations. We
+-      # want to suppress this behaviour since we want to keep performance costs
+-      # as low as possible while having these checks.
+-
+-    ]
+-  }
++  # Disabled for Debian builds: clang-19 crashes (ICE/SIGSEGV) when
++  # -fsanitize=array-bounds is combined with std::strong_ordering / spaceship
++  # operator. This is a Google-internal performance config not needed for
++  # Debian packaging.
+ }
+
+ config("rustc_revision") {

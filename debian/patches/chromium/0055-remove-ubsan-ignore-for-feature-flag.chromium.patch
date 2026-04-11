@@ -1,0 +1,28 @@
+Description: Remove -fsanitize-ignore-for-ubsan-feature flag unsupported by clang-19
+ The -fsanitize-ignore-for-ubsan-feature=array-bounds flag was introduced
+ in LLVM/clang 20. Debian sid ships clang-19, which rejects this flag with
+ "unknown argument". The flag is a performance hint that suppresses expensive
+ debug operations in code that feature-detects sanitizer presence; removing
+ it has no correctness impact on the build.
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-07
+
+diff --git a/build/config/compiler/BUILD.gn b/build/config/compiler/BUILD.gn
+index 52bf0f0..8b61547 100644
+--- a/build/config/compiler/BUILD.gn
++++ b/build/config/compiler/BUILD.gn
+@@ -1856,12 +1856,6 @@ config("sanitize_c_array_bounds") {
+       "-fsanitize=array-bounds",
+       "-fsanitize-trap=array-bounds",
+
+-      # Some code users feature detection to determine if UBSAN (or any
+-      # sanitizer) is enabled, they then do expensive debug like operations. We
+-      # want to suppress this behaviour since we want to keep performance costs
+-      # as low as possible while having these checks.
+-      "-fsanitize-ignore-for-ubsan-feature=array-bounds",
+-
+       # Because we've enabled array-bounds sanitizing we also want to suppress
+       # the related warning about "unsafe-buffer-usage-in-static-sized-array",
+       # since we know that the array bounds sanitizing will catch any out-of-

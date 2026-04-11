@@ -13,7 +13,7 @@
 # implementation. These conflict with system Mesa, so installed to private dir.
 # Debian policy allows RPATH for private libraries in /usr/lib/<package>/
 # See: https://wiki.debian.org/RpathIssue
-libcef146: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr/lib/x86_64-linux-gnu/libcef.so.146.0.5]
+libcef147: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr/lib/x86_64-linux-gnu/libcef.so.147.0.3]
 
 # -----------------------------------------------------------------------------
 # EMBEDDED LIBRARIES (same as Debian chromium)
@@ -24,18 +24,18 @@ libcef146: custom-library-search-path RUNPATH /usr/lib/x86_64-linux-gnu/cef [usr
 # - srtp: WebRTC bundles modified libsrtp2
 # - tiff: PDFium embeds with security hardening
 # Debian chromium uses identical overrides (see /usr/share/lintian/overrides/chromium)
-libcef146: embedded-library freetype [usr/lib/x86_64-linux-gnu/libcef.so.146.0.5]
-libcef146: embedded-library libjsoncpp [usr/lib/x86_64-linux-gnu/libcef.so.146.0.5]
-libcef146: embedded-library srtp [usr/lib/x86_64-linux-gnu/libcef.so.146.0.5]
-libcef146: embedded-library tiff [usr/lib/x86_64-linux-gnu/libcef.so.146.0.5]
+libcef147: embedded-library freetype [usr/lib/x86_64-linux-gnu/libcef.so.147.0.3]
+libcef147: embedded-library libjsoncpp [usr/lib/x86_64-linux-gnu/libcef.so.147.0.3]
+libcef147: embedded-library srtp [usr/lib/x86_64-linux-gnu/libcef.so.147.0.3]
+libcef147: embedded-library tiff [usr/lib/x86_64-linux-gnu/libcef.so.147.0.3]
 
 # -----------------------------------------------------------------------------
 # SWIFTSHADER (PRIVATE VULKAN SOFTWARE RENDERER)
 # -----------------------------------------------------------------------------
 # SwiftShader is a private library for software Vulkan rendering.
 # It's not a public API, so versioning/symlinks are not required.
-libcef146: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libvk_swiftshader.so libvk_swiftshader.so
-libcef146: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linux-gnu/libvk_swiftshader.so [usr/lib/x86_64-linux-gnu/libvk_swiftshader.so]
+libcef147: shared-library-lacks-version usr/lib/x86_64-linux-gnu/libvk_swiftshader.so libvk_swiftshader.so
+libcef147: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linux-gnu/libvk_swiftshader.so [usr/lib/x86_64-linux-gnu/libvk_swiftshader.so]
 
 # -----------------------------------------------------------------------------
 # SYMBOLS FILE
@@ -43,9 +43,9 @@ libcef146: lacks-unversioned-link-to-shared-library example: usr/lib/x86_64-linu
 # CEF is a 260MB library with thousands of symbols that change between releases.
 # Creating and maintaining a .symbols file is impractical. Dependency tracking
 # uses shlibs instead, which is sufficient for a library with this versioning
-# scheme (libcef146 -> libcef146 on API changes).
-libcef146: no-symbols-control-file usr/lib/x86_64-linux-gnu/libcef.so.146.0.5
-libcef146: no-symbols-control-file usr/lib/x86_64-linux-gnu/libvk_swiftshader.so
+# scheme (libcef147 -> libcef147 on API changes).
+libcef147: no-symbols-control-file usr/lib/x86_64-linux-gnu/libcef.so.147.0.3
+libcef147: no-symbols-control-file usr/lib/x86_64-linux-gnu/libvk_swiftshader.so
 
 # -----------------------------------------------------------------------------
 # RESOURCE SYMLINKS (ldconfig-escape)
@@ -54,9 +54,9 @@ libcef146: no-symbols-control-file usr/lib/x86_64-linux-gnu/libvk_swiftshader.so
 # resource files are installed. ldconfig warns about them but they are
 # intentional and required for CEF initialization (CEF loads resources
 # relative to libcef.so before processing --resources-dir-path).
-libcef146: ldconfig-escape usr/share/cef/chrome_100_percent.pak [usr/lib/x86_64-linux-gnu/chrome_100_percent.pak]
-libcef146: ldconfig-escape usr/share/cef/chrome_200_percent.pak [usr/lib/x86_64-linux-gnu/chrome_200_percent.pak]
-libcef146: ldconfig-escape usr/share/cef/icudtl.dat [usr/lib/x86_64-linux-gnu/icudtl.dat]
-libcef146: ldconfig-escape usr/share/cef/locales [usr/lib/x86_64-linux-gnu/locales]
-libcef146: ldconfig-escape usr/share/cef/resources.pak [usr/lib/x86_64-linux-gnu/resources.pak]
-libcef146: ldconfig-escape usr/share/cef/v8_context_snapshot.bin [usr/lib/x86_64-linux-gnu/v8_context_snapshot.bin]
+libcef147: ldconfig-escape usr/share/cef/chrome_100_percent.pak [usr/lib/x86_64-linux-gnu/chrome_100_percent.pak]
+libcef147: ldconfig-escape usr/share/cef/chrome_200_percent.pak [usr/lib/x86_64-linux-gnu/chrome_200_percent.pak]
+libcef147: ldconfig-escape usr/share/cef/icudtl.dat [usr/lib/x86_64-linux-gnu/icudtl.dat]
+libcef147: ldconfig-escape usr/share/cef/locales [usr/lib/x86_64-linux-gnu/locales]
+libcef147: ldconfig-escape usr/share/cef/resources.pak [usr/lib/x86_64-linux-gnu/resources.pak]
+libcef147: ldconfig-escape usr/share/cef/v8_context_snapshot.bin [usr/lib/x86_64-linux-gnu/v8_context_snapshot.bin]

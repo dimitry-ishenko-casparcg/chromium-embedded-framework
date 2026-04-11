@@ -90,16 +90,16 @@ Quick Start (copy-paste these commands):
 
     # 2. Find the Chromium version available in Debian
     apt-cache policy chromium | grep Candidate
-    # Example output: Candidate: 146.0.7680.177-2
+    # Example output: Candidate: 147.0.7727.55-2
 
     # 3. Download MUT tarballs (use the version from step 2)
     #
     #    Parameters:
-    #      146.0.5+ds1       = CEF package version with +ds suffix (from debian/changelog)
-    #      7680              = CEF upstream branch (from cef/CHROMIUM_BUILD_COMPATIBILITY.txt)
-    #      146.0.7680.177-1~deb13u1 = Chromium Debian version (from step 2)
+    #      147.0.3+ds1       = CEF package version with +ds suffix (from debian/changelog)
+    #      7727              = CEF upstream branch (from cef/CHROMIUM_BUILD_COMPATIBILITY.txt)
+    #      147.0.7727.55-1~deb13u1 = Chromium Debian version (from step 2)
     #
-    ./debian/scripts/get-orig-tarballs.sh 146.0.5+ds1 7680 146.0.7680.177-1~deb13u1
+    ./debian/scripts/get-orig-tarballs.sh 147.0.3+ds1 7727 147.0.7727.55-1~deb13u1
 
     # 4. Create source package
     dpkg-source -b .
@@ -126,7 +126,7 @@ COMPONENT TARBALLS
 1. CEF Source (orig.tar.xz)
 ---------------------------
 Obtained from: https://bitbucket.org/chromiumembedded/cef
-Branch: Must match Chromium's build number (e.g., branch 7680 for Chromium 146.x)
+Branch: Must match Chromium's build number (e.g., branch 7727 for Chromium 146.x)
 
 2. Chromium Source (orig-chromium.tar.xz)
 -----------------------------------------
@@ -134,10 +134,10 @@ Obtained from: Debian chromium package source (vanilla upstream tarball)
 
 IMPORTANT: You must download the correct Chromium version that matches CEF's
 requirements. Check cef/CHROMIUM_BUILD_COMPATIBILITY.txt for the required version.
-For CEF branch 7680, this is Chromium 146.0.7680.x.
+For CEF branch 7727, this is Chromium 147.0.7727.x.
 
 Command (with specific version):
-    apt-get source --download-only chromium=146.0.7680.177-1~deb13u1
+    apt-get source --download-only chromium=147.0.7727.55-1~deb13u1
 
 To find available versions:
     apt-cache policy chromium
@@ -444,7 +444,7 @@ Example version progression:
     146.0.5+ds1-1     <- initial (chromium 146.0.7680.71)
     146.0.5+ds1-2     <- packaging fix only (same tarballs)
     146.0.5+ds2-1     <- chromium security update (146.0.7680.80)
-    146.0.5+ds3-1     <- another chromium security update (146.0.7680.177)
+    146.0.5+ds3-1     <- another chromium security update (147.0.7727.55)
     147.0.1+ds1-1     <- new CEF version (resets +ds counter)
 
 The upgrade-helper.sh script computes the +ds suffix automatically:
@@ -479,7 +479,7 @@ Updating CEF Version:
 Updating Chromium Version (same CEF branch, new Chromium security release):
 
 When Debian releases a new Chromium version within the same branch (e.g.,
-146.0.7680.177 -> 146.0.7680.200), first run upgrade-helper.sh to bump the
+147.0.7727.55 -> 146.0.7680.200), first run upgrade-helper.sh to bump the
 +ds counter and update version references, then get-orig-tarballs.sh to
 create new tarballs matching the updated version:
 

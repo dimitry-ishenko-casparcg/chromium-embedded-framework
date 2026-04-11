@@ -1,0 +1,29 @@
+Description: Guard unrar dependency behind safe_browsing_use_unrar flag
+ The third_party/unrar directory is stripped from Debian's Chromium tarball
+ (non-free license). The unconditional dep on //third_party/unrar in
+ chrome/services/file_util/BUILD.gn causes gn gen to fail when the directory
+ is missing. Guard it behind safe_browsing_use_unrar (already false in args.gn).
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-02-20
+
+diff --git a/chrome/services/file_util/BUILD.gn b/chrome/services/file_util/BUILD.gn
+index bd81080..2ad9c48 100644
+--- a/chrome/services/file_util/BUILD.gn
++++ b/chrome/services/file_util/BUILD.gn
+@@ -25,10 +25,13 @@ source_set("file_util") {
+     "//components/safe_browsing:buildflags",
+     "//extensions/buildflags",
+     "//mojo/public/cpp/bindings",
+-    "//third_party/unrar",
+     "//third_party/zlib",
+   ]
+
++  if (safe_browsing_use_unrar) {
++    deps += [ "//third_party/unrar" ]
++  }
++
+   public_deps = [
+     "//chrome/services/file_util/public/mojom",
+     "//components/safe_browsing/core/common",

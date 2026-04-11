@@ -1,0 +1,67 @@
+Description: Remove operator<=> definition from .cc file to fix clang-19 ICE
+ clang-19 crashes (SIGSEGV, exit code 139) when compiling
+ services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.cc.
+ The COMPONENT_EXPORT (visibility attribute) applied to a friend operator<=>
+ declaration, combined with a non-member definition in the .cc file, triggers
+ a parser ICE in clang-19 at the definition site.
+ .
+ The operator<=> is moved to an inline friend definition in the header
+ (preserving three-way comparison and std::ranges::sort compatibility).
+ This patch removes the .cc definition; the header change was applied
+ separately. Debian Chromium's llvm-19/clang-19-crash.patch already replaced
+ the defaulted operator== with an explicit implementation.
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-10
+
+diff --git a/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.cc b/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.cc
+index d1b177e..0c5146d 100644
+--- a/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.cc
++++ b/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.cc
+@@ -96,15 +96,9 @@ bool OriginWithPossibleWildcards::DoesMatchOrigin(
+ bool operator==(const OriginWithPossibleWildcards& lhs,
+                 const OriginWithPossibleWildcards& rhs) { return lhs.csp_source == rhs.csp_source; }
+
+-std::strong_ordering operator<=>(const OriginWithPossibleWildcards& lhs,
+-                                 const OriginWithPossibleWildcards& rhs) {
+-  if (lhs.csp_source < rhs.csp_source) {
+-    return std::strong_ordering::less;
+-  }
+-  if (rhs.csp_source < lhs.csp_source) {
+-    return std::strong_ordering::greater;
+-  }
+-  return std::strong_ordering::equal;
+-}
++// operator<=> is defined inline in the header to avoid a clang-19 ICE
++// triggered by parsing a non-member spaceship operator definition when the
++// class has COMPONENT_EXPORT visibility attributes (clang bug, fixed in
++// clang-20).
+
+ }  // namespace network
+diff --git a/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h b/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h
+index caf7892..6bee840 100644
+--- a/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h
++++ b/services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h
+@@ -81,10 +81,19 @@ class COMPONENT_EXPORT(NETWORK_CPP_WEB_PLATFORM) OriginWithPossibleWildcards {
+   friend bool operator==(const OriginWithPossibleWildcards& lhs,
+                          const OriginWithPossibleWildcards& rhs);
+
+-  COMPONENT_EXPORT(NETWORK_CPP_WEB_PLATFORM)
++  // Defined inline to avoid a clang-19 ICE triggered by non-member spaceship
++  // operator definitions for classes with COMPONENT_EXPORT visibility.
+   friend std::strong_ordering operator<=>(
+       const OriginWithPossibleWildcards& lhs,
+-      const OriginWithPossibleWildcards& rhs);
++      const OriginWithPossibleWildcards& rhs) {
++    if (lhs.csp_source < rhs.csp_source) {
++      return std::strong_ordering::less;
++    }
++    if (rhs.csp_source < lhs.csp_source) {
++      return std::strong_ordering::greater;
++    }
++    return std::strong_ordering::equal;
++  }
+
+  private:
+   friend struct mojo::StructTraits<

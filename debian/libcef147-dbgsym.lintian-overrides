@@ -7,4 +7,4 @@
 # =============================================================================
 
 # Build-id debug files without debug symbols (helper binaries, stripped libs)
-libcef146-dbgsym: debug-file-with-no-debug-symbols usr/lib/debug/.build-id/*/*.debug
+libcef147-dbgsym: debug-file-with-no-debug-symbols usr/lib/debug/.build-id/*/*.debug
