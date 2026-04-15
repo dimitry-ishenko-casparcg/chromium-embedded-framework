@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Build-Depends: debhelper-compat (= 13),
                python3,
+               python3-httplib2,
                clang-19,
                clang-format-19:native,
                lld-19,

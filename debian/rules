@@ -426,15 +426,23 @@ override_dh_auto_build:
 		echo "==> depot_tools already initialized"; \
 	fi
 
-	# Step 6.6.0.6: Use system Python instead of depot_tools bundled Python
-	# depot_tools tries to use a bundled Python from bootstrap directory
-	# For Debian builds, we use system Python3 instead (no network downloads)
-	# Create the expected directory structure and symlink to system python3
-	@echo "==> Setting up depot_tools to use system Python"
-	@PYTHON_REL_DIR=$$(cat $(CURDIR)/depot-tools/python3_bin_reldir.txt); \
-	mkdir -p "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR"; \
-	ln -sf /usr/bin/python3 "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR/python3"; \
-	echo "==> Created symlink: depot_tools/$$PYTHON_REL_DIR/python3 -> /usr/bin/python3"
+	# Step 6.6.0.6: Ensure python3_bin_reldir.txt exists and points to system python3.
+	# depot_tools/python-bin/python3 reads this file to find the Python binary.
+	# CIPD bootstrap creates it, but fails in network-isolated builds. We create
+	# it ourselves pointing to a local dir with a system python3 symlink.
+	@PYTHON_REL_DIR=$$(cat $(CURDIR)/depot-tools/python3_bin_reldir.txt 2>/dev/null || true); \
+	if [ -z "$$PYTHON_REL_DIR" ]; then PYTHON_REL_DIR="python-bin"; echo "$$PYTHON_REL_DIR" > $(CURDIR)/depot-tools/python3_bin_reldir.txt; fi; \
+	mkdir -p "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR" && ln -sf /usr/bin/python3 "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR/python3"
+	# Step 6.6.0.7: Stub .cipd_bin/vpython3 with system python3.
+	# depot_tools/vpython3 (line 57) exec's .cipd_bin/vpython3, which is
+	# normally downloaded via CIPD at bootstrap time. In Debian's network-
+	# isolated builds that download fails silently, leaving gclient unable
+	# to start and exiting with code 127. The stub skips -vpython-tool calls
+	# (gclient runhooks hook that pre-installs CIPD packages, not needed here)
+	# and delegates everything else to system python3.
+	@mkdir -p "$(CURDIR)/depot-tools/.cipd_bin" && printf '#!/bin/sh\ncase "$$*" in *-vpython-tool*) exit 0;; esac\nexec /usr/bin/python3 "$$@"\n' > "$(CURDIR)/depot-tools/.cipd_bin/vpython3" && chmod +x "$(CURDIR)/depot-tools/.cipd_bin/vpython3"
+	# Step 6.6.0.8: python3-httplib2 >=0.20 removed bundled socks.py; patch gerrit_util.py.
+	@sed -i 's|^import httplib2\.socks$$|try: import httplib2.socks\nexcept ImportError: import sys,types,socket,httplib2; _m=types.ModuleType("httplib2.socks"); _m.PROXY_TYPE_HTTP_NO_TUNNEL=4; _m.ProxyError=type("ProxyError",(Exception,),{}); _m.socksocket=type("socksocket",(socket.socket,),{}); sys.modules["httplib2.socks"]=_m; httplib2.socks=_m|' $(CURDIR)/depot-tools/gerrit_util.py
 
 	# Step 6.6.1: Reset depot_tools to pristine state (if git repository exists)
 	# Git-clone mode: depot_tools is a git repository, reset to undo previous patches
@@ -1179,6 +1187,7 @@ override_dh_auto_build:
 	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null | awk -v OFS='-' '{print $$1,$$2}')\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false webnn_use_tflite=false build_tflite_with_xnnpack=false" && \
 	export PATH=$(CURDIR)/depot-tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
+	export HOME=$(CURDIR) && \
 	python3 tools/automate/automate-git.py \
 		--download-dir=$(CURDIR)/chromium_src \
 		--depot-tools-dir=$(CURDIR)/depot-tools \
