@@ -1038,13 +1038,13 @@ override_dh_auto_build:
 	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-$(LLVM_ARCH).a; do \
 		base=$$(basename $$lib); \
 		target=$$(echo $$base | sed 's/-$(LLVM_ARCH)\.a$$/.a/'); \
-		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target; \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target 2>/dev/null || true; \
 	done
 	# Symlink i386 libraries (in case needed for 32-bit targets on x86_64)
 	for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-i386.a; do \
 		base=$$(basename $$lib); \
 		target=$$(echo $$base | sed 's/-i386\.a$$/.a/'); \
-		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target; \
+		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target 2>/dev/null || true; \
 	done
 	@echo "==> LLVM symlinks created successfully"
 	# libclang discovery is handled by patch 0019-bindgen-libclang-abspath.chromium.patch
