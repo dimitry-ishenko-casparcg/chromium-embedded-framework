@@ -6,23 +6,24 @@ Description: Create stub third_party/rust-toolchain/VERSION and Rust toolchain s
  2. Symlink bin/rustc -> /usr/bin/rustc (system rustc from debian package)
  3. Symlink bin/bindgen -> /usr/bin/bindgen (system bindgen from debian package)
  .
- The VERSION stub is created after gclient sync (which may remove the directory)
- but before gclient runhooks (which runs gn gen and reads rust.gni).
+ The VERSION stub is created after writing .gclient_entries (which replaces
+ gclient sync for Debian) but before gclient runhooks (which runs gn gen and
+ reads rust.gni).
  .
  The symlinks allow Chromium's build system to find rustc and bindgen without
  downloading the full rust-toolchain from GCS.
-Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-11-16
+Last-Update: 2026-04-11
 
 diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
-index 3c55265..c607c9a 100644
+index ba8c6e0..65ee393 100644
 --- a/cef/tools/automate/automate-git.py
 +++ b/cef/tools/automate/automate-git.py
-@@ -1648,6 +1648,41 @@ if 'DEBIAN_BUILD' in os.environ:
-   run("gclient sync --nohooks", chromium_dir)
-   msg('Debian: gclient sync completed')
+@@ -1649,6 +1649,41 @@ if 'DEBIAN_BUILD' in os.environ:
+   with open(os.path.join(chromium_dir, '.gclient_entries'), 'w') as f:
+     f.write("entries = {'src': '%s'}\n" % chromium_url)
 
 +  ##
 +  ## Create stub third_party/rust-toolchain/VERSION (required by rust.gni)
@@ -61,4 +62,4 @@ index 3c55265..c607c9a 100644
 +
  # Patch the Chromium runhooks scripts if necessary.
  apply_runhooks_patch()
-
+ 
