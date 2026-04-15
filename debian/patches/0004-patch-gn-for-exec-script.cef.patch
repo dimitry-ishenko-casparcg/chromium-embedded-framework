@@ -1,8 +1,13 @@
-Description: Patch GN configuration for exec_script whitelist
+Description: Patch GN configuration for exec_script whitelist; skip gclient sync
  CEF uses exec_script in BUILD.gn (//cef/tools/gypi_to_gn.py) which is
  security-restricted by GN. This patch adds the exec_script_whitelist to
  Chromium's .gn file for Debian builds, allowing CEF's build scripts to
  run. Also reorders gclient sync/runhooks for proper Debian build flow.
+ .
+ Replace gclient sync --nohooks with a direct write of .gclient_entries.
+ gclient sync attempts CIPD/network downloads which violate Debian's
+ no-network build policy. All source is already present from MUT tarballs
+ so only the entries file is needed for gclient runhooks to function.
 Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
@@ -45,10 +50,12 @@ index c107d75..04a801b 100644
  
 -  # Delete the src/out directory created by `gclient sync`.
 -  delete_directory(out_src_dir)
-+  # Debian-specific: Run gclient sync to process patched DEPS file.
-+  msg('Debian: Running gclient sync to process patched DEPS')
-+  run("gclient sync --nohooks", chromium_dir)
-+  msg('Debian: gclient sync completed')
++  # Debian-specific: Write .gclient_entries instead of running gclient sync.
++  # gclient sync would attempt CIPD/network downloads, violating Debian's
++  # no-network build policy. All source is already present from MUT tarballs.
++  msg('Debian: Writing .gclient_entries to avoid network-accessing gclient sync')
++  with open(os.path.join(chromium_dir, '.gclient_entries'), 'w') as f:
++    f.write("entries = {'src': '%s'}\n" % chromium_url)
 +
 +# Patch the Chromium runhooks scripts if necessary.
 +apply_runhooks_patch()

@@ -436,16 +436,6 @@ override_dh_auto_build:
 	ln -sf /usr/bin/python3 "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR/python3"; \
 	echo "==> Created symlink: depot_tools/$$PYTHON_REL_DIR/python3 -> /usr/bin/python3"
 
-	# Step 6.6.0.7: Stub .cipd_bin/vpython3 with system python3
-	# The prebuilt .cipd_bin/vpython3 binary is x86_64 only and fails on arm64.
-	# Replace it with a wrapper that calls system python3.
-	@echo "==> Stubbing .cipd_bin/vpython3 with system python3"
-	@mkdir -p "$(CURDIR)/depot-tools/.cipd_bin"
-	@printf '#!/bin/sh\nexec /usr/bin/python3 "$$@"\n' \
-		> "$(CURDIR)/depot-tools/.cipd_bin/vpython3"
-	@chmod +x "$(CURDIR)/depot-tools/.cipd_bin/vpython3"
-	@echo "==> Stubbed depot-tools/.cipd_bin/vpython3 -> /usr/bin/python3"
-
 	# Step 6.6.1: Reset depot_tools to pristine state (if git repository exists)
 	# Git-clone mode: depot_tools is a git repository, reset to undo previous patches
 	# MUT tarball mode: no .git directory, tarball is already pristine
