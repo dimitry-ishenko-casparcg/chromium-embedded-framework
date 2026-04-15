@@ -1,8 +1,11 @@
-Description: Patch GN configuration for exec_script whitelist; skip gclient sync
+Description: Patch GN configuration for exec_script whitelist and fix gclient sync
  CEF uses exec_script in BUILD.gn (//cef/tools/gypi_to_gn.py) which is
  security-restricted by GN. This patch adds the exec_script_whitelist to
- Chromium's .gn file for Debian builds, allowing CEF's build scripts to
- run. Also reorders gclient sync/runhooks for proper Debian build flow.
+ Chromium's .gn file for Debian builds, allowing CEF's build scripts to run.
+ .
+ Also moves gclient runhooks and delete_directory calls out of the BUILD.gn
+ write block to the correct outer scope. Reorders the calls so that .gn
+ patching happens before gclient runhooks (which runs GN).
  .
  Replace gclient sync --nohooks with a direct write of .gclient_entries.
  gclient sync attempts CIPD/network downloads which violate Debian's
@@ -11,16 +14,16 @@ Description: Patch GN configuration for exec_script whitelist; skip gclient sync
 Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2025-12-29
+Last-Update: 2026-04-11
 
 diff --git a/cef/tools/automate/automate-git.py b/cef/tools/automate/automate-git.py
-index c107d75..04a801b 100644
+index 8057856..681aee7 100644
 --- a/cef/tools/automate/automate-git.py
 +++ b/cef/tools/automate/automate-git.py
-@@ -1607,11 +1607,41 @@ content = content.replace(
+@@ -1606,11 +1606,43 @@ content = content.replace(
  with open(build_gn, 'w') as f:
    f.write(content)
- 
+
 -  # Runs hooks for files that have been modified in the local working copy.
 -  run("gclient runhooks", chromium_dir)
 +# Delete the src/out directory created by `gclient sync`.
@@ -47,7 +50,7 @@ index c107d75..04a801b 100644
 +      msg('Debian: Patched .gn with exec_script_whitelist for CEF')
 +    else:
 +      msg('Debian: .gn already contains exec_script_whitelist')
- 
+
 -  # Delete the src/out directory created by `gclient sync`.
 -  delete_directory(out_src_dir)
 +  # Debian-specific: Write .gclient_entries instead of running gclient sync.
@@ -62,6 +65,6 @@ index c107d75..04a801b 100644
 +
 +# Runs hooks for files that have been modified in the local working copy.
 +run("gclient runhooks", chromium_dir)
- 
+
  if cef_dir == cef_src_dir:
    # Running in fast update mode.
