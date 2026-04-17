@@ -39,7 +39,7 @@ if [ -d "debian" ]; then
 fi
 
 # 1. CEF main tarball
-echo "==> [1/4] CEF orig.tar.xz"
+echo "==> [1/2] CEF orig.tar.xz"
 if [ -f "${PKG}_${VERSION}.orig.tar.xz" ]; then
     echo "    Already exists: ${PKG}_${VERSION}.orig.tar.xz"
 else
@@ -63,7 +63,7 @@ echo ""
 #    Downloads Chromium source and creates two MUT components:
 #    - orig-chromium.tar.xz (vanilla Chromium source)
 #    - orig-chromium-debian.tar.xz (Debian Chromium patches)
-echo "==> [2/4] Chromium orig-chromium.tar.xz and orig-chromium-debian.tar.xz"
+echo "==> [2/2] Chromium orig-chromium.tar.xz and orig-chromium-debian.tar.xz"
 if [ -f "${PKG}_${VERSION}.orig-chromium.tar.xz" ] && [ -f "${PKG}_${VERSION}.orig-chromium-debian.tar.xz" ]; then
     echo "    Already exists: ${PKG}_${VERSION}.orig-chromium.tar.xz"
     echo "    Already exists: ${PKG}_${VERSION}.orig-chromium-debian.tar.xz"
@@ -130,32 +130,9 @@ else
 fi
 echo ""
 
-# 3. depot-tools component tarball
-echo "==> [3/4] depot-tools orig-depot-tools.tar.xz"
-if [ -f "${PKG}_${VERSION}.orig-depot-tools.tar.xz" ]; then
-    echo "    Already exists: ${PKG}_${VERSION}.orig-depot-tools.tar.xz"
-else
-    echo "    Cloning depot_tools from Google..."
-    rm -rf depot-tools
-    git clone --depth 1 \
-        https://chromium.googlesource.com/chromium/tools/depot_tools.git depot-tools
-
-    # Clean binaries (matching Files-Excluded in debian/copyright)
-    echo "    Cleaning binary files..."
-    cd depot-tools
-    rm -rf .git
-    rm -f *.exe *.bat 2>/dev/null || true
-    rm -rf win_tools* 2>/dev/null || true
-    rm -rf .cipd_bin/*.exe .cipd_bin/*.dll 2>/dev/null || true
-    find . -name "*.exe" -delete 2>/dev/null || true
-    find . -name "*.dll" -delete 2>/dev/null || true
-    cd ..
-
-    echo "    Creating tarball..."
-    tar -cJf "${PKG}_${VERSION}.orig-depot-tools.tar.xz" depot-tools
-    rm -rf depot-tools
-    echo "    Created: ${PKG}_${VERSION}.orig-depot-tools.tar.xz"
-fi
+# Note: depot-tools tarball no longer needed. The build uses system /usr/bin/gn
+# and /usr/bin/ninja directly (from generate-ninja and ninja-build packages),
+# like Debian Chromium does.
 echo ""
 
 echo "============================================================"
