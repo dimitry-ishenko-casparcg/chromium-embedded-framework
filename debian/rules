@@ -22,6 +22,7 @@ ifeq ($(DEB_HOST_ARCH),amd64)
   CEF_ARCH_FLAG   := --x64-build
   CEF_DISTRIB_DIR := linux64
   GN_BUILDTOOLS   := linux64
+  GN_CPU          := x64
   LLVM_TRIPLE     := x86_64-unknown-linux-gnu
   LLVM_ARCH       := x86_64
   NODE_ARCH       := x64
@@ -29,6 +30,7 @@ else ifeq ($(DEB_HOST_ARCH),arm64)
   CEF_ARCH_FLAG   := --arm64-build
   CEF_DISTRIB_DIR := linuxarm64
   GN_BUILDTOOLS   := linux-arm64
+  GN_CPU          := arm64
   LLVM_TRIPLE     := aarch64-unknown-linux-gnu
   LLVM_ARCH       := aarch64
   NODE_ARCH       := arm64
@@ -36,6 +38,7 @@ else ifeq ($(DEB_HOST_ARCH),armhf)
   CEF_ARCH_FLAG   := --arm-build
   CEF_DISTRIB_DIR := linuxarm
   GN_BUILDTOOLS   := linux-arm
+  GN_CPU          := arm
   LLVM_TRIPLE     := armv7-unknown-linux-gnueabihf
   LLVM_ARCH       := arm
   NODE_ARCH       := arm
@@ -164,10 +167,66 @@ export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 # FFmpeg: Use system libffmpeg.so for codec support (H.264/AAC when available)
 export GN_DEFINES += is_component_ffmpeg=true
 
+# CEF build configuration
+export GN_DEFINES += target_cpu=\"$(GN_CPU)\"
+export GN_DEFINES += enable_cef=true
+export GN_DEFINES += cef_build_tests=false
+export GN_DEFINES += is_debug=false
+export GN_DEFINES += is_official_build=true
+export GN_DEFINES += symbol_level=0
+
+# Debian toolchain: system libc++, no sysroot, no bundled tools
+export GN_DEFINES += use_custom_libcxx=false
+export GN_DEFINES += use_sysroot=false
+export GN_DEFINES += treat_warnings_as_errors=false
+export GN_DEFINES += is_cfi=false
+export GN_DEFINES += chrome_pgo_phase=0
+export GN_DEFINES += use_thin_lto=false
+export GN_DEFINES += custom_toolchain=\"//build/toolchain/linux/unbundle:default\"
+export GN_DEFINES += host_toolchain=\"//build/toolchain/linux/unbundle:default\"
+
+# System libraries
+export GN_DEFINES += use_system_zlib=true
+export GN_DEFINES += use_system_lcms2=true
+export GN_DEFINES += use_system_libjpeg=true
+export GN_DEFINES += use_system_libpng=true
+export GN_DEFINES += use_system_freetype=true
+export GN_DEFINES += use_system_harfbuzz=true
+export GN_DEFINES += use_system_libopenjpeg2=true
+
+# CEF required args (from gn_args.py GetRequiredArgs, enforced by assert in BUILD.gn)
+export GN_DEFINES += enable_widevine=true
+export GN_DEFINES += clang_use_chrome_plugins=false
+export GN_DEFINES += enable_linux_installer=false
+
+# CEF recommended defaults (from gn_args.py GetRecommendedDefaultArgs)
+export GN_DEFINES += is_component_build=false
+export GN_DEFINES += enable_background_mode=false
+export GN_DEFINES += enable_resource_allowlist_generation=false
+export GN_DEFINES += enable_downgrade_processing=false
+export GN_DEFINES += blink_heap_inside_shared_library=true
+
+# Disable unused features
+export GN_DEFINES += enable_vr=false
+export GN_DEFINES += enable_hangout_services_extension=false
+export GN_DEFINES += build_dawn_tests=false
+export GN_DEFINES += angle_build_tests=false
+export GN_DEFINES += build_angle_perftests=false
+export GN_DEFINES += enable_iterator_debugging=false
+export GN_DEFINES += safe_browsing_use_unrar=false
+export GN_DEFINES += optimize_webui=false
+export GN_DEFINES += use_remoteexec=false
+export GN_DEFINES += use_siso=false
+export GN_DEFINES += supports_subzero=false
+
 # LiteRT/TFLite: Disable WebNN TFLite backend (litert src stripped from Debian tarball)
 export GN_DEFINES += webnn_use_tflite=false
-# XNNPack: Disable TFLite xnnpack delegate (pthreadpool include path issue with WebNN)
 export GN_DEFINES += build_tflite_with_xnnpack=false
+
+# Official build extras (from CEF gn_args.py GetConfigArgs)
+export GN_DEFINES += disable_fieldtrial_testing_config=true
+export GN_DEFINES += use_partition_alloc_as_malloc=false
+export GN_DEFINES += enable_backup_ref_ptr_support=false
 
 ## ============================================================================
 ## LIBC++ CONFIGURATION: System libc++ via Custom Unbundle Toolchain
@@ -310,7 +369,7 @@ override_dh_auto_build:
 	cd $(CURDIR)/chromium_src/chromium/src/cef && \
 		DEBIAN_BUILD=0 python3 tools/patcher.py || \
 		echo "==> Some CEF patches failed (expected: targets stripped files like Windows/bundled libs)"
-	rm -rf $(CURDIR)/chromium_src/chromium/src/cef
+	# Keep cef/ in chromium/src/ — needed for gn gen, ninja, and make_distrib.py
 	@echo "==> CEF patches applied to vanilla Chromium"
 
 	# Step 5.2: Setup system Node.js and rollup (following Debian Chromium approach)
@@ -386,98 +445,17 @@ override_dh_auto_build:
 	else \
 		echo "WARNING: DEPS file not found at $(CURDIR)/chromium_src/chromium/src/DEPS, skipping patch (may be handled by automate-git.py)"; \
 	fi
-	# Note: gclient sync --nohooks will be run by automate-git.py (see 0004 patch)
-	# after depot_tools is cloned but before gclient runhooks
-	# Note: automate-git.py ONLY applies tarball patches if chromium_src_dir doesn't exist
-	# Since we extract chromium BEFORE running automate-git.py, we must apply patches ourselves
+	# Note: Chromium patches are applied here (not by automate-git.py which is no longer used)
 
-	# Step 6.6: Verify depot_tools is present (BUNDLED DEPENDENCY - Phase 1)
-	# CURRENT APPROACH (Phase 1): depot_tools treated as bundled dependency
-	#   - User clones depot_tools once: git clone https://...depot_tools.git
-	#   - debian/rules clean PRESERVES depot_tools/ (not removed)
-	#   - Works for local development and testing
-	# FUTURE (Phase 2): Include depot_tools in orig.tar.xz
-	#   - Option A: Bundle depot_tools in CEF source package
-	#   - Option B: Package depot_tools separately as Debian package (ideal but blocked by Google's rolling release model)
-	# Network isolation: NO downloads during build - depot_tools must pre-exist
-	@echo "==> Verifying depot_tools is present (bundled dependency)"
-	@if [ ! -d $(CURDIR)/depot-tools ]; then \
-		echo "ERROR: depot_tools directory not found at $(CURDIR)/depot-tools"; \
-		echo "ERROR:"; \
-		echo "ERROR: FIRST-TIME SETUP REQUIRED:"; \
-		echo "ERROR:   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools"; \
-		echo "ERROR:"; \
-		echo "ERROR: After setup, depot_tools will be preserved across builds (not removed by 'clean')."; \
-		echo "ERROR: See debian/README.source for packaging details."; \
-		exit 1; \
-	fi
-	@echo "==> depot_tools found (bundled dependency - Phase 1 approach)"
-
-	# Step 6.6.0.5: Initialize depot_tools if needed (first-time setup)
-	# depot_tools requires initialization to create python3_bin_reldir.txt
-	# This file points to the bundled Python interpreter used by gclient/gn
-	# Without it, gn gen fails with "need to initialize depot_tools"
-	@echo "==> Checking if depot_tools needs initialization"
-	@if [ ! -f $(CURDIR)/depot-tools/python3_bin_reldir.txt ]; then \
-		echo "==> Initializing depot_tools (first-time setup)"; \
-		cd $(CURDIR)/depot-tools && ./update_depot_tools; \
-		echo "==> depot_tools initialization complete"; \
-	else \
-		echo "==> depot_tools already initialized"; \
-	fi
-
-	# Step 6.6.0.6: Ensure python3_bin_reldir.txt exists and points to system python3.
-	# depot_tools/python-bin/python3 reads this file to find the Python binary.
-	# CIPD bootstrap creates it, but fails in network-isolated builds. We create
-	# it ourselves pointing to a local dir with a system python3 symlink.
-	@PYTHON_REL_DIR=$$(cat $(CURDIR)/depot-tools/python3_bin_reldir.txt 2>/dev/null || true); \
-	if [ -z "$$PYTHON_REL_DIR" ]; then PYTHON_REL_DIR="python-bin"; echo "$$PYTHON_REL_DIR" > $(CURDIR)/depot-tools/python3_bin_reldir.txt; fi; \
-	mkdir -p "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR" && ln -sf /usr/bin/python3 "$(CURDIR)/depot-tools/$$PYTHON_REL_DIR/python3"
-	# Step 6.6.0.7: Stub .cipd_bin/vpython3 with system python3.
-	# depot_tools/vpython3 (line 57) exec's .cipd_bin/vpython3, which is
-	# normally downloaded via CIPD at bootstrap time. In Debian's network-
-	# isolated builds that download fails silently, leaving gclient unable
-	# to start and exiting with code 127. The stub skips -vpython-tool calls
-	# (gclient runhooks hook that pre-installs CIPD packages, not needed here)
-	# and delegates everything else to system python3.
-	@mkdir -p "$(CURDIR)/depot-tools/.cipd_bin" && printf '#!/bin/sh\ncase "$$*" in *-vpython-tool*) exit 0;; esac\nexec /usr/bin/python3 "$$@"\n' > "$(CURDIR)/depot-tools/.cipd_bin/vpython3" && chmod +x "$(CURDIR)/depot-tools/.cipd_bin/vpython3"
-	# Step 6.6.0.8: python3-httplib2 >=0.20 removed bundled socks.py; patch gerrit_util.py.
-	@sed -i 's|^import httplib2\.socks$$|try: import httplib2.socks\nexcept ImportError: import sys,types,socket,httplib2; _m=types.ModuleType("httplib2.socks"); _m.PROXY_TYPE_HTTP_NO_TUNNEL=4; _m.ProxyError=type("ProxyError",(Exception,),{}); _m.socksocket=type("socksocket",(socket.socket,),{}); sys.modules["httplib2.socks"]=_m; httplib2.socks=_m|' $(CURDIR)/depot-tools/gerrit_util.py
-
-	# Step 6.6.1: Reset depot_tools to pristine state (if git repository exists)
-	# Git-clone mode: depot_tools is a git repository, reset to undo previous patches
-	# MUT tarball mode: no .git directory, tarball is already pristine
-	@if [ -d "$(CURDIR)/depot-tools/.git" ]; then \
-		echo "==> Resetting depot_tools to pristine state (git-clone mode)"; \
-		cd $(CURDIR)/depot-tools && git reset --hard HEAD~1 && git clean -fd; \
-	else \
-		echo "==> Skipping depot_tools reset (MUT tarball mode - no .git)"; \
-	fi
-
-	# Step 6.7: Apply Debian-specific Chromium patches (Build 94 working solution)
+	# Step 6.7: Apply Debian-specific Chromium patches
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches
-	# Note: depot_tools is now reset to pristine state, so patches apply cleanly every time
-	# Note: libcpp-headers patch removed - Debian Chromium patches already handle this
-	# Note: 0001-debian-tarball-deps removed - CEF patcher's tarball_deps.patch (Step 5.3) handles this
-	@echo "==> Applying Debian Chromium patches (gclient, DRI, Rust, network isolation, test_fonts, warning-suppression, panic-abort)"
-	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0002-debian-tarball-gclient-toplevel.chromium.patch
-	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0003-network-isolation-disable-google-storage-downloads.chromium.patch
-	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0004-skip-gcs-deps-when-source-tarball.chromium.patch
-	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0048-fix-ninja-py-depot-tools-hyphen.chromium.patch
-	patch -p1 -d $(CURDIR)/depot-tools < debian/patches/chromium/0053-fix-gclient-paths-depot-tools-hyphen.chromium.patch
+	# Note: depot_tools patches (0002,0003,0004,0048,0053) removed — depot_tools no longer used.
+	# Build uses system /usr/bin/gn and /usr/bin/ninja directly, like Debian Chromium.
+	@echo "==> Applying Debian Chromium patches"
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-make-siso-import-optional.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-skip-test-fonts.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-disable-warning-suppression-mappings.chromium.patch
-	# Commit depot_tools patches to avoid git conflicts when automate-git.py calls update_depot_tools
-	# Git-clone mode: commit patches so git doesn't see them as "local changes"
-	# MUT tarball mode: no .git, so no conflicts possible
-	@if [ -d "$(CURDIR)/depot-tools/.git" ]; then \
-		echo "==> Committing depot_tools patches (git-clone mode)"; \
-		cd $(CURDIR)/depot-tools && git add -A && git commit -m "Apply Debian patches (0002, 0003, 0004, 0048, 0053)" --allow-empty; \
-	else \
-		echo "==> Skipping depot_tools commit (MUT tarball mode - no .git)"; \
-	fi
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0008-fix-dri-pkg-config-debian.chromium.patch
 	# Patch 0009 removed: Debian Chromium patches (force-rust-nightly.patch, rustc-allow-features.patch)
 	# already handle Rust nightly flags via RUSTC_BOOTSTRAP=1 approach
@@ -605,11 +583,7 @@ override_dh_auto_build:
 		$(CURDIR)/chromium_src/chromium/src/DEPS
 	@echo "==> generate_location_tags condition fixed"
 
-	# Step 7: Create symlink to system GN executable
-	@echo "==> Configuring to use system GN executable"
-	mkdir -p $(CURDIR)/chromium_src/chromium/src/buildtools/$(GN_BUILDTOOLS)/gn/
-	ln -sf /usr/bin/gn $(CURDIR)/chromium_src/chromium/src/buildtools/$(GN_BUILDTOOLS)/gn/gn
-	@echo "==> GN symlink created"
+	# Step 7: (removed — system /usr/bin/gn called directly, no buildtools symlink needed)
 
 	# Step 7.5: Create stub files for Debian-stripped directories
 	@echo "==> Creating Debian stub main.cc for empty executables"
@@ -1059,12 +1033,16 @@ override_dh_auto_build:
 	# which converts relative paths to absolute paths in run_bindgen.py
 
 	## Step 7d: Symlink system Node.js to expected location
-	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-$(NODE_ARCH)/bin/node
+	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node
+	## (hardcoded in node.gni regardless of target arch)
 	## But Debian uses system Node.js from nodejs package (/usr/bin/node)
-	## Solution: Create directory structure and symlink system node binary
 	@echo "==> Symlinking system Node.js"
+	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin
+	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-x64/bin/node
+ifneq ($(NODE_ARCH),x64)
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH)/bin
 	ln -sf /usr/bin/node $(CURDIR)/chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH)/bin/node
+endif
 	@echo "==> Node.js symlink created successfully"
 
 	## Step 7e: Copy Rust std library from system rust-src package
@@ -1171,35 +1149,52 @@ override_dh_auto_build:
 	fi
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-	## Step 8: Run automate-git.py build script
-	## This single command handles: depot_tools download, Chromium sync, GN config, and build
-	## The exec_script restriction is handled by patch 0004-patch-gn-for-exec-script.patch
-	## which modifies automate-git.py to patch .gn after sync but before running hooks
-	##
-	## CRITICAL: --no-depot-tools-update flag prevents update_depot_tools from running
-	## Without this flag, automate-git.py calls update_depot_tools which does 'git checkout'
-	## to upstream HEAD, overwriting our committed patches 0008 and 0015 in depot_tools.
-	## This causes gclient to lose the source_tarball check and attempt to clone 37+ dependencies,
-	## violating Debian's no-internet build policy.
-	cd $(CURDIR)/chromium_src/cef && \
-	export DEBIAN_BUILD=1 && \
-	export PYTHONUNBUFFERED=1 && \
-	export GN_DEFINES="rust_sysroot_absolute=\"$(rust_sysroot)\" rust_bindgen_root=\"/usr\" rustc_version=\"$$($(rust_sysroot)/bin/rustc --version 2>/dev/null | awk -v OFS='-' '{print $$1,$$2}')\" clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\" clang_version=\"$(CLANG_MVERS)\" use_custom_libcxx=false use_system_zlib=true use_system_lcms2=true use_system_libjpeg=true use_system_libpng=true use_system_freetype=true use_system_harfbuzz=true use_system_libopenjpeg2=true is_debug=false symbol_level=0 enable_vr=false enable_hangout_services_extension=false build_dawn_tests=false angle_build_tests=false build_angle_perftests=false enable_iterator_debugging=false is_cfi=false chrome_pgo_phase=0 use_sysroot=false treat_warnings_as_errors=false is_official_build=true safe_browsing_use_unrar=false optimize_webui=false use_remoteexec=false use_siso=false use_thin_lto=false enable_cef=true cef_build_tests=false webnn_use_tflite=false build_tflite_with_xnnpack=false" && \
-	export PATH=$(CURDIR)/depot-tools:/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
+	## Step 8: Build CEF (direct gn/ninja — no depot_tools or automate-git.py)
+	## Like Debian Chromium, we call system /usr/bin/gn and /usr/bin/ninja directly.
+	## This replaces automate-git.py which was only an orchestration layer around
+	## gclient (dependency sync) + gclient_hook.py (gn gen) + autoninja (ninja wrapper).
+
+	# Step 8a: Create rust-toolchain VERSION stub and symlinks (was CEF patch 0010)
+	@echo "==> Creating rust-toolchain stubs for system Rust"
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
+	@echo 'rustc 1.88.0 stub (15283f6fe95e5b604273d13a428bab5fc0788f5a-1-llvmorg-22-init-8940-g4d4cb757 chromium)' > $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/VERSION
+	@ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
+	@ln -sf /usr/bin/bindgen $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/bindgen
+	@ln -sf /usr/bin/rustfmt $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustfmt
+
+	# Step 8b: Run version_manager.py (generates CEF version/API headers)
+	@echo "==> Running CEF version_manager.py"
+	cd $(CURDIR)/chromium_src/chromium/src/cef && python3 tools/version_manager.py -u --fast-check
+
+	# Step 8c: Write args.gn directly (GN_DEFINES defined at top of rules file)
+	@echo "==> Writing out/Release_GN_$(GN_CPU)/args.gn"
+	@mkdir -p $(CURDIR)/chromium_src/chromium/src/out/Release_GN_$(GN_CPU)
+	@echo '$(GN_DEFINES)' | tr ' ' '\n' | sed 's/\\"/"/g' > $(CURDIR)/chromium_src/chromium/src/out/Release_GN_$(GN_CPU)/args.gn
+
+	# Step 8d: Run gn gen (system /usr/bin/gn from generate-ninja package)
+	@echo "==> Running gn gen out/Release_GN_$(GN_CPU)"
+	cd $(CURDIR)/chromium_src/chromium/src && \
+	PATH=/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH \
+	/usr/bin/gn gen out/Release_GN_$(GN_CPU)
+
+	# Step 8e: Run ninja (system /usr/bin/ninja from ninja-build package)
+	@echo "==> Building CEF with ninja -j$(NINJA_JOBS)"
+	cd $(CURDIR)/chromium_src/chromium/src && \
+	export CC=clang-$(CLANG_MVERS) && \
+	export CXX=clang++-$(CLANG_MVERS) && \
+	export AR=ar && export NM=nm && \
+	export RUSTC_BOOTSTRAP=1 && \
+	export PATH=/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
-	export HOME=$(CURDIR) && \
-	python3 tools/automate/automate-git.py \
-		--download-dir=$(CURDIR)/chromium_src \
-		--depot-tools-dir=$(CURDIR)/depot-tools \
-		--branch=$(CEF_BRANCH) \
-		--chromium-archive=$(CURDIR)/../chromium-embedded-framework_$(DEB_VERSION_UPSTREAM).orig-chromium.tar.xz \
-		--no-cef-update \
-		--no-depot-tools-update \
-		--force-build \
-		$(CEF_ARCH_FLAG) \
-		--no-debug-build \
-		--no-distrib-archive \
-		--minimal-distrib-only
+	/usr/bin/ninja -j$(NINJA_JOBS) -C out/Release_GN_$(GN_CPU) cef chrome_sandbox
+
+	# Step 8f: Run make_distrib.py (creates binary_distrib/ for packaging)
+	@echo "==> Creating CEF distribution"
+	cd $(CURDIR)/chromium_src/chromium/src/cef && \
+	python3 tools/make_distrib.py \
+		--output-dir=$(CURDIR)/chromium_src/chromium/src/cef/binary_distrib \
+		--allow-partial --ninja-build --no-format \
+		$(CEF_ARCH_FLAG) --minimal
 
 override_dh_auto_install:
 	# Create package directories first
@@ -1321,12 +1316,8 @@ override_dh_auto_clean:
 	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
 	# Clean stale quilt state to prevent desync between .pc/ and source tree
 	rm -rf .pc
-	# Remove stale depot_tools/ (underscore) from manual clones - MUT uses depot-tools/ (hyphen)
+	# Remove stale depot_tools/ (underscore) from manual clones
 	rm -rf depot_tools/
-	# NOTE: depot_tools is treated as BUNDLED DEPENDENCY (not removed during clean)
-	# TEMPORARY APPROACH: For official Debian submission, depot_tools must be:
-	#   - Included in orig.tar.xz, OR
-	#   - Packaged separately as debian package
-	# Future: Phase 2 will include depot_tools in orig.tar.xz (see README.source)
-	# DO NOT remove depot_tools/ here - it's part of the source package
+	# Note: depot-tools/ (hyphen, MUT component) is no longer used for builds.
+	# System /usr/bin/gn and /usr/bin/ninja are used directly instead.
 	dh_auto_clean

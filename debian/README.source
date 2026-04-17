@@ -8,7 +8,7 @@ source format. All source components are distributed as separate tarballs.
 SOURCE PACKAGE STRUCTURE (MUT)
 ================================================================================
 
-The source package consists of 4 tarballs:
+The source package consists of 3 tarballs:
 
     chromium-embedded-framework_VERSION.orig.tar.xz
         CEF source code (main upstream tarball)
@@ -19,20 +19,17 @@ The source package consists of 4 tarballs:
     chromium-embedded-framework_VERSION.orig-chromium-debian.tar.xz
         Debian Chromium patches (from Debian chromium source package)
 
-    chromium-embedded-framework_VERSION.orig-depot-tools.tar.xz
-        Google's depot_tools build system
-
 When extracted with dpkg-source -x, these create:
 
     chromium-embedded-framework-VERSION/
     ├── cef/                    <- CEF source (from orig.tar.xz)
     ├── chromium/               <- From orig-chromium.tar.xz
     ├── chromium-debian/        <- From orig-chromium-debian.tar.xz
-    ├── depot-tools/            <- From orig-depot-tools.tar.xz (note: hyphen)
     └── debian/                 <- Packaging files
 
-NOTE: MUT component names use HYPHENS (depot-tools), not underscores.
-The main tarball contains CEF source in a cef/ subdirectory.
+NOTE: No depot_tools dependency. Like Debian Chromium, this package calls
+system /usr/bin/gn and /usr/bin/ninja directly (from generate-ninja and
+ninja-build packages).
 
 ================================================================================
 BUILD INSTRUCTIONS
@@ -62,9 +59,9 @@ must first create and extract the source package:
     $ cd build-dir
     $ dpkg-buildpackage -us -uc
 
-This is necessary because MUT component tarballs (orig-chromium.tar.xz,
-orig-depot-tools.tar.xz) have internal directory names that differ from the
-component names. dpkg-source -x handles the renaming automatically.
+This is necessary because MUT component tarballs (orig-chromium.tar.xz)
+have internal directory names that differ from the component names.
+dpkg-source -x handles the renaming automatically.
 
 DO NOT attempt to manually extract component tarballs - use dpkg-source -x.
 
@@ -111,8 +108,8 @@ Quick Start (copy-paste these commands):
     dpkg-buildpackage -us -uc
 
 Notes:
-- Step 3: The script downloads CEF, Chromium, depot-tools, and Debian Chromium
-  patches automatically. It creates all 4 MUT component tarballs. It tries
+- Step 3: The script downloads CEF, Chromium, and Debian Chromium
+  patches automatically. It creates all 3 MUT component tarballs. It tries
   apt-get source first, then falls back to dget from security.debian.org or
   deb.debian.org if needed.
 - Step 5: dpkg-source -x applies quilt patches and extracts all MUT components.
@@ -162,12 +159,7 @@ Why a separate MUT component (not embedded in orig-chromium.tar.xz):
 - Makes Debian patch application transparent and auditable
 - Makes the source package fully self-contained (works in sbuild/buildd)
 
-4. depot-tools (orig-depot-tools.tar.xz)
-----------------------------------------
-Obtained from: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-This tarball is cleaned of binary files (.cipd*, *.exe, *.dll, etc.)
-
-5. Rust Standard Library (system rust-src)
+4. Rust Standard Library (system rust-src)
 ------------------------------------------
 The build uses system rust-src package (Build-Depends: rust-src).
 
@@ -196,32 +188,26 @@ infrastructure, requiring source-level integration with a matching Chromium
 version. A headers-only approach (chromium-headers package) would not work
 because the ninja build targets depend on compiled Chromium object files.
 
-2. WHY DEPOT_TOOLS IS BUNDLED
+2. NO DEPOT_TOOLS DEPENDENCY
 -----------------------------
-depot_tools is Google's build infrastructure for Chromium-based projects.
-CEF's automate-git.py script expects depot_tools for:
-- gclient: Dependency management and configuration
-- gn: Build file generation
-- autoninja: Parallel compilation wrapper
+Unlike upstream CEF builds that use Google's depot_tools (gclient, autoninja),
+this package calls system /usr/bin/gn and /usr/bin/ninja directly — the same
+approach used by the Debian chromium package.
+
+depot_tools is purely an orchestration layer: no GN files, ninja rules, or
+built binaries reference it. The build uses:
+- generate-ninja package (/usr/bin/gn) for build file generation
+- ninja-build package (/usr/bin/ninja) for compilation
+- CEF's version_manager.py and make_distrib.py called directly
 
 NETWORK ISOLATION: This package does NOT access the internet during build.
-- Patch 0003-network-isolation-disable-google-storage-downloads makes
-  download_from_google_storage.py a no-op
-- The --no-depot-tools-update flag prevents upstream pulls
-- All source is bundled in the MUT tarballs
-
-The git clone commands in debian/rules error messages only explain how to
-obtain depot_tools if missing - they don't execute during normal builds.
+All source is bundled in the MUT tarballs.
 
 3. LOCAL GIT INITIALIZATION
 ---------------------------
 debian/rules creates local git repositories with git init && git commit.
-This satisfies CEF's automate-git.py which expects git repositories for
-source directories. This is completely network-free but unusual for Debian.
-
-A cleaner approach would be patching automate-git.py to remove git
-requirements entirely, though the necessary changes would be complex
-for limited benefit.
+This satisfies CEF's version_manager.py and make_distrib.py which use
+git for version detection. This is completely network-free.
 
 ================================================================================
 CONFIGURATION DECISIONS
@@ -252,17 +238,12 @@ This follows established Debian patterns:
 - polymake (4GB/job): https://sources.debian.org/src/polymake/4.12-3/debian/rules/?hl=15#L15
 - Pending debhelper MR: https://salsa.debian.org/debian/debhelper/-/merge_requests/128
 
-2. DISTRIBUTION CONFIGURATION (--minimal-distrib-only)
+2. DISTRIBUTION CONFIGURATION (--minimal)
 ------------------------------------------------------
-CEF's automate-git.py can create multiple distribution types (standard, minimal,
-client, sandbox, tools). This package uses --minimal-distrib-only to create
-only the minimal distribution.
+CEF's make_distrib.py creates only the minimal distribution (--minimal flag).
 
 Why minimal-only:
-- Creates only 1 distribution command (vs 2+ with --minimal-distrib)
-- Avoids parallel execution of make_distrib.py processes
 - Skips doxygen documentation generation (saves 1-2GB memory)
-- Prevents OOM during distribution phase on memory-constrained systems
 - Minimal distribution contains everything needed for Debian packages:
   * libcef.so (Release build)
   * Headers (include/)
@@ -275,9 +256,8 @@ What minimal excludes (not needed for Debian packages):
 - Test applications (cefclient, ceftests)
 - Doxygen documentation
 
-IMPORTANT: The --minimal-distrib flag (without -only) creates BOTH standard
-and minimal distributions, which can trigger parallel execution and OOM.
-Always use --minimal-distrib-only for single-distribution builds.
+The --no-format flag is also passed to skip clang-format on headers
+(purely cosmetic, avoids spawning 16,000+ processes).
 
 3. SYSTEM LIBC++ (use_custom_libcxx=false)
 ------------------------------------------
@@ -300,79 +280,13 @@ PATCHES
 CEF Patches (debian/patches/*.cef.patch)
 ----------------------------------------
 Applied via quilt during dpkg-source extraction.
-Patch paths have cef/ prefix (e.g., cef/tools/automate/automate-git.py).
+Patch paths have cef/ prefix (e.g., cef/tools/gn_args.py).
 See debian/patches/series for the order.
-
-Key patches:
-- 0017-sequential-distribution-commands.cef.patch: Forces sequential execution
-  of make_distrib.py even when multiple distribution types are requested.
-  This prevents OOM by avoiding parallel file copying operations. With
-  --minimal-distrib-only this patch is redundant but provides a safety net.
-
-- 0018-disable-distrib-clang-format.cef.patch: Disables clang-format during
-  distribution phase. See "CLANG-FORMAT AND MUT BUILDS" section below.
 
 Chromium Patches (debian/patches/chromium/*.chromium.patch)
 -----------------------------------------------------------
 Applied manually via patch -p1 in debian/rules.
 These patches modify Chromium source, not CEF source.
-
-================================================================================
-CLANG-FORMAT AND MUT BUILDS
-================================================================================
-
-The distribution phase (make_distrib.py) formats C/C++ headers using clang-format.
-This causes problems specific to MUT tarball builds that don't occur with git-cloned
-depot_tools.
-
-The Problem:
------------
-When make_distrib.py copies header files, it calls clang_format_inplace() for each
-C/C++ file (~16,000 headers). This resolves to depot-tools/clang_format.py, a Python
-wrapper that:
-
-1. Tries FindClangFormatToolInChromiumTree() - searches for bundled clang-format
-2. Calls gclient_paths.GetPrimarySolutionPath() - searches for .gclient file
-3. Runs 'git rev-parse --show-toplevel' subprocess when .gclient not found
-4. Falls back to FindClangFormatInPath() - searches PATH for clang-format
-
-Each header file spawns a NEW Python process with its own empty LRU cache, so:
-- 16,000+ Python processes (~20MB each)
-- 16,000+ git subprocesses
-- ~320GB virtual memory demand → OOM killer triggered
-
-Why MUT Builds Are Affected:
----------------------------
-Git-cloned depot_tools (pre-MUT):
-- Contains .cipd_bin/ with downloaded clang-format binary
-- Has cached state from previous gclient runs
-- clang_format.py finds the binary quickly
-
-Tarball-extracted depot-tools (MUT):
-- Clean extraction without .cipd/ or .cipd_bin/
-- No downloaded binaries (tarballs are static)
-- clang_format.py takes the slow search path for every file
-
-Why Not Just Add clang-format Build-Dep:
----------------------------------------
-Even with system clang-format installed, the slow path still executes first:
-1. Each process still calls FindClangFormatToolInChromiumTree()
-2. Still runs gclient_paths searches and git subprocesses
-3. Eventually finds /usr/bin/clang-format and succeeds
-4. But still spawns 16,000+ Python processes with git subprocesses
-
-The Solution:
-------------
-Patch 0018 adds --no-format to the make_distrib.py invocation, which:
-- Skips clang_format_inplace() entirely
-- Zero Python wrapper processes spawned
-- Zero git subprocesses
-- Distribution completes in seconds instead of OOM
-
-This is safe because:
-- Headers are already properly formatted by upstream CEF
-- Distribution headers are read-only for end users
-- clang-format is purely cosmetic, doesn't affect functionality
 
 ================================================================================
 SYSTEM BINARIES
@@ -408,9 +322,9 @@ Bitbucket repository has no git tags. CEF uses only branch numbers (e.g.,
 actual CEF version (e.g., 146.0.5) is derived from a VERSION file inside
 the source tree, which uscan cannot extract from git refs.
 
-The MUT component tarballs (chromium and depot-tools) could be tracked
-individually, but the Untrackable field applies globally to the entire
-watch file. Their stanzas are preserved as comments in debian/watch.
+The MUT component tarballs (chromium) could be tracked individually,
+but the Untrackable field applies globally to the entire watch file.
+Their stanzas are preserved as comments in debian/watch.
 
 To obtain MUT tarballs, use the helper script:
 
