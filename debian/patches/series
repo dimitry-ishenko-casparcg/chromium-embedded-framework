@@ -19,3 +19,4 @@
 # 0020 removed - old skip-list approach replaced by DEBIAN_BUILD=1 skip-all in 0001
 0021-remove-tracing-resources-chromium145.cef.patch
 # 0022 removed - upstream CEF branch 7632 already removed ui/gfx/ipc/skia reference
+# 0023 removed - context menu patch now applied with fuzz in debian/rules

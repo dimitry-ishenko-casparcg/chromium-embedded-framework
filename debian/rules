@@ -369,6 +369,11 @@ override_dh_auto_build:
 	cd $(CURDIR)/chromium_src/chromium/src/cef && \
 		DEBIAN_BUILD=0 python3 tools/patcher.py || \
 		echo "==> Some CEF patches failed (expected: targets stripped files like Windows/bundled libs)"
+	# Re-apply context menu patch with fuzz (Chromium 147.0.7727.101 shifted lines)
+	# git apply (used by patcher.py) doesn't support fuzz; patch(1) does.
+	cd $(CURDIR)/chromium_src/chromium/src && \
+		patch -p0 --fuzz=3 --forward --no-backup-if-mismatch \
+		< cef/patch/patches/chrome_browser_context_menus.patch || true
 	# Keep cef/ in chromium/src/ — needed for gn gen, ninja, and make_distrib.py
 	@echo "==> CEF patches applied to vanilla Chromium"
 
@@ -1186,9 +1191,13 @@ endif
 	export RUSTC_BOOTSTRAP=1 && \
 	export PATH=/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH && \
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
-	/usr/bin/ninja -j$(NINJA_JOBS) -C out/Release_GN_$(GN_CPU) cef chrome_sandbox
+	/usr/bin/ninja -j$(NINJA_JOBS) -C out/Release_GN_$(GN_CPU) libcef chrome_sandbox
 
 	# Step 8f: Run make_distrib.py (creates binary_distrib/ for packaging)
+	# Re-init git in cef/ — make_distrib.py requires git.is_checkout().
+	# The .git from Step 3.5 cp -a is absorbed by the parent chromium/src/.git.
+	@cd $(CURDIR)/chromium_src/chromium/src/cef && \
+		git init -q && git add -A && git commit --no-gpg-sign -q -m "CEF" 2>/dev/null || true
 	@echo "==> Creating CEF distribution"
 	cd $(CURDIR)/chromium_src/chromium/src/cef && \
 	python3 tools/make_distrib.py \
