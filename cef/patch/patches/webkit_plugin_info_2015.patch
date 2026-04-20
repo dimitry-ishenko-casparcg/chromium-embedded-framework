@@ -15,7 +15,7 @@ index a26e45d64229f692efb4a218c653afc212788d1f..19baf6756a282efa89c2350591dfc86e
    static void InitializeMainThreadCommon(
        std::unique_ptr<MainThread> main_thread);
 diff --git third_party/blink/renderer/core/inspector/devtools_session.cc third_party/blink/renderer/core/inspector/devtools_session.cc
-index 2455ee36882694244223f9341a66b77f5f1b1625..e3ec43e182b287092178f6f34e9df8ba9f0b3a78 100644
+index 4958a91f0558682dff5a004ea2f21594184fe611..7eff2833ea49f25f47da0f336c8f3ed80dcab5f2 100644
 --- third_party/blink/renderer/core/inspector/devtools_session.cc
 +++ third_party/blink/renderer/core/inspector/devtools_session.cc
 @@ -13,6 +13,7 @@
@@ -26,7 +26,7 @@ index 2455ee36882694244223f9341a66b77f5f1b1625..e3ec43e182b287092178f6f34e9df8ba
  #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
  #include "third_party/blink/renderer/core/frame/local_frame.h"
  #include "third_party/blink/renderer/core/inspector/devtools_agent.h"
-@@ -181,6 +182,7 @@ DevToolsSession::DevToolsSession(
+@@ -180,6 +181,7 @@ DevToolsSession::DevToolsSession(
      for (wtf_size_t i = 0; i < agents_.size(); i++)
        agents_[i]->Restore();
    }
@@ -34,7 +34,7 @@ index 2455ee36882694244223f9341a66b77f5f1b1625..e3ec43e182b287092178f6f34e9df8ba
  }
  
  DevToolsSession::~DevToolsSession() {
-@@ -227,6 +229,7 @@ void DevToolsSession::Detach() {
+@@ -226,6 +228,7 @@ void DevToolsSession::Detach() {
    v8_session_->stop();
    v8_session_.reset();
    agent_->client_->DebuggerTaskFinished();
