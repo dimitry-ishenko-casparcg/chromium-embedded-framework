@@ -57,6 +57,17 @@ else
     rm -rf "${PKG}-${VERSION}"
     echo "    Created: ${PKG}_${VERSION}.orig.tar.xz"
 fi
+
+# Sync cef/ in the package directory to match the orig tarball.
+# The git tree must contain pristine upstream source for 3.0 (quilt) to work:
+# dpkg-source -b compares the working tree against the orig tarball, and any
+# mismatch ends up in debian.tar.xz or causes quilt patch conflicts.
+if [ -d "${PKG}" ]; then
+    echo "    Syncing cef/ in ${PKG}/ to match orig tarball..."
+    rm -rf "${PKG}/cef"
+    tar -xf "${PKG}_${VERSION}.orig.tar.xz" --strip-components=1 -C "${PKG}"
+    echo "    Updated ${PKG}/cef/ (remember to commit to git)"
+fi
 echo ""
 
 # 2. Chromium component tarballs (from Debian)
@@ -145,6 +156,7 @@ du -ch "${PKG}_${VERSION}".orig*.tar.xz | tail -1
 echo ""
 echo "Next steps:"
 echo "  cd ${PKG}"
+echo "  git add cef/ && git commit -m 'Update cef/ source for CEF ${VERSION%%+*} branch ${CEF_BRANCH}'"
 echo "  dpkg-source -b ."
 echo "  cd .."
 echo "  dpkg-source -x ${PKG}_*.dsc build-dir"

@@ -383,12 +383,14 @@ Two helper scripts are provided in debian/scripts/ to simplify version updates:
 These scripts automate the manual steps below. See each script for usage.
 
 Updating CEF Version:
-1. Update CEF source in orig.tar.xz
+1. Run get-orig-tarballs.sh with new version/branch (creates orig.tar.xz
+   and updates cef/ in the git tree automatically)
 2. Update CEF_BRANCH in debian/rules
 3. Update chromium version to match CEF requirements
 4. Regenerate orig-chromium.tar.xz from new Debian chromium
 5. Run upgrade-helper.sh (resets +ds to 1 automatically)
-6. Test build and fix any patch conflicts
+6. Commit cef/ and debian/ changes to git
+7. Test build and fix any patch conflicts
 
 Updating Chromium Version (same CEF branch, new Chromium security release):
 
