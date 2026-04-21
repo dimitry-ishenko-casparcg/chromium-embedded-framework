@@ -1,5 +1,8 @@
 ---
-# CEF build pipeline for Salsa custom runner
+# CEF multi-architecture build pipeline for Salsa custom runner
+# Two independent chains: build → check → publish (one per arch)
+# Either architecture can run alone or both together
+#
 # Requires custom runner — shared runners have 3h timeout (CEF needs 7h+)
 
 stages:
@@ -11,187 +14,167 @@ variables:
   DEBIAN_FRONTEND: noninteractive
   PKG: chromium-embedded-framework
 
-build-cef:
+# ── Shared templates ──────────────────────────────────────────────────
+
+.build-template:
   stage: build
   tags: ["cef-builder"]
-  timeout: 24h
-  # Disable GitLab caching entirely — chromium_src must NEVER be reused across
-  # runs. Stale compiled objects hide fresh-build failures (e.g. missing files
-  # in ninja .pydeps inputs that are only checked when stamp files don't exist).
   cache: []
   rules:
     - if: $GITLAB_USER_LOGIN == "mendezr"
       when: manual
     - when: never
-  script:
-    - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
-    - echo "Building CEF ${UPSTREAM_VERSION}"
 
-    # Show runner capabilities
-    - echo "CPU cores:$(nproc) RAM:$(free -h | grep Mem | awk '{print $2}') Disk:$(df -h . | tail -1 | awk '{print $4}')"
-
-    - export TMPDIR="$PWD/tmp"
-    - mkdir -p "$TMPDIR"
-
-    # Extract Chromium version and CEF branch from debian/rules
-    - CHROMIUM_VERSION=$(sed -n 's/^CHROMIUM_VERSION := //p' debian/rules)
-    - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
-    - echo "Chromium ${CHROMIUM_VERSION}, CEF branch ${CEF_BRANCH}"
-
-    # Clean stale files from previous runs to ensure only current-version files are published
-    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc *.deb *.buildinfo *.changes
-
-    # Obtain MUT tarballs (4 components: cef, chromium, chromium-debian, depot-tools)
-    - chmod +x ./${PKG}/debian/scripts/get-orig-tarballs.sh
-    - ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "$CHROMIUM_VERSION" && cd ${PKG}
-
-    # Follow the exact README.source workflow (dpkg-source -b / -x)
-    # This is the same path a Debian Developer would take
-    - dpkg-source -b .
-    - cd ..
-    - rm -rf build-dir
-    - dpkg-source -x ${PKG}_${UPSTREAM_VERSION}-*.dsc build-dir
-    - cd build-dir
-    - dpkg-buildpackage -b -us -uc
-
-    # Collect build output — files are individually browsable and downloadable
-    # via the GitLab job artifacts browser (CI/CD → Jobs → browse artifacts)
-    - rm -rf ${CI_PROJECT_DIR}/build-output
-    - mkdir -p ${CI_PROJECT_DIR}/build-output
-    - cp ../*.deb ../*.dsc ../*.buildinfo ../*.changes ${CI_PROJECT_DIR}/build-output/
-
-    # Export build job ID so the publish job can link to these exact artifacts
-    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build.env
-
-  artifacts:
-    paths:
-      - build-output/
-    reports:
-      dotenv: build.env
-    expire_in: 30 days
-    when: on_success
-
-lintian:
+.lintian-template:
   stage: check
   tags: ["cef-builder"]
-  needs: ["build-cef"]
   script:
-    - lintian --info --display-info --pedantic build-output/*.deb || true
+    - lintian --info --display-info --pedantic build-output-${ARCH}/*.deb || true
   allow_failure: true
 
-publish-release:
+.publish-template:
   stage: publish
   tags: ["cef-builder"]
-  needs: ["build-cef"]
   rules:
     - if: $GITLAB_USER_LOGIN == "mendezr"
       when: on_success
     - when: never
   script:
     - DEB_VERSION=$(dpkg-parsechangelog -S Version)
-    - CEF_MAJOR=$(echo "$DEB_VERSION" | cut -d. -f1)
-    - TAG_NAME="debian/${DEB_VERSION}"
-    - echo "Creating release ${TAG_NAME} pointing to job ${BUILD_JOB_ID}"
+    - >-
+      export ARCH DEB_VERSION
+      BUILD_JOB_ID ARTIFACT_DIR
+      CI_API_V4_URL CI_PROJECT_ID CI_PROJECT_URL CI_COMMIT_SHA
+      SALSA_API_TOKEN
+    - python3 debian/scripts/publish-release.py
 
-    # Build per-file artifact URLs using the build job's ID (stable, permanent link)
-    - BASE="${CI_PROJECT_URL}/-/jobs/${BUILD_JOB_ID}/artifacts/raw/build-output"
+# ── amd64 chain ───────────────────────────────────────────────────────
 
-    # Export shell variables so the Python subprocess can read them via os.environ
-    - export DEB_VERSION CEF_MAJOR TAG_NAME BASE
+build-amd64:
+  extends: .build-template
+  timeout: 8h
+  script:
+    - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
+    - DEB_VERSION=$(dpkg-parsechangelog -S Version)
+    - echo "Building CEF ${UPSTREAM_VERSION} for amd64"
+    - echo "CPU cores:$(nproc) RAM:$(free -h | grep Mem | awk '{print $2}') Disk:$(df -h . | tail -1 | awk '{print $4}')"
 
-    # Create tag (via API, more reliable than git push with CI_JOB_TOKEN) and
-    # GitLab Release with individual file download links.
-    # JOB-TOKEN is sufficient for both (GitLab >= 15.2).
-    # 409 on either means it already exists — treated as success.
+    - export TMPDIR="$PWD/tmp"
+    - mkdir -p "$TMPDIR"
+
+    - CHROMIUM_VERSION=$(sed -n 's/^CHROMIUM_VERSION := //p' debian/rules)
+    - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
+    - echo "Chromium ${CHROMIUM_VERSION}, CEF branch ${CEF_BRANCH}"
+
+    # Clean stale files from previous runs
+    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc *.deb *.buildinfo *.changes
+
+    # Obtain MUT tarballs
+    - chmod +x ./${PKG}/debian/scripts/get-orig-tarballs.sh
+    - ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "$CHROMIUM_VERSION" && cd ${PKG}
+
+    # Build source package, then use sbuild for clean chroot build
+    - dpkg-source -b .
+    - cd ..
     - |
-      python3 - <<'EOF'
-      import json, os, urllib.request, urllib.error, urllib.parse
+      sbuild --arch=amd64 --dist=unstable \
+        --no-clean-source --build-dep-resolver=apt --verbose \
+        ${PKG}_${UPSTREAM_VERSION}-*.dsc
 
-      ver      = os.environ["DEB_VERSION"]
-      major    = os.environ["CEF_MAJOR"]
-      tag      = os.environ["TAG_NAME"]
-      base     = os.environ["BASE"]
-      base_api = f"{os.environ['CI_API_V4_URL']}/projects/{os.environ['CI_PROJECT_ID']}"
-      token    = os.environ["SALSA_API_TOKEN"].strip()  # PAT stored as masked CI variable
-      sha      = os.environ["CI_COMMIT_SHA"]
+    # Collect artifacts (sbuild output in current directory, source pkg too)
+    - rm -rf ${CI_PROJECT_DIR}/build-output-amd64
+    - mkdir -p ${CI_PROJECT_DIR}/build-output-amd64
+    - cp *.deb *.buildinfo *.changes ${CI_PROJECT_DIR}/build-output-amd64/
+    - cp ${PKG}_${UPSTREAM_VERSION}-*.dsc ${PKG}_${UPSTREAM_VERSION}-*.debian.tar.* ${CI_PROJECT_DIR}/build-output-amd64/
 
-      def api(method, url, data=None):
-          payload = json.dumps(data).encode() if data else None
-          req = urllib.request.Request(
-              url, data=payload,
-              headers={"Content-Type": "application/json", "PRIVATE-TOKEN": token},
-              method=method,
-          )
-          try:
-              urllib.request.urlopen(req)
-              return True
-          except urllib.error.HTTPError as e:
-              body = e.read().decode()
-              if e.code in (400, 404, 409):
-                  return False
-              print(f"ERROR {e.code}: {body}")
-              raise
+    # Export metadata for publish job
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build-amd64.env
+    - echo "DEB_VERSION=${DEB_VERSION}" >> ${CI_PROJECT_DIR}/build-amd64.env
+    - echo "ARCH=amd64" >> ${CI_PROJECT_DIR}/build-amd64.env
+    - echo "ARTIFACT_DIR=build-output-amd64" >> ${CI_PROJECT_DIR}/build-amd64.env
 
-      # Step 1: create tag pointing at the current pipeline commit.
-      # If it exists but points to a different commit (rebuilt same version),
-      # delete it first so the tag always reflects the latest build.
-      created = api("POST", f"{base_api}/repository/tags",
-                    {"tag_name": tag, "ref": sha})
-      if not created:
-          existing = urllib.request.urlopen(
-              urllib.request.Request(
-                  f"{base_api}/repository/tags/{urllib.parse.quote(tag, safe='')}",
-                  headers={"PRIVATE-TOKEN": token},
-              )
-          ).read()
-          if json.loads(existing)["commit"]["id"] != sha:
-              api("DELETE", f"{base_api}/repository/tags/{urllib.parse.quote(tag, safe='')}")
-              api("POST",   f"{base_api}/repository/tags", {"tag_name": tag, "ref": sha})
-              print(f"Tag {tag} replaced (new commit)")
-          else:
-              print(f"Tag {tag} already exists at same commit — keeping")
+  artifacts:
+    paths:
+      - build-output-amd64/
+    reports:
+      dotenv: build-amd64.env
+    expire_in: 30 days
+    when: on_success
 
-      links = [
-          {"name": f"libcef{major}_{ver}_amd64.deb",
-           "url":  f"{base}/libcef{major}_{ver}_amd64.deb",          "link_type": "package"},
-          {"name": f"libcef{major}-dbgsym_{ver}_amd64.deb",
-           "url":  f"{base}/libcef{major}-dbgsym_{ver}_amd64.deb",   "link_type": "package"},
-          {"name": f"libcef-dev_{ver}_amd64.deb",
-           "url":  f"{base}/libcef-dev_{ver}_amd64.deb",             "link_type": "package"},
-          {"name": f"libcef-common_{ver}_all.deb",
-           "url":  f"{base}/libcef-common_{ver}_all.deb",            "link_type": "package"},
-          {"name": f"chromium-embedded-framework_{ver}.dsc",
-           "url":  f"{base}/chromium-embedded-framework_{ver}.dsc",  "link_type": "other"},
-          {"name": f"chromium-embedded-framework_{ver}_amd64.buildinfo",
-           "url":  f"{base}/chromium-embedded-framework_{ver}_amd64.buildinfo", "link_type": "other"},
-          {"name": f"chromium-embedded-framework_{ver}_amd64.changes",
-           "url":  f"{base}/chromium-embedded-framework_{ver}_amd64.changes",   "link_type": "other"},
-      ]
-      # Step 2: create release; if it exists delete and recreate so asset
-      # links always point to the latest build job's artifacts.
-      created = api("POST", f"{base_api}/releases", {
-          "name":        ver,
-          "tag_name":    tag,
-          "description": f"Debian binary package for Chromium Embedded Framework {ver}.",
-          "assets":      {"links": links},
-      })
-      if not created:
-          api("DELETE", f"{base_api}/releases/{urllib.parse.quote(tag, safe='')}")
-          api("POST",   f"{base_api}/releases", {
-              "name":        ver,
-              "tag_name":    tag,
-              "description": f"Debian binary package for Chromium Embedded Framework {ver}.",
-              "assets":      {"links": links},
-          })
-          print(f"Release {tag} replaced (updated artifact links)")
-      else:
-          print(f"Release {tag} created")
-      EOF
+lintian-amd64:
+  extends: .lintian-template
+  needs: ["build-amd64"]
+  variables:
+    ARCH: amd64
 
-    # Mark the build job's artifacts as permanent so release links never expire
+publish-amd64:
+  extends: .publish-template
+  needs:
+    - job: build-amd64
+      artifacts: true
+
+# ── arm64 chain ───────────────────────────────────────────────────────
+
+build-arm64:
+  extends: .build-template
+  timeout: 48h
+  script:
+    - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
+    - DEB_VERSION=$(dpkg-parsechangelog -S Version)
+    - echo "Building CEF ${UPSTREAM_VERSION} for arm64"
+    - echo "CPU cores:$(nproc) RAM:$(free -h | grep Mem | awk '{print $2}') Disk:$(df -h . | tail -1 | awk '{print $4}')"
+
+    - export TMPDIR="$PWD/tmp"
+    - mkdir -p "$TMPDIR"
+
+    - CHROMIUM_VERSION=$(sed -n 's/^CHROMIUM_VERSION := //p' debian/rules)
+    - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
+    - echo "Chromium ${CHROMIUM_VERSION}, CEF branch ${CEF_BRANCH}"
+
+    # Clean stale files from previous runs
+    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc *.deb *.buildinfo *.changes
+
+    # Obtain MUT tarballs
+    - chmod +x ./${PKG}/debian/scripts/get-orig-tarballs.sh
+    - ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "$CHROMIUM_VERSION" && cd ${PKG}
+
+    # Build source package, then use sbuild for arm64 (QEMU emulation)
+    - dpkg-source -b .
+    - cd ..
     - |
-      curl --silent --show-error \
-        --request POST \
-        --header "PRIVATE-TOKEN: ${SALSA_API_TOKEN}" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${BUILD_JOB_ID}/artifacts/keep" \
-        && echo "Artifacts for job ${BUILD_JOB_ID} marked as permanent"
+      sbuild --arch=arm64 --host=arm64 \
+        --chroot=sid-arm64-sbuild --dist=unstable \
+        --no-clean-source --build-dep-resolver=apt --verbose \
+        ${PKG}_${UPSTREAM_VERSION}-*.dsc
+
+    # Collect artifacts (sbuild output in current directory, source pkg too)
+    - rm -rf ${CI_PROJECT_DIR}/build-output-arm64
+    - mkdir -p ${CI_PROJECT_DIR}/build-output-arm64
+    - cp *.deb *.buildinfo *.changes ${CI_PROJECT_DIR}/build-output-arm64/
+    - cp ${PKG}_${UPSTREAM_VERSION}-*.dsc ${PKG}_${UPSTREAM_VERSION}-*.debian.tar.* ${CI_PROJECT_DIR}/build-output-arm64/
+
+    # Export metadata for publish job
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build-arm64.env
+    - echo "DEB_VERSION=${DEB_VERSION}" >> ${CI_PROJECT_DIR}/build-arm64.env
+    - echo "ARCH=arm64" >> ${CI_PROJECT_DIR}/build-arm64.env
+    - echo "ARTIFACT_DIR=build-output-arm64" >> ${CI_PROJECT_DIR}/build-arm64.env
+
+  artifacts:
+    paths:
+      - build-output-arm64/
+    reports:
+      dotenv: build-arm64.env
+    expire_in: 30 days
+    when: on_success
+
+lintian-arm64:
+  extends: .lintian-template
+  needs: ["build-arm64"]
+  variables:
+    ARCH: arm64
+
+publish-arm64:
+  extends: .publish-template
+  needs:
+    - job: build-arm64
+      artifacts: true
