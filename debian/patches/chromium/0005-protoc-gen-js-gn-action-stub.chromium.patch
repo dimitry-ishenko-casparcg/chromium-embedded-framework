@@ -4,41 +4,31 @@ Description: Compile locale stub library using GN action to bypass ThinLTO
  conflicts with glibc headers.
  .
  This patch uses a GN action() target to compile the locale stub library
- (liblocale_stub.a) using clang++-19 directly, completely bypassing the GN config
- system and ThinLTO. The action runs after gn gen but before ninja compiles
- protoc-gen-js, ensuring correct timing and symbol preservation.
+ (liblocale_stub.a) using clang++ from clang_base_path, completely bypassing
+ the GN config system and ThinLTO. The action runs after gn gen but before
+ ninja compiles protoc-gen-js, ensuring correct timing and symbol preservation.
  .
- Previous approaches (Builds 165-175h):
- - Build 165-174: Adding stub to sources with config changes - FAILED (ThinLTO still applied)
- - Build 175: Pre-compiling in debian/rules - FAILED (gn gen cleans out/ directory)
- .
- GN action() approach (Build 175i):
- - Compiles AFTER gn gen (correct timing)
- - Uses direct clang++-19 invocation (bypasses GN configs)
- - Bypasses ThinLTO completely (no -flto flags applied)
- - Library available when ninja needs it
- .
- Technical details:
- - action() executes shell commands, not GN compilation
- - rebase_path() converts GN paths to filesystem paths for shell commands
- - GN variables like $root_out_dir must be converted with rebase_path()
-   before concatenation into shell command strings (fixed in build 196+)
- - deps = [ ":compile_locale_stub" ] ensures correct build order
+ Uses clang_base_path GN variable (set via GN_DEFINES in debian/rules) instead
+ of hardcoding clang++-19, so the patch works across LLVM version upgrades.
 Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2026-02-20
+Last-Update: 2026-04-22
 
 diff --git a/third_party/protobuf-javascript/BUILD.gn b/third_party/protobuf-javascript/BUILD.gn
-index d6fa1d7..bbf68f4 100644
+index d6fa1d7..3508dcc 100644
 --- a/third_party/protobuf-javascript/BUILD.gn
 +++ b/third_party/protobuf-javascript/BUILD.gn
-@@ -4,6 +4,32 @@
+@@ -2,8 +2,36 @@
+ # Use of this source code is governed by a BSD-style license that can be
+ # found in the LICENSE file.
 
++import("//build/config/clang/clang.gni")
++
  # Only compile the compiler for the host architecture.
  if (current_toolchain == host_toolchain) {
 +  # Debian: Compile locale stub library outside GN config system
-+  # This action() compiles the stub with clang++-19 directly, bypassing ThinLTO
++  # This action() compiles the stub with clang++ directly, bypassing ThinLTO
 +  action("compile_locale_stub") {
 +    script = "//build/gn_run_binary.py"
 +
@@ -54,7 +44,7 @@ index d6fa1d7..bbf68f4 100644
 +      "/bin/sh",
 +      "-c",
 +      "mkdir -p " + rebase_path(root_out_dir, root_build_dir) + "/obj/debian && " +
-+      "clang++-19 -std=c++17 -c " +
++      rebase_path(clang_base_path + "/bin/clang++", root_build_dir) + " -std=c++17 -c " +
 +      "-isystem " + rebase_path("//third_party/libc++/src/include", root_build_dir) + " " +
 +      "-isystem " + rebase_path("//third_party/perfetto/buildtools/libcxx_config", root_build_dir) + " " +
 +      rebase_path("//debian/cef_locale_stub.cpp", root_build_dir) + " " +
@@ -66,7 +56,7 @@ index d6fa1d7..bbf68f4 100644
    executable("protoc-gen-js") {
      sources = [
        "src/generator/js_generator.cc",
-@@ -13,12 +39,19 @@ if (current_toolchain == host_toolchain) {
+@@ -13,12 +41,19 @@ if (current_toolchain == host_toolchain) {
        "src/generator/well_known_types_embed.h",
      ]
      include_dirs = [ "src" ]

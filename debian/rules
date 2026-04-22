@@ -462,7 +462,9 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0004-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-protoc-gen-js-gn-action-stub.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-disable-panic-immediate-abort.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-bindgen-libclang-abspath.chromium.patch
+	# Disabled: libclang path is already handled by chromium-debian's fixes/bindgen-paths.patch
+	# which uses clang_base_path GN variable instead of hardcoding llvm-19 path
+	#patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-bindgen-libclang-abspath.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0008-skip-nodejs-version-check.chromium.patch
 	# Stub BUILD.gn for bundled libc++ when using system libc++ (use_custom_libcxx=false)
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-add-stub-libcxx-build-gn.chromium.patch
@@ -980,8 +982,8 @@ override_dh_auto_build:
 		ln -sf $$lib $(CURDIR)/chromium_src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/$(LLVM_TRIPLE)/$$target 2>/dev/null || true; \
 	done
 	@echo "==> LLVM symlinks created successfully"
-	# libclang discovery is handled by patch 0007-bindgen-libclang-abspath.chromium.patch
-	# which converts relative paths to absolute paths in run_bindgen.py
+	# libclang discovery is handled by chromium-debian's fixes/bindgen-paths.patch
+	# which uses clang_base_path GN variable to set _libclang_path in run_bindgen.py
 
 	## Step 7d: Symlink system Node.js to expected location
 	## Why: Chromium expects Node.js at third_party/node/linux/node-linux-x64/bin/node
