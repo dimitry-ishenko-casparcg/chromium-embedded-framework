@@ -234,8 +234,8 @@ export GN_DEFINES += enable_backup_ref_ptr_support=false
 ## DECISION (Build 206+): Use SYSTEM libc++ (use_custom_libcxx=false)
 ##
 ## Implementation:
-## - Patch 0011: Created CEF unbundle toolchain (cef/toolchain/linux/debian/BUILD.gn)
-## - Patch 0012: Added GetDebianArgs() to cef/tools/gn_args.py
+## - Patch 0011 (removed): Created CEF unbundle toolchain (cef/toolchain/linux/debian/BUILD.gn)
+## - Patch 0005: Added GetDebianArgs() to cef/tools/gn_args.py
 ## - When DEBIAN_BUILD=1 (line 7), GetDebianArgs() injects custom_toolchain
 ## - Toolchain reads CXXFLAGS/LDFLAGS from environment at GN parse time via getenv()
 ## - CXXFLAGS/LDFLAGS contain -stdlib=libc++ (lines 27-28)
@@ -416,7 +416,7 @@ override_dh_auto_build:
 	#   1. We're using Debian tarball sources, not upstream chromium
 	#   2. Patch 0005 skips gclient revert which would need 'origin'
 	#   3. Patch 0006 skips chromium checkout which would need tags
-	#   4. Patches 0007-0008 handle tarball mode (source_tarball=True in .gclient)
+	#   4. Patches 0003-0004 handle tarball mode (source_tarball=True in .gclient)
 	#   5. No git/network operations needed - all sources are local (Debian CI compatible)
 	#   6. Forward compatible: when chromium-source package exists, patch 0006
 	#      will skip checkout and preserve the real git repo with real tags
@@ -432,7 +432,7 @@ override_dh_auto_build:
 
 	# Step 6.3: Copy locale stub source to Chromium source tree (Build 175i)
 	# GN action() will compile it after gn gen but before ninja compiles protoc-gen-js
-	# Note: Patch 0008 creates this file in chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp
+	# Note: Patch 0004 creates this file in chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp
 	@echo "==> Copying locale stub source to chromium/src/debian/"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/debian
 	cp $(CURDIR)/chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp $(CURDIR)/chromium_src/chromium/src/debian/

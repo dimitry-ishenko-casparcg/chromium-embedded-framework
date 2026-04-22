@@ -1,22 +1,9 @@
 0001-debian-patcher-skip-logic.cef.patch
 0002-use-system-clang.cef.patch
-# 0003 removed - reclient stub was in automate-git.py, no longer used
-# 0004 removed - exec_script patching moved to debian/rules Step 7b
-# 0005 removed - gclient revert skip no longer needed (no gclient)
-# 0006 removed - chromium checkout skip no longer needed (no automate-git.py)
-0007-allow-optimize-webui-false-debian.cef.patch
-0008-add-locale-stub-for-protoc-gen-js.cef.patch
-# 0010 removed - rust-toolchain stub moved to debian/rules Step 8a
-# 0011 removed - opus stub no longer overwritten (no gclient runhooks)
-0012-add-gn-debian-args-function.cef.patch
-0013-remove-pseudolocales-conditional.cef.patch
-0014-disable-assert-redefinition-cef-logging.cef.patch
-0015-add-debian-cef-rpath-for-angle.cef.patch
-# 0016 removed - autoninja full-path fix no longer needed (using ninja directly)
-# 0017 removed - sequential distrib commands no longer needed (calling make_distrib.py directly)
-# 0018 removed - distrib clang-format disable no longer needed (--no-format passed directly)
-# 0019 removed - not needed for CEF 145 / Chromium 145
-# 0020 removed - old skip-list approach replaced by DEBIAN_BUILD=1 skip-all in 0001
-0021-remove-tracing-resources-chromium145.cef.patch
-# 0022 removed - upstream CEF branch 7632 already removed ui/gfx/ipc/skia reference
-# 0023 removed - context menu patch now applied with fuzz in debian/rules
+0003-allow-optimize-webui-false-debian.cef.patch
+0004-add-locale-stub-for-protoc-gen-js.cef.patch
+0005-add-gn-debian-args-function.cef.patch
+0006-remove-pseudolocales-conditional.cef.patch
+0007-disable-assert-redefinition-cef-logging.cef.patch
+0008-add-debian-cef-rpath-for-angle.cef.patch
+0009-remove-tracing-resources-chromium145.cef.patch
