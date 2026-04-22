@@ -462,70 +462,67 @@ override_dh_auto_build:
 	patch -p1 -d $(CURDIR)/chromium_src < debian/patches/chromium/0004-fix-dri-pkg-config-debian.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0005-protoc-gen-js-gn-action-stub.chromium.patch
 	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0006-disable-panic-immediate-abort.chromium.patch
-	# Disabled: libclang path is already handled by chromium-debian's fixes/bindgen-paths.patch
-	# which uses clang_base_path GN variable instead of hardcoding llvm-19 path
-	#patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-bindgen-libclang-abspath.chromium.patch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0008-skip-nodejs-version-check.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0007-skip-nodejs-version-check.chromium.patch
 	# Stub BUILD.gn for bundled libc++ when using system libc++ (use_custom_libcxx=false)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-add-stub-libcxx-build-gn.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0008-add-stub-libcxx-build-gn.chromium.patch
 	# SwiftShader reactor conditional target (for subzero-disabled builds)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0010-swiftshader-reactor-handle-no-backends.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0009-swiftshader-reactor-handle-no-backends.chromium.patch
 	# Skip JS proto generation due to protobuf version mismatch
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0011-skip-js-proto-generation.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0010-skip-js-proto-generation.chromium.patch
 	# Fix LLVM-16 C++23/libc++ compatibility in SwiftShader (23 files)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0012-swiftshader-llvm16-cxx23-unified.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0011-swiftshader-llvm16-cxx23-unified.chromium.patch
 	# Add xcb library to ANGLE X11 libs for Vulkan XCB backend
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-angle-add-xcb-library.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0012-angle-add-xcb-library.chromium.patch
 	# Remove nightly-only Rust options from crabbyavif BUILD.gn
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-fix-rust-nightly-option-crabbyavif.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0013-fix-rust-nightly-option-crabbyavif.chromium.patch
 	# Fix GCC 15 libstdc++ std::optional::emplace() with aggregate types
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0015-gcc15-optional-emplace-aggregate-fixes.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0014-gcc15-optional-emplace-aggregate-fixes.chromium.patch
 	# Fix GCC 15 consteval errors with MakeFixedFlatSet/Map and std::string
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-gcc15-consteval-string-fixes.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0015-gcc15-consteval-string-fixes.chromium.patch
 	# Fix GCC 15 libstdc++ flat_map with move-only OnceCallback
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-wayland-color-manager-flat-map-fix.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0016-wayland-color-manager-flat-map-fix.chromium.patch
 	# Fix GCC 15 libstdc++ CodePointIterator incomplete type in wtf_string.h
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0018-wtf-string-codepoint-iterator-include.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0017-wtf-string-codepoint-iterator-include.chromium.patch
 	# Add enable_cef to GRIT defines for components_strings
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-grit-enable-cef-define.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0018-grit-enable-cef-define.chromium.patch
 	# Add enable_cef to chrome_grit_defines for preprocess_if_expr
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-add-enable-cef-to-chrome-grit-defines.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0019-add-enable-cef-to-chrome-grit-defines.chromium.patch
 	# Fix ToValueList to use std::move for projection results
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0021-fix-to-value-list-move-for-append.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0020-fix-to-value-list-move-for-append.chromium.patch
 	# Fix surface_aggregator AggregateStatistics emplace for GCC 15
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0022-surface-aggregator-emplace-fix.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0021-surface-aggregator-emplace-fix.chromium.patch
 	# Fix compose config MakeFixedFlatSet consteval with std::string for GCC 15
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-compose-config-consteval-fix.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0022-compose-config-consteval-fix.chromium.patch
 	# Stub test_fonts/fontconfig BUILD.gn - test fonts stripped from Debian tarball
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-test-fonts-fontconfig-stub.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0023-test-fonts-fontconfig-stub.chromium.patch
 	# Look for ANGLE libs in cef/ subdirectory on Linux (avoid GLVND/Mesa conflicts)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-angle-libs-cef-subdir.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0024-angle-libs-cef-subdir.chromium.patch
 	# Fix StringPrintf format args for abseil strict checking
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0026-audio-device-stringprintf-cstr-fix.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0025-audio-device-stringprintf-cstr-fix.chromium.patch
 	# Disable assert redefinition in base/logging.h for abseil compatibility
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-disable-assert-redefinition-for-abseil.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0026-disable-assert-redefinition-for-abseil.chromium.patch
 	# Disable assert redefinition in partition_alloc logging.h for abseil/perfetto
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0028-disable-assert-redefinition-partition-alloc.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0027-disable-assert-redefinition-partition-alloc.chromium.patch
 	# Fix assert macro in abseil/perfetto headers (explicit define after includes)
-	tail -n +18 debian/patches/chromium/0029-fix-assert-macro-cassert-after-includes.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
+	tail -n +18 debian/patches/chromium/0028-fix-assert-macro-cassert-after-includes.chromium.patch | patch -p1 -d $(CURDIR)/chromium_src/chromium/src
 	# Fix PulseAudio assert errors - xmalloc.h uses assert() but logging.h undefines it
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0030-pulseaudio-assert-fix.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0029-pulseaudio-assert-fix.chromium.patch
 	# Fix cookie_util.cc iterator type mismatch for system libc++
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-fix-cookie-util-iterator-types.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0030-fix-cookie-util-iterator-types.chromium.patch
 	# Add CEF resources dependency to about_ui BUILD.gn
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-add-cef-resources-dep-about-ui.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0031-add-cef-resources-dep-about-ui.chromium.patch
 	# Work around missing string_hash() in system GN (Debian bug #1127702)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0033-gn-string-hash-workaround.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0032-gn-string-hash-workaround.chromium.patch
 	# Disable len() assert in rust_bindgen.gni (Debian bug #1127702)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0034-gn-len-workaround.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0033-gn-len-workaround.chromium.patch
 	# Disable bytemuck nightly_portable_simd (API changed in rustc-1.92.0)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-disable-bytemuck-nightly-portable-simd.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0034-disable-bytemuck-nightly-portable-simd.chromium.patch
 	# Disable sanitize_c_array_bounds to fix clang-19 ICE
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-disable-sanitize-c-array-bounds-clang19-ice.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0035-disable-sanitize-c-array-bounds-clang19-ice.chromium.patch
 	# Remove operator<=> from .cc to fix clang-19 ICE (complements Debian Chromium llvm-19/clang-19-crash.patch)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0037-fix-origin-wildcards-spaceship-clang19-ice.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0036-fix-origin-wildcards-spaceship-clang19-ice.chromium.patch
 	# Stub PdfViewerPrivateGlicSummarizeFunction (glic disabled in Debian)
-	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0038-stub-pdf-viewer-glic-summarize.chromium.patch
+	patch -p1 -d $(CURDIR)/chromium_src/chromium/src < debian/patches/chromium/0037-stub-pdf-viewer-glic-summarize.chromium.patch
 	# NOTE: libcpp-headers patch not needed - Debian Chromium tarball already has this fix applied
 	@echo "==> Debian Chromium patches applied"
 
@@ -1028,7 +1025,7 @@ endif
 	@echo "==> Creating symlink to system rustc in third_party/rust-toolchain/bin/"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
 	ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
-	# Node.js version check is disabled by patch 0020-skip-nodejs-version-check.chromium.patch
+	# Node.js version check is disabled by patch 0007-skip-nodejs-version-check.chromium.patch
 	# System node (v20.19.5) is used directly without symlink
 
 	## Step 7f: Copy bundled Rust std library vendor crates

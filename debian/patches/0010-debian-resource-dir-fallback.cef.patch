@@ -1,0 +1,51 @@
+Description: Fallback to /usr/share/cef for CEF resource files on Debian
+ CEF resolves resource paths (icudtl.dat, PAK files, locales) relative to
+ libcef.so via DIR_ASSETS, which points to /usr/lib/<multiarch>/ on Debian.
+ Debian policy requires arch-independent data in /usr/share/, so resources
+ are installed to /usr/share/cef/ by libcef-common.
+ .
+ This patch adds a Linux-only fallback: when icudtl.dat is not found at the
+ default DIR_ASSETS path, check /usr/share/cef/ before failing. This avoids
+ the need for symlinks in /usr/lib/ and works for all architectures.
+ .
+ Without this patch, CEF crashes with "Invalid file descriptor to ICU data
+ received" unless the application explicitly sets resources_dir_path.
+Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-22
+
+diff --git a/cef/libcef/common/resource_util.cc b/cef/libcef/common/resource_util.cc
+index 22e6672..7ce6bfa 100644
+--- a/cef/libcef/common/resource_util.cc
++++ b/cef/libcef/common/resource_util.cc
+@@ -6,6 +6,7 @@
+
+ #if BUILDFLAG(IS_LINUX)
+ #include <dlfcn.h>
++#include "base/files/file_util.h"
+ #endif
+
+ #include "base/base_paths.h"
+@@ -118,6 +119,21 @@ base::FilePath GetResourcesDir() {
+ base::FilePath GetResourcesDir() {
+   base::FilePath pak_dir;
+   base::PathService::Get(base::DIR_ASSETS, &pak_dir);
++
++#if BUILDFLAG(IS_LINUX)
++  // Debian: resources are in /usr/share/cef (arch-independent, FHS-compliant).
++  // CEF resolves DIR_ASSETS to the directory containing libcef.so
++  // (e.g. /usr/lib/x86_64-linux-gnu) which does not contain resource files.
++  // Check the Debian path when the default location lacks icudtl.dat.
++  if (pak_dir.empty() ||
++      !base::PathExists(pak_dir.Append(FILE_PATH_LITERAL("icudtl.dat")))) {
++    const base::FilePath debian_dir(FILE_PATH_LITERAL("/usr/share/cef"));
++    if (base::PathExists(debian_dir.Append(FILE_PATH_LITERAL("icudtl.dat")))) {
++      return debian_dir;
++    }
++  }
++#endif
++
+   return pak_dir;
+ }
+
