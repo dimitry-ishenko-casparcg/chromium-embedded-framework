@@ -116,21 +116,6 @@ acceleration is unavailable. The Vulkan ICD configuration is installed to:
 
   /usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
-**FFmpeg Codec Support:**
-
-CEF is built with is_component_ffmpeg=true, which means it dynamically loads
-the system's libffmpeg.so for media codec support. This enables:
-
-  - H.264/AVC video decoding (when libavcodec-extra is installed)
-  - AAC audio decoding (when libavcodec-extra is installed)
-  - Other codecs supported by FFmpeg
-
-The package declares: Depends: libavcodec-extra | libavcodec61
-
-For full media playback support (e.g., streaming services), install:
-
-  sudo apt install libavcodec-extra
-
 **Resource Files:**
 
 CEF resource files (PAK files, locales, ICU data) are in the libcef-common

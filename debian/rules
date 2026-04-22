@@ -164,8 +164,6 @@ export GN_DEFINES += rustc_version=\"$(shell $(rust_sysroot)/bin/rustc --version
 export GN_DEFINES += clang_base_path=\"/usr/lib/llvm-$(CLANG_MVERS)\"
 export GN_DEFINES += clang_version=\"$(CLANG_MVERS)\"
 
-# FFmpeg: Use system libffmpeg.so for codec support (H.264/AAC when available)
-export GN_DEFINES += is_component_ffmpeg=true
 
 # CEF build configuration
 export GN_DEFINES += target_cpu=\"$(GN_CPU)\"

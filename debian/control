@@ -125,7 +125,7 @@ Vcs-Git: https://salsa.debian.org/debian/chromium-embedded-framework.git
 Package: libcef147
 Architecture: amd64 arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}, chromium-sandbox, libegl1, libgles2,
-         libvulkan1, libavcodec-extra | libavcodec61
+         libvulkan1
 Breaks: libcef138, libcef144, libcef145, libcef146
 Replaces: libcef138, libcef144, libcef145, libcef146
 Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)

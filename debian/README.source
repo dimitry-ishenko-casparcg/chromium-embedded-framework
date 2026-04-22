@@ -268,10 +268,10 @@ Aligns with Debian Chromium's approach.
 -------------------------------
 Uses Debian's clang-19 toolchain. No bundled compiler.
 
-5. SYSTEM FFMPEG (is_component_ffmpeg=true)
--------------------------------------------
-Uses system FFmpeg for media codecs.
-Enables H.264/AAC when user installs libavcodec-extra.
+5. FFMPEG (statically linked)
+-----------------------------
+FFmpeg is statically linked into libcef.so from Chromium's third_party/ffmpeg/.
+Built with proprietary_codecs=true and ffmpeg_branding="Chrome" for H.264/AAC support.
 
 ================================================================================
 PATCHES
