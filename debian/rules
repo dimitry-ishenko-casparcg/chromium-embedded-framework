@@ -86,7 +86,7 @@ MEM_LIMIT_BYTES := $(shell cat /sys/fs/cgroup/memory.max 2>/dev/null | grep -v m
                           echo 0)
 MEM_TOTAL_KB := $(shell awk '/MemTotal/ {print $$2}' /proc/meminfo 2>/dev/null || echo 0)
 
-# Reserved memory for system processes (kernel, desktop, Claude, etc.)
+# Reserved memory for system processes (kernel, desktop, etc.)
 # This prevents OOM killer from terminating unrelated processes during build
 CEF_SYSTEM_RESERVE_MB := 8192
 
@@ -648,7 +648,7 @@ endif
 	##   - 145 application crates at third_party/rust/
 	##   - 153 vendor crates at third_party/rust/chromium_crates_io/vendor/
 	## NO downloads needed - everything from orig.tar.xz (Debian Policy compliant)
-	## See: CLAUDE.md Critical Lesson 9 for details
+	## See: README.source for details
 	@echo "============================================================"
 	@echo "==> Verifying Rust crates from Chromium tarball"
 	@echo "============================================================"
