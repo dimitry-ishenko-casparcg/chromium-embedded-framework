@@ -250,12 +250,12 @@ export GN_DEFINES += enable_backup_ref_ptr_support=false
 ## 8. Build uses system libc++-19 (/usr/lib/llvm-19/lib/libc++.so.1)
 ##
 ## Why This Works (Build 206+ Success):
-## ✅ Aligns with Debian Chromium unbundling policy
-## ✅ Uses system libc++-19-dev package (no bundled libraries)
-## ✅ Custom toolchain reads environment variables at GN parse time
-## ✅ Based on Debian Chromium's unbundle toolchain approach
-## ✅ No need to port Debian Chromium's 50+ unbundle patches
-## ✅ CEF-specific solution that works with automate-git.py
+## - Aligns with Debian Chromium unbundling policy
+## - Uses system libc++-19-dev package (no bundled libraries)
+## - Custom toolchain reads environment variables at GN parse time
+## - Based on Debian Chromium's unbundle toolchain approach
+## - No need to port Debian Chromium's 50+ unbundle patches
+## - CEF-specific solution that works with automate-git.py
 ##
 ## Previous Approach (Builds 199-205):
 ## - Builds 199-202: Failed with system libc++ due to missing unbundle infrastructure
@@ -372,7 +372,7 @@ override_dh_auto_build:
 	cd $(CURDIR)/chromium_src/chromium/src && \
 		patch -p0 --fuzz=3 --forward --no-backup-if-mismatch \
 		< cef/patch/patches/chrome_browser_context_menus.patch || true
-	# Keep cef/ in chromium/src/ — needed for gn gen, ninja, and make_distrib.py
+	# Keep cef/ in chromium/src/ -- needed for gn gen, ninja, and make_distrib.py
 	@echo "==> CEF patches applied to vanilla Chromium"
 
 	# Step 5.2: Setup system Node.js and rollup (following Debian Chromium approach)
@@ -531,7 +531,7 @@ override_dh_auto_build:
 		$(CURDIR)/chromium_src/chromium/src/DEPS
 	@echo "==> generate_location_tags condition fixed"
 
-	# Step 7: (removed — system /usr/bin/gn called directly, no buildtools symlink needed)
+	# Step 7: (removed -- system /usr/bin/gn called directly, no buildtools symlink needed)
 
 	# Step 7.5: Create stub files for Debian-stripped directories
 	@echo "==> Creating Debian stub main.cc for empty executables"
@@ -713,11 +713,11 @@ override_dh_auto_build:
 		echo "Install: apt-get install rollup"; \
 		exit 1; \
 	fi
-	@echo "==> Creating symlink for @rollup/wasm-node → system rollup (devtools-frontend)"
+	@echo "==> Creating symlink for @rollup/wasm-node -> system rollup (devtools-frontend)"
 	cd $(CURDIR)/chromium_src/chromium/src/third_party/devtools-frontend/src && \
 	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
 	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
-	@echo "==> Creating symlink for @rollup/wasm-node → system rollup (third_party/node)"
+	@echo "==> Creating symlink for @rollup/wasm-node -> system rollup (third_party/node)"
 	cd $(CURDIR)/chromium_src/chromium/src/third_party/node && \
 	mkdir -p node_modules/@rollup/wasm-node/dist/bin && \
 	ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
@@ -1004,7 +1004,7 @@ endif
 	@# Find system rust-src library directory dynamically
 	@RUST_SRC_LIB=$$(ls -d /usr/src/rustc-*/library 2>/dev/null | tail -1); \
 	if [ -z "$$RUST_SRC_LIB" ] || [ ! -d "$$RUST_SRC_LIB" ]; then \
-		echo "❌ ERROR: System rust-src not found"; \
+		echo "ERROR: System rust-src not found"; \
 		echo "Please install rust-src package: apt install rust-src"; \
 		exit 1; \
 	fi; \
@@ -1014,9 +1014,9 @@ endif
 		$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/; \
 	echo "==> Rust std library copied from system rust-src"; \
 	if [ -f $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs ]; then \
-		echo "✅ Verified: condvar.rs exists (requires rust-src >= 1.91.1)"; \
+		echo "OK: Verified: condvar.rs exists (requires rust-src >= 1.91.1)"; \
 	else \
-		echo "❌ ERROR: condvar.rs missing - rust-src version too old"; \
+		echo "ERROR: condvar.rs missing - rust-src version too old"; \
 		echo "Required: rust-src >= 1.91.1"; \
 		exit 1; \
 	fi
@@ -1037,11 +1037,11 @@ endif
 	# cp -r $(CURDIR)/debian/vendor-crates/vendor/* \
 	# 	$(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/
 	# @vendor_count=$$(ls -1 $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/vendor/ | wc -l); \
-	# echo "📦 Copied $$vendor_count vendor crates for Rust std library compilation"; \
+	# echo "Copied $$vendor_count vendor crates for Rust std library compilation"; \
 	# if [ $$vendor_count -ge 30 ]; then \
-	# 	echo "✅ Vendor crates copied successfully"; \
+	# 	echo "OK: Vendor crates copied successfully"; \
 	# else \
-	# 	echo "❌ ERROR: Expected ~36 vendor crates, found $$vendor_count"; \
+	# 	echo "ERROR: Expected ~36 vendor crates, found $$vendor_count"; \
 	# 	exit 1; \
 	# fi
 
@@ -1070,7 +1070,7 @@ endif
 		'' \
 		'// Empty module - no Objective-C on Linux' \
 		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin/objc.rs
-	@echo "✅ Created stubs: cygwin/net.rs, darwin/objc.rs"
+	@echo "==> Created stubs: cygwin/net.rs, darwin/objc.rs"
 
 	## Step 7f: Verify Rust vendor crates from Chromium tarball exist
 	## Why: Chromium tarball (extracted in Step 5) ALREADY contains all Rust dependencies:
@@ -1078,26 +1078,26 @@ endif
 	##   - 153 vendor crates at third_party/rust/chromium_crates_io/vendor/
 	## NO downloads needed - everything from orig.tar.xz (Debian Policy compliant)
 	## See: CLAUDE.md Critical Lesson 9 for details
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "🦀 Verifying Rust crates from Chromium tarball"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "============================================================"
+	@echo "==> Verifying Rust crates from Chromium tarball"
+	@echo "============================================================"
 	@app_crates=$$(ls -1d $(CURDIR)/chromium_src/chromium/src/third_party/rust/*/ 2>/dev/null | wc -l); \
 	vendor_crates=$$(ls -1 $(CURDIR)/chromium_src/chromium/src/third_party/rust/chromium_crates_io/vendor/ 2>/dev/null | wc -l); \
-	echo "📦 Application crates: $$app_crates (expected: 145)"; \
-	echo "📦 Vendor crates: $$vendor_crates (expected: 153)"; \
+	echo "Application crates: $$app_crates (expected: 145)"; \
+	echo "Vendor crates: $$vendor_crates (expected: 153)"; \
 	echo ""; \
 	if [ $$app_crates -ge 140 ] && [ $$vendor_crates -ge 150 ]; then \
-		echo "✅ All Rust dependencies available from Chromium tarball"; \
-		echo "✅ No downloads needed - Debian Policy compliant"; \
+		echo "OK: All Rust dependencies available from Chromium tarball"; \
+		echo "OK: No downloads needed - Debian Policy compliant"; \
 	else \
-		echo "❌ ERROR: Missing Rust crates from Chromium tarball!"; \
+		echo "ERROR: Missing Rust crates from Chromium tarball!"; \
 		echo "   App crates: $$app_crates (need 140+)"; \
 		echo "   Vendor crates: $$vendor_crates (need 150+)"; \
 		exit 1; \
 	fi
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "============================================================"
 
-	## Step 8: Build CEF (direct gn/ninja — no depot_tools or automate-git.py)
+	## Step 8: Build CEF (direct gn/ninja -- no depot_tools or automate-git.py)
 	## Like Debian Chromium, we call system /usr/bin/gn and /usr/bin/ninja directly.
 	## This replaces automate-git.py which was only an orchestration layer around
 	## gclient (dependency sync) + gclient_hook.py (gn gen) + autoninja (ninja wrapper).
@@ -1137,7 +1137,7 @@ endif
 	/usr/bin/ninja -j$(NINJA_JOBS) -C out/Release_GN_$(GN_CPU) libcef chrome_sandbox
 
 	# Step 8f: Run make_distrib.py (creates binary_distrib/ for packaging)
-	# Re-init git in cef/ — make_distrib.py requires git.is_checkout().
+	# Re-init git in cef/ -- make_distrib.py requires git.is_checkout().
 	# The .git from Step 3.5 cp -a is absorbed by the parent chromium/src/.git.
 	@cd $(CURDIR)/chromium_src/chromium/src/cef && \
 		git init -q && git add -A && git commit --no-gpg-sign -q -m "CEF" 2>/dev/null || true

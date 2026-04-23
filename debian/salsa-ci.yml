@@ -1,9 +1,9 @@
 ---
 # CEF multi-architecture build pipeline for Salsa custom runner
-# Two independent chains: build → check → publish (one per arch)
+# Two independent chains: build -> check -> publish (one per arch)
 # Either architecture can run alone or both together
 #
-# Requires custom runner — shared runners have 3h timeout (CEF needs 7h+)
+# Requires custom runner -- shared runners have 3h timeout (CEF needs 7h+)
 
 stages:
   - build

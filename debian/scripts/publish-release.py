@@ -141,8 +141,8 @@ def main():
     if ok:
         print(f"Release {tag} created with {arch} assets")
     else:
-        # Release exists (other arch published first) — append links
-        print(f"Release {tag} exists — appending {arch} asset links")
+        # Release exists (other arch published first) -- append links
+        print(f"Release {tag} exists -- appending {arch} asset links")
         for link in links:
             ok, _ = api(
                 "POST",

@@ -191,7 +191,7 @@ because the ninja build targets depend on compiled Chromium object files.
 2. NO DEPOT_TOOLS DEPENDENCY
 -----------------------------
 Unlike upstream CEF builds that use Google's depot_tools (gclient, autoninja),
-this package calls system /usr/bin/gn and /usr/bin/ninja directly — the same
+this package calls system /usr/bin/gn and /usr/bin/ninja directly -- the same
 approach used by the Debian chromium package.
 
 depot_tools is purely an orchestration layer: no GN files, ninja rules, or
