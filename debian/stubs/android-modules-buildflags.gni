@@ -1,0 +1,7 @@
+# Stub buildflags.gni for Debian builds
+# Debian strips Android files since we're building for Linux only
+
+declare_args() {
+  # Android-specific flag for symbol partitioning (not used on Linux)
+  use_native_partitions = false
+}

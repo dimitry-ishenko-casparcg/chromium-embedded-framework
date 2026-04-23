@@ -1,0 +1,3 @@
+# Stub BUILD.gn for Debian builds - test directory
+group("SystemUnitTests") {}
+executable("swiftshader_system_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }

@@ -1,0 +1,2 @@
+# Stub BUILD.gn for Debian builds - enterprise_companion stripped
+group("old_enterprise_companion") {}

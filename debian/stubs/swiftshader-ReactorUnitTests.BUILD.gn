@@ -1,0 +1,4 @@
+# Stub BUILD.gn for Debian builds - test directory
+group("ReactorUnitTests") {}
+executable("swiftshader_reactor_llvm_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }
+executable("swiftshader_reactor_subzero_unittests") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }

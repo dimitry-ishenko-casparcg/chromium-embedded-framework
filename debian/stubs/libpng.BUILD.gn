@@ -1,0 +1,12 @@
+# Stub BUILD.gn for Debian builds - uses system libpng
+# Links to system libpng via libs = [ "png" ]
+
+config("libpng_config") {
+  include_dirs = [ "/usr/include/libpng16" ]
+}
+
+source_set("libpng") {
+  sources = []
+  public_configs = [ ":libpng_config" ]
+  libs = [ "png" ]
+}

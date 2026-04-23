@@ -1,0 +1,4 @@
+# Stub BUILD.gn for Debian builds - uses system fontconfig via pkg-config
+import("//build/config/linux/pkg_config.gni")
+pkg_config("fontconfig_config") { packages = [ "fontconfig" ] }
+source_set("fontconfig") { sources = [] public_configs = [ ":fontconfig_config" ] }

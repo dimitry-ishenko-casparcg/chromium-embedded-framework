@@ -1,0 +1,2 @@
+# Stub BUILD.gn for Debian builds - bundled tool
+source_set("gsutil") {}

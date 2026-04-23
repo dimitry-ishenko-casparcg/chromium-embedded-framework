@@ -1,0 +1,3 @@
+# Stub BUILD.gn for Debian builds - catapult stripped
+group("convert_chart_json") {}
+group("generate_about_tracing") {}

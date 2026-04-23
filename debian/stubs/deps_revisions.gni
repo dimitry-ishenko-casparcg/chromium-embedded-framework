@@ -1,0 +1,3 @@
+# Stub deps_revisions.gni for Debian builds - buildtools stripped
+# Define variables required by build system
+libcxx_revision = "unknown"

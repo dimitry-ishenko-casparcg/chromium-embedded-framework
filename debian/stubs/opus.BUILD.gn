@@ -1,0 +1,18 @@
+# Stub BUILD.gn for Debian builds
+# Debian uses system libopus instead of bundled version
+# These are test/demo targets not needed for CEF
+
+source_set("opus") {
+  sources = []
+  public_configs = [ ":opus_config" ]
+  libs = [ "opus" ]
+}
+config("opus_config") {
+  include_dirs = [ "/usr/include/opus" ]
+}
+executable("opus_compare") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }
+executable("opus_demo") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }
+executable("test_opus_api") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }
+executable("test_opus_decode") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }
+executable("test_opus_encode") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }
+executable("test_opus_padding") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }

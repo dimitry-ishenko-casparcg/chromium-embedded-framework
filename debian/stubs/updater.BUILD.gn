@@ -1,0 +1,2 @@
+# Stub BUILD.gn for Debian builds - updater test dependency
+group("old_updater") {}

@@ -1,0 +1,2 @@
+# Stub fontconfig.gni for Debian builds - uses system fontconfig
+use_bundled_fontconfig = false

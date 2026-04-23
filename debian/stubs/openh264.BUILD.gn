@@ -1,0 +1,18 @@
+# Stub BUILD.gn for Debian builds - uses system openh264
+# Links to system libopenh264 via libs = [ "openh264" ]
+
+config("openh264_config") {
+  include_dirs = [ "/usr/include/wels" ]
+}
+
+source_set("decoder") {
+  sources = []
+  public_configs = [ ":openh264_config" ]
+  libs = [ "openh264" ]
+}
+
+source_set("encoder") {
+  sources = []
+  public_configs = [ ":openh264_config" ]
+  libs = [ "openh264" ]
+}

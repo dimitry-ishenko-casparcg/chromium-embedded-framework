@@ -1,0 +1,3 @@
+# Stub BUILD.gn for Debian builds - catapult stripped
+group("reserved_infos") {}
+group("histogram") {}

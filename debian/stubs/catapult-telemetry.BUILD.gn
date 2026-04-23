@@ -1,0 +1,5 @@
+# Stub BUILD.gn for Debian builds
+# Debian strips catapult testing tools
+# This is a test/benchmark tool not needed for CEF
+
+executable("bitmaptools") { sources = [ "//third_party/debian_stubs/stub_main.cc" ] }

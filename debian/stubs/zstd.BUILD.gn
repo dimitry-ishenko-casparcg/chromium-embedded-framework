@@ -1,0 +1,4 @@
+# Stub BUILD.gn for Debian builds - uses system zstd
+config("zstd_config") { libs = [ "zstd" ] }
+source_set("decompress") { sources = [] public_configs = [ ":zstd_config" ] }
+source_set("compress") { sources = [] public_configs = [ ":zstd_config" ] }

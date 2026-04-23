@@ -1,0 +1,3 @@
+# Stub BUILD.gn for Debian builds - test data directory
+group("puffin_patch_test") {}
+group("puffin_patch_test_files") {}

@@ -1,0 +1,5 @@
+# Stub BUILD.gn for Debian builds - uses system zlib
+config("zlib_config") { libs = [ "z" ] }
+source_set("zlib") { sources = [] public_configs = [ ":zlib_config" ] }
+config("minizip_config") { libs = [ "minizip" ] }
+source_set("minizip") { sources = [] public_configs = [ ":minizip_config" ] }

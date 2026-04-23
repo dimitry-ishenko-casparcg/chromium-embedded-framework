@@ -1,0 +1,2 @@
+# Stub BUILD.gn for Debian builds - catapult stripped
+group("telemetry_chrome_test_support") {}
