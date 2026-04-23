@@ -229,46 +229,19 @@ export GN_DEFINES += enable_backup_ref_ptr_support=false
 ## ============================================================================
 ## LIBC++ CONFIGURATION: System libc++ via Custom Unbundle Toolchain
 ## ============================================================================
-## DECISION (Build 206+): Use SYSTEM libc++ (use_custom_libcxx=false)
-##
-## Implementation:
-## - Patch 0011 (removed): Created CEF unbundle toolchain (cef/toolchain/linux/debian/BUILD.gn)
-## - Patch 0005: Added GetDebianArgs() to cef/tools/gn_args.py
-## - When DEBIAN_BUILD=1 (line 7), GetDebianArgs() injects custom_toolchain
-## - Toolchain reads CXXFLAGS/LDFLAGS from environment at GN parse time via getenv()
-## - CXXFLAGS/LDFLAGS contain -stdlib=libc++ (lines 27-28)
-## - Toolchain sets use_custom_libcxx=false in toolchain_args
+## Uses SYSTEM libc++ (use_custom_libcxx=false) instead of bundled.
 ##
 ## How It Works:
-## 1. debian/rules exports DEBIAN_BUILD=1 (line 7)
-## 2. debian/rules exports CXXFLAGS/LDFLAGS with -stdlib=libc++ (lines 27-28)
-## 3. automate-git.py runs, which calls gn_args.py
-## 4. GetDebianArgs() detects DEBIAN_BUILD=1, returns custom_toolchain
-## 5. GN selects //cef/toolchain/linux/debian:default
-## 6. Toolchain reads CXXFLAGS/LDFLAGS via getenv() at GN parse time
-## 7. Toolchain sets use_custom_libcxx=false in toolchain_args
-## 8. Build uses system libc++-19 (/usr/lib/llvm-19/lib/libc++.so.1)
+## 1. debian/rules exports DEBIAN_BUILD=1 and CXXFLAGS/LDFLAGS with -stdlib=libc++
+## 2. CEF patch 0005 adds GetDebianArgs() to cef/tools/gn_args.py
+## 3. GetDebianArgs() detects DEBIAN_BUILD=1, injects custom_toolchain
+## 4. GN selects //cef/toolchain/linux/debian:default
+## 5. Toolchain reads CXXFLAGS/LDFLAGS via getenv() at GN parse time
+## 6. Toolchain sets use_custom_libcxx=false in toolchain_args
+## 7. Build uses system libc++-19 (/usr/lib/llvm-19/lib/libc++.so.1)
 ##
-## Why This Works (Build 206+ Success):
-## - Aligns with Debian Chromium unbundling policy
-## - Uses system libc++-19-dev package (no bundled libraries)
-## - Custom toolchain reads environment variables at GN parse time
-## - Based on Debian Chromium's unbundle toolchain approach
-## - No need to port Debian Chromium's 50+ unbundle patches
-## - CEF-specific solution that works with automate-git.py
-##
-## Previous Approach (Builds 199-205):
-## - Builds 199-202: Failed with system libc++ due to missing unbundle infrastructure
-## - Builds 203-205: Used bundled libc++ (use_custom_libcxx=true) as workaround
-## - Problem: Bundled libc++ doesn't align with Debian policy
-##
-## Key Difference from Previous Failures:
-## - Previous: Tried to use system libc++ WITHOUT unbundle toolchain
-## - Now: Created CEF unbundle toolchain inspired by Debian Chromium
-## - Critical: Toolchain reads flags via getenv() at GN PARSE time (not build time)
+## Based on Debian Chromium's unbundle toolchain approach.
 ## ============================================================================
-# Note: GN_DEFINES is set in the automate-git.py invocation (line ~797)
-# Individual settings like use_custom_libcxx=false and use_thin_lto=false are there
 
 # CEF branch (derived from CHROMIUM_VERSION - 3rd component: 146.0.7680.153 -> 7680)
 CEF_BRANCH := $(word 3,$(subst ., ,$(CHROMIUM_VERSION)))
@@ -277,8 +250,8 @@ CEF_BRANCH := $(word 3,$(subst ., ,$(CHROMIUM_VERSION)))
 	dh $@
 
 override_dh_auto_configure:
-	# automate-git.py handles configuration
-	@echo "CEF build will be configured by automate-git.py"
+	# Configuration is handled in override_dh_auto_build (gn gen)
+	@echo "CEF build will be configured by gn gen in build step"
 
 override_dh_dwz:
 	# Skip dwz - Chromium uses DWARF5 debug info with .debug_str_offsets
@@ -292,23 +265,17 @@ override_dh_dwz:
 ##
 ## 1. EXEC_SCRIPT RESTRICTION FIX
 ##    - Problem: CEF uses exec_script in BUILD.gn (security-restricted by GN)
-##    - Challenge: .gn config file doesn't exist until automate-git.py syncs Chromium
-##    - Solution: Patch automate-git.py (0004-patch-gn-for-exec-script.patch)
-##      to insert .gn patching logic after gclient sync but before gclient runhooks
-##    - This is the professional approach: uses upstream tooling, single patch file,
-##      no complex multi-phase shell logic, easy to maintain
+##    - Solution: Step 7b patches .gn to add //cef/BUILD.gn to exec_script_allowlist
 ##
-## 2. STUB BUILD.GN FILES (34+ stubs currently)
+## 2. STUB BUILD.GN FILES (32 stubs in debian/stubs/)
 ##    - Problem: GN requires BUILD.gn files for all dependencies during configuration
 ##    - Challenge: Debian strips bundled third-party sources per policy
-##    - Solution: Create empty stub BUILD.gN files with group() or source_set() targets
-##    - Simplification: If Debian policy allows bundled sources, remove all stubs
+##    - Solution: Install stub BUILD.gn files with group() or source_set() targets
 ##
 ## 3. GIT REPOSITORY REQUIREMENTS
-##    - Problem: automate-git.py expects git repositories for CEF and Chromium
-##    - Challenge: Debian source packages aren't git repositories
+##    - Problem: patcher.py and make_distrib.py expect git repositories
+##    - Challenge: Debian source packages are not git repositories
 ##    - Solution: Initialize temporary git repos in Steps 3.5 and 6
-##    - Simplification: Could patch automate-git.py to skip git checks
 ## ============================================================================
 
 override_dh_auto_build:
@@ -319,15 +286,9 @@ override_dh_auto_build:
 	cp -a $(CURDIR)/cef $(CURDIR)/chromium_src/
 
 	# Step 2: Remove quilt .pc directory from copied source (cleanup only)
-	# dpkg-source creates .pc in the source root, not in cef/, but clean just in case
 	rm -rf $(CURDIR)/chromium_src/cef/.pc
 
-	# Step 3: SKIPPED - CEF patches already applied by dpkg-source during extraction
-	# With MUT + quilt format (debian/source/format = "3.0 (quilt)"), patches in
-	# debian/patches/series are automatically applied when running dpkg-source -x
-	# The cef/ directory we copied in Step 1 already has all patches applied.
-
-	# Step 3.5: Initialize CEF directory as git repository (required by automate-git.py)
+	# Step 3.5: Initialize CEF directory as git repository (required by patcher.py)
 	@echo "==> Initializing git repository in CEF source"
 	cd $(CURDIR)/chromium_src/cef && \
 		git init && \
@@ -345,7 +306,7 @@ override_dh_auto_build:
 	# Step 5: Move Chromium source from MUT-extracted directory
 	# MUT (Multiple Upstream Tarball) extracts orig-chromium.tar.xz to chromium/
 	# The tarball has source at root level (base/, build/, chrome/, etc.)
-	# CEF expects: chromium_src/chromium/src/ (see automate-git.py line 1227)
+	# CEF expects: chromium_src/chromium/src/
 	# Use mv (not cp -a) to avoid reading/writing 5.6GB which fills page cache
 	# Pre-MUT used tar -xf + mv approach; this matches that behavior
 	@echo "==> Moving Chromium source from MUT-extracted directory"
@@ -406,19 +367,9 @@ override_dh_auto_build:
 		done
 	@echo "==> Debian Chromium patches applied successfully"
 
-	# Step 6: Initialize git repository in chromium (required by automate-git.py)
+	# Step 6: Initialize git repository in chromium (required by make_distrib.py)
 	@echo "==> Initializing git repository in chromium source"
-	# Remove ALL .git directories from Debian chromium tarball to prevent conflicts
-	# gclient sync will move any existing .git directories to _bad_scm, which breaks the build
-	# Note: We intentionally do NOT add 'origin' remote or tags here because:
-	#   1. We're using Debian tarball sources, not upstream chromium
-	#   2. Patch 0005 skips gclient revert which would need 'origin'
-	#   3. Patch 0006 skips chromium checkout which would need tags
-	#   4. Patches 0003-0004 handle tarball mode (source_tarball=True in .gclient)
-	#   5. No git/network operations needed - all sources are local (Debian CI compatible)
-	#   6. Forward compatible: when chromium-source package exists, patch 0006
-	#      will skip checkout and preserve the real git repo with real tags
-	@echo "==> Removing all .git directories from chromium tree (prevents gclient sync conflicts)"
+	@echo "==> Removing all .git directories from chromium tree"
 	find $(CURDIR)/chromium_src/chromium/src -type d -name '.git' -exec rm -rf {} + 2>/dev/null || true
 	@echo "==> Creating new git repository in chromium/src"
 	cd $(CURDIR)/chromium_src/chromium/src && \
@@ -426,11 +377,10 @@ override_dh_auto_build:
 		git config user.name "Debian Builder" && \
 		git config user.email "builder@debian.org" && \
 		git commit --no-gpg-sign --allow-empty -m "Initial chromium source from Debian tarball"
-	@echo "==> Git repository initialized (empty commit to avoid OOM)"
+	@echo "==> Git repository initialized"
 
-	# Step 6.3: Copy locale stub source to Chromium source tree (Build 175i)
-	# GN action() will compile it after gn gen but before ninja compiles protoc-gen-js
-	# Note: Patch 0004 creates this file in chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp
+	# Step 6.3: Copy locale stub source to Chromium source tree
+	# GN action() will compile it after gn gen
 	@echo "==> Copying locale stub source to chromium/src/debian/"
 	mkdir -p $(CURDIR)/chromium_src/chromium/src/debian
 	cp $(CURDIR)/chromium_src/cef/tools/debian_stubs/cef_locale_stub.cpp $(CURDIR)/chromium_src/chromium/src/debian/
@@ -446,10 +396,8 @@ override_dh_auto_build:
 			$(CURDIR)/chromium_src/chromium/src/DEPS && \
 		echo "==> DEPS patched: git_dependencies set to 'DEPS'"; \
 	else \
-		echo "WARNING: DEPS file not found at $(CURDIR)/chromium_src/chromium/src/DEPS, skipping patch (may be handled by automate-git.py)"; \
+		echo "WARNING: DEPS file not found, skipping patch"; \
 	fi
-	# Note: Chromium patches are applied here (not by automate-git.py which is no longer used)
-
 	# Step 6.7: Apply Debian-specific Chromium patches
 	# These patches modify Chromium sources (not CEF), so they're in debian/patches/chromium/
 	# and use .chromium.patch suffix to distinguish them from CEF patches.
@@ -472,8 +420,6 @@ override_dh_auto_build:
 	sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
 		$(CURDIR)/chromium_src/chromium/src/DEPS
 	@echo "==> generate_location_tags condition fixed"
-
-	# Step 7: (removed -- system /usr/bin/gn called directly, no buildtools symlink needed)
 
 	# Step 7.5: Install stub files for Debian-stripped directories
 	# Stub sources are in debian/stubs/ -- see individual files for documentation
@@ -722,10 +668,8 @@ endif
 	fi
 	@echo "============================================================"
 
-	## Step 8: Build CEF (direct gn/ninja -- no depot_tools or automate-git.py)
+	## Step 8: Build CEF (direct gn/ninja)
 	## Like Debian Chromium, we call system /usr/bin/gn and /usr/bin/ninja directly.
-	## This replaces automate-git.py which was only an orchestration layer around
-	## gclient (dependency sync) + gclient_hook.py (gn gen) + autoninja (ninja wrapper).
 
 	# Step 8a: Create rust-toolchain VERSION stub and symlinks (was CEF patch 0010)
 	@echo "==> Creating rust-toolchain stubs for system Rust"
