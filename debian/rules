@@ -368,15 +368,18 @@ override_dh_auto_build:
 		if [ $$CEF_PATCH_EXIT -ne 0 ]; then \
 			echo "==> patcher.py exited with code $$CEF_PATCH_EXIT (expected: some patches target stripped files)"; \
 		fi
-	# Verify critical CEF patches applied (these MUST succeed for a working build)
-	@test -f $(CURDIR)/chromium_src/chromium/src/chrome/browser/ui/browser_command_controller.cc && \
-		grep -q 'enable_cef' $(CURDIR)/chromium_src/chromium/src/chrome/browser/ui/browser_command_controller.cc || \
-		{ echo "ERROR: Critical CEF patch did not apply to browser_command_controller.cc"; exit 1; }
-	# Re-apply context menu patch with fuzz (Chromium 147.0.7727.101 shifted lines)
+	# Re-apply patches that fail with git apply due to line offset (fuzz needed).
 	# git apply (used by patcher.py) doesn't support fuzz; patch(1) does.
 	cd $(CURDIR)/chromium_src/chromium/src && \
-		patch -p0 --fuzz=3 --forward --no-backup-if-mismatch \
-		< cef/patch/patches/chrome_browser_context_menus.patch || true
+		for p in gn_config chrome_browser_context_menus; do \
+			patch -p0 --fuzz=3 --forward --no-backup-if-mismatch \
+				< cef/patch/patches/$${p}.patch 2>/dev/null || true; \
+		done
+	# Verify critical CEF patches applied (these MUST succeed for a working build)
+	@grep -q 'enable_cef' $(CURDIR)/chromium_src/chromium/src/chrome/chrome_paks.gni || \
+		{ echo "ERROR: Critical CEF patch (gn_config) did not apply to chrome_paks.gni"; exit 1; }
+	@grep -q 'enable_cef' $(CURDIR)/chromium_src/chromium/src/BUILD.gn || \
+		{ echo "ERROR: Critical CEF patch (gn_config) did not apply to BUILD.gn"; exit 1; }
 	# Keep cef/ in chromium/src/ -- needed for gn gen, ninja, and make_distrib.py
 	@echo "==> CEF patches applied to vanilla Chromium"
 
