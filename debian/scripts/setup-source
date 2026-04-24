@@ -1,0 +1,143 @@
+#!/bin/sh
+# Setup CEF+Chromium source tree from MUT-extracted tarballs.
+# Called from debian/rules override_dh_auto_build.
+#
+# Arguments:
+#   $1 - CURDIR (package root)
+#   $2 - CHROMIUM_VERSION
+#   $3 - NODE_ARCH
+set -eu
+
+CURDIR="$1"
+CHROMIUM_VERSION="$2"
+NODE_ARCH="$3"
+SRCDIR="${CURDIR}/chromium_src"
+CHROMIUM="${SRCDIR}/chromium/src"
+
+# Verify CHROMIUM_VERSION matches the Chromium tarball
+if [ -f "${CURDIR}/chromium/chrome/VERSION" ]; then
+    TARBALL_MAJOR=$(grep MAJOR "${CURDIR}/chromium/chrome/VERSION" | cut -d= -f2)
+    TARBALL_MINOR=$(grep MINOR "${CURDIR}/chromium/chrome/VERSION" | cut -d= -f2)
+    TARBALL_BUILD=$(grep BUILD "${CURDIR}/chromium/chrome/VERSION" | cut -d= -f2)
+    TARBALL_PATCH=$(grep PATCH "${CURDIR}/chromium/chrome/VERSION" | cut -d= -f2)
+    TARBALL_VER="${TARBALL_MAJOR}.${TARBALL_MINOR}.${TARBALL_BUILD}.${TARBALL_PATCH}"
+    if [ "${TARBALL_VER}" != "${CHROMIUM_VERSION}" ]; then
+        echo "ERROR: CHROMIUM_VERSION (${CHROMIUM_VERSION}) != tarball (${TARBALL_VER})"
+        echo "Update CHROMIUM_VERSION in debian/rules"
+        exit 1
+    fi
+    echo "==> Chromium version verified: ${CHROMIUM_VERSION}"
+fi
+
+# Step 1: Copy CEF source to build directory
+# With MUT + quilt format, dpkg-source -x already applies CEF patches
+mkdir -p "${SRCDIR}"
+cp -a "${CURDIR}/cef" "${SRCDIR}/"
+rm -rf "${SRCDIR}/cef/.pc"
+
+# Step 3.5: Initialize CEF as git repository (required by patcher.py)
+echo "==> Initializing git repository in CEF source"
+cd "${SRCDIR}/cef"
+git init
+git add .
+git commit --no-gpg-sign -m "CEF source with Debian patches applied" || true
+
+# Step 4: Fix version mismatch (CEF may target different Chromium version)
+sed -i "s|'refs/tags/[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+'|'refs/tags/${CHROMIUM_VERSION}'|" \
+    "${SRCDIR}/cef/CHROMIUM_BUILD_COMPATIBILITY.txt"
+
+# Step 5: Move Chromium source from MUT-extracted directory
+# Use mv (not cp) to avoid reading/writing 5.6GB which fills page cache
+echo "==> Moving Chromium source from MUT-extracted directory"
+mkdir -p "${SRCDIR}/chromium"
+mv "${CURDIR}/chromium" "${SRCDIR}/chromium/src"
+
+# Step 5.1: Apply CEF patches to vanilla Chromium (BEFORE Debian patches)
+# patcher.py uses git apply, so we need a temporary git repo.
+echo "==> Applying CEF patches to vanilla Chromium source"
+cd "${CHROMIUM}"
+git init
+git config user.name "Debian Builder"
+git config user.email "builder@debian.org"
+git commit --no-gpg-sign --allow-empty -m "Vanilla Chromium source"
+cp -a "${SRCDIR}/cef" "${CHROMIUM}/cef"
+
+# patcher.py exit code is non-zero when ANY patch fails, including patches
+# targeting Windows/bundled files stripped from the Debian tarball.
+cd "${CHROMIUM}/cef"
+DEBIAN_BUILD=0 python3 tools/patcher.py || true
+
+# Re-apply patches that fail with git apply due to line offset (fuzz needed)
+cd "${CHROMIUM}"
+for p in gn_config chrome_browser_context_menus; do
+    patch -p0 --fuzz=3 --forward --no-backup-if-mismatch \
+        < cef/patch/patches/${p}.patch 2>/dev/null || true
+done
+
+# Verify critical CEF patches applied
+grep -q 'enable_cef' "${CHROMIUM}/chrome/chrome_paks.gni" || \
+    { echo "ERROR: Critical CEF patch (gn_config) did not apply to chrome_paks.gni"; exit 1; }
+grep -q 'enable_cef' "${CHROMIUM}/BUILD.gn" || \
+    { echo "ERROR: Critical CEF patch (gn_config) did not apply to BUILD.gn"; exit 1; }
+echo "==> CEF patches applied to vanilla Chromium"
+
+# Step 5.2: Setup system Node.js and rollup
+echo "==> Setting up system Node.js and rollup"
+mkdir -p "${CHROMIUM}/third_party/node/linux/node-linux-${NODE_ARCH}/bin"
+ln -sf /usr/bin/node "${CHROMIUM}/third_party/node/linux/node-linux-${NODE_ARCH}/bin/node" 2>/dev/null || true
+cp -ra /usr/share/nodejs/rollup "${CHROMIUM}/third_party/node/node_modules/"
+test -L "${CHROMIUM}/third_party/devtools-frontend/src/node_modules/rollup3" || \
+    ln -s /usr/share/nodejs/rollup "${CHROMIUM}/third_party/devtools-frontend/src/node_modules/rollup3"
+
+# Step 5.3: Apply Debian Chromium patches
+echo "==> Applying Debian Chromium patches for system integration"
+cd "${CHROMIUM}"
+grep -v '^\#' "${CURDIR}/chromium-debian/patches/series" | grep -v '^\s*$' | \
+    grep -v '^ppc64le/' | grep -v '^loongarch64/' | grep -v '^i386/' | \
+    grep -v '^bookworm/' | grep -v '^trixie/' | grep -v '^bullseye/' | \
+    while read patch; do
+        echo "Applying ${patch}"
+        patch -p1 < "${CURDIR}/chromium-debian/patches/${patch}" || {
+            echo "ERROR: Debian Chromium patch ${patch} failed"
+            exit 1
+        }
+    done
+echo "==> Debian Chromium patches applied"
+
+# Step 6: Initialize git repository in chromium (required by make_distrib.py)
+echo "==> Initializing git repository in chromium source"
+find "${CHROMIUM}" -type d -name '.git' -exec rm -rf {} + 2>/dev/null || true
+cd "${CHROMIUM}"
+git init
+git config user.name "Debian Builder"
+git config user.email "builder@debian.org"
+git commit --no-gpg-sign --allow-empty -m "Initial chromium source from Debian tarball"
+
+# Step 6.3: Copy locale stub source
+mkdir -p "${CHROMIUM}/debian"
+cp "${SRCDIR}/cef/tools/debian_stubs/cef_locale_stub.cpp" "${CHROMIUM}/debian/"
+
+# Step 6.5: Patch DEPS to disable git submodule checking
+if [ -f "${CHROMIUM}/DEPS" ]; then
+    sed -i "s/git_dependencies = 'SYNC'/git_dependencies = 'DEPS'/" "${CHROMIUM}/DEPS"
+    echo "==> DEPS patched: git_dependencies set to 'DEPS'"
+fi
+
+# Step 6.7: Apply Debian-specific Chromium patches
+echo "==> Applying Debian Chromium patches from debian/patches/chromium/series"
+cd "${CURDIR}"
+grep -v '^\#' debian/patches/chromium/series | grep -v '^\s*$' | \
+    while read patch; do
+        echo "Applying ${patch}"
+        patch -p1 -d "${CHROMIUM}" < "debian/patches/chromium/${patch}" || {
+            echo "ERROR: Patch ${patch} failed"
+            exit 1
+        }
+    done
+echo "==> Debian Chromium patches applied"
+
+# Step 6.8: Fix generate_location_tags condition in DEPS
+sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
+    "${CHROMIUM}/DEPS"
+
+echo "==> Source tree setup complete"

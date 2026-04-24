@@ -1,0 +1,198 @@
+#!/bin/sh
+# Setup build environment: install stubs, symlinks, and toolchain wrappers.
+# Called from debian/rules override_dh_auto_build.
+#
+# Arguments:
+#   $1 - CURDIR (package root)
+#   $2 - DEB_HOST_MULTIARCH
+#   $3 - LLVM_TRIPLE
+#   $4 - LLVM_ARCH
+#   $5 - NODE_ARCH
+#   $6 - CLANG_MVERS
+set -eu
+
+CURDIR="$1"
+DEB_HOST_MULTIARCH="$2"
+LLVM_TRIPLE="$3"
+LLVM_ARCH="$4"
+NODE_ARCH="$5"
+CLANG_MVERS="$6"
+CHROMIUM="${CURDIR}/chromium_src/chromium/src"
+
+# -- Stub BUILD.gn/gni files from debian/stubs/ --
+echo "==> Installing stub BUILD.gn/gni files from debian/stubs/"
+
+# Install stubs from manifest (stub-file:target-dir pairs)
+# Each line: stub_filename relative_target_dir
+STUBS="${CURDIR}/debian/stubs"
+
+install_stub() {
+    mkdir -p "${CHROMIUM}/$2"
+    cp "${STUBS}/$1" "${CHROMIUM}/$2/$1"
+}
+
+install_stub_as() {
+    mkdir -p "${CHROMIUM}/$(dirname "$2")"
+    cp "${STUBS}/$1" "${CHROMIUM}/$2"
+}
+
+# Common stub for empty executables
+install_stub stub_main.cc third_party/debian_stubs
+
+# System library stubs
+install_stub_as opus.BUILD.gn third_party/opus/BUILD.gn
+install_stub_as libjpeg_turbo.BUILD.gn third_party/libjpeg_turbo/BUILD.gn
+install_stub_as libpng.BUILD.gn third_party/libpng/BUILD.gn
+install_stub_as fontconfig.BUILD.gn third_party/fontconfig/BUILD.gn
+install_stub_as fontconfig.gni third_party/fontconfig/fontconfig.gni
+install_stub_as zlib.BUILD.gn third_party/zlib/BUILD.gn
+install_stub_as zstd.BUILD.gn third_party/zstd/BUILD.gn
+install_stub_as flac.BUILD.gn third_party/flac/BUILD.gn
+install_stub_as dav1d.BUILD.gn third_party/dav1d/BUILD.gn
+install_stub_as openh264.BUILD.gn third_party/openh264/BUILD.gn
+install_stub_as libxslt.BUILD.gn third_party/libxslt/BUILD.gn
+install_stub_as libsecret.BUILD.gn third_party/libsecret/BUILD.gn
+install_stub_as double_conversion.BUILD.gn base/third_party/double_conversion/BUILD.gn
+install_stub_as libXNVCtrl.BUILD.gn third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+install_stub_as harfbuzz.gni third_party/harfbuzz-ng/harfbuzz.gni
+install_stub_as libjpeg.gni third_party/libjpeg.gni
+install_stub_as freetype.gni build/config/freetype/freetype.gni
+
+# Stripped directory stubs
+install_stub_as catapult-telemetry.BUILD.gn third_party/catapult/telemetry/BUILD.gn
+install_stub_as catapult-typ.BUILD.gn third_party/catapult/third_party/typ/BUILD.gn
+install_stub_as catapult-tracing-tracing.BUILD.gn third_party/catapult/tracing/tracing/BUILD.gn
+install_stub_as catapult-tracing.BUILD.gn third_party/catapult/tracing/BUILD.gn
+install_stub_as catapult.BUILD.gn third_party/catapult/BUILD.gn
+install_stub_as catapult-gsutil.BUILD.gn third_party/catapult/third_party/gsutil/BUILD.gn
+install_stub_as enterprise_companion.BUILD.gn third_party/enterprise_companion/BUILD.gn
+install_stub_as updater.BUILD.gn third_party/updater/BUILD.gn
+install_stub_as puffin_patch_test.BUILD.gn components/test/data/update_client/puffin_patch_test/BUILD.gn
+install_stub_as swiftshader-SystemUnitTests.BUILD.gn third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+install_stub_as swiftshader-ReactorUnitTests.BUILD.gn third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+install_stub_as android-modules-buildflags.gni chrome/android/modules/buildflags.gni
+install_stub_as deps_revisions.gni buildtools/deps_revisions.gni
+
+# libxml uses upstream unbundle .gn file
+mkdir -p "${CHROMIUM}/third_party/libxml"
+cp "${CHROMIUM}/build/linux/unbundle/libxml.gn" "${CHROMIUM}/third_party/libxml/BUILD.gn"
+
+# -- System header symlinks --
+echo "==> Creating system header symlinks"
+mkdir -p "${CHROMIUM}/third_party/opus/src"
+ln -sf /usr/include/opus "${CHROMIUM}/third_party/opus/src/include"
+mkdir -p "${CHROMIUM}/third_party/dav1d/libdav1d/include"
+ln -sf /usr/include/dav1d "${CHROMIUM}/third_party/dav1d/libdav1d/include/dav1d"
+mkdir -p "${CHROMIUM}/third_party/flac/include"
+ln -sf /usr/include/FLAC "${CHROMIUM}/third_party/flac/include/FLAC"
+ln -sf /usr/include/zlib.h "${CHROMIUM}/third_party/zlib/zlib.h"
+ln -sf /usr/include/zconf.h "${CHROMIUM}/third_party/zlib/zconf.h"
+ln -sf /usr/include/double-conversion "${CHROMIUM}/base/third_party/double_conversion/double-conversion"
+mkdir -p "${CHROMIUM}/third_party/zstd/src/lib"
+ln -sf /usr/include/zstd.h "${CHROMIUM}/third_party/zstd/src/lib/zstd.h"
+ln -sf /usr/include/zstd_errors.h "${CHROMIUM}/third_party/zstd/src/lib/zstd_errors.h"
+mkdir -p "${CHROMIUM}/third_party/protobuf"
+ln -sf /usr/include "${CHROMIUM}/third_party/protobuf/src"
+ln -sf /usr/include/NVCtrl/NVCtrl.h "${CHROMIUM}/third_party/angle/src/third_party/libXNVCtrl/NVCtrl.h"
+ln -sf /usr/include/NVCtrl/NVCtrlLib.h "${CHROMIUM}/third_party/angle/src/third_party/libXNVCtrl/NVCtrlLib.h"
+
+# -- System toolchain: rollup, esbuild, clang, rust --
+echo "==> Setting up system toolchain"
+
+# Rollup
+if [ ! -f /usr/share/nodejs/rollup/dist/bin/rollup ]; then
+    echo "ERROR: System rollup not found. Install: apt-get install rollup"
+    exit 1
+fi
+cd "${CHROMIUM}/third_party/devtools-frontend/src"
+mkdir -p node_modules/@rollup/wasm-node/dist/bin
+ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
+cd "${CHROMIUM}/third_party/node"
+mkdir -p node_modules/@rollup/wasm-node/dist/bin
+ln -sf /usr/share/nodejs/rollup/dist/bin/rollup node_modules/@rollup/wasm-node/dist/bin/rollup
+
+# Esbuild
+mkdir -p "${CHROMIUM}/third_party/devtools-frontend/src/third_party/esbuild"
+ln -sf /usr/bin/esbuild "${CHROMIUM}/third_party/devtools-frontend/src/third_party/esbuild/esbuild"
+mkdir -p "${CHROMIUM}/third_party/devtools-frontend/src/node_modules"
+ln -sf "/usr/lib/${DEB_HOST_MULTIARCH}/nodejs/esbuild" "${CHROMIUM}/third_party/devtools-frontend/src/node_modules/esbuild"
+
+# Clang symlinks
+mkdir -p "${CHROMIUM}/third_party/llvm-build/Release+Asserts"
+echo 'llvmorg-19-init-19711-g6cecc0c9-1' > "${CHROMIUM}/third_party/llvm-build/Release+Asserts/cr_build_revision"
+mkdir -p "${CHROMIUM}/third_party/llvm-build/Release+Asserts/bin"
+ln -sf /usr/bin/clang-19 "${CHROMIUM}/third_party/llvm-build/Release+Asserts/bin/clang++"
+ln -sf /usr/bin/clang-19 "${CHROMIUM}/third_party/llvm-build/Release+Asserts/bin/clang"
+ln -sf /usr/bin/llvm-ar-19 "${CHROMIUM}/third_party/llvm-build/Release+Asserts/bin/llvm-ar"
+
+# Rust update stub
+mkdir -p "${CHROMIUM}/tools/rust"
+cp "${STUBS}/update_rust.py" "${CHROMIUM}/tools/rust/update_rust.py"
+
+# -- .gn exec_script_allowlist --
+echo "==> Pre-patching .gn file"
+if [ -f "${CHROMIUM}/.gn" ]; then
+    if ! grep -q '"//cef/BUILD.gn"' "${CHROMIUM}/.gn"; then
+        sed -i '/"\/\/build_overrides\/build.gni",/a\      "//cef/BUILD.gn",' "${CHROMIUM}/.gn"
+    fi
+fi
+
+# -- Compiler-rt symlinks --
+echo "==> Creating compiler-rt symlinks"
+mkdir -p "${CHROMIUM}/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/${LLVM_TRIPLE}"
+ln -sf "/usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.builtins-${LLVM_ARCH}.a" \
+    "${CHROMIUM}/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/${LLVM_TRIPLE}/libclang_rt.builtins.a"
+for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-${LLVM_ARCH}.a; do
+    base=$(basename "$lib")
+    target=$(echo "$base" | sed "s/-${LLVM_ARCH}\\.a\$/.a/")
+    ln -sf "$lib" "${CHROMIUM}/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/${LLVM_TRIPLE}/${target}" 2>/dev/null || true
+done
+for lib in /usr/lib/llvm-19/lib/clang/19/lib/linux/libclang_rt.*-i386.a; do
+    base=$(basename "$lib")
+    target=$(echo "$base" | sed 's/-i386\.a$/.a/')
+    ln -sf "$lib" "${CHROMIUM}/third_party/llvm-build/Release+Asserts/lib/clang/19/lib/${LLVM_TRIPLE}/${target}" 2>/dev/null || true
+done
+
+# -- Node.js symlinks --
+echo "==> Symlinking system Node.js"
+mkdir -p "${CHROMIUM}/third_party/node/linux/node-linux-x64/bin"
+ln -sf /usr/bin/node "${CHROMIUM}/third_party/node/linux/node-linux-x64/bin/node"
+if [ "${NODE_ARCH}" != "x64" ]; then
+    mkdir -p "${CHROMIUM}/third_party/node/linux/node-linux-${NODE_ARCH}/bin"
+    ln -sf /usr/bin/node "${CHROMIUM}/third_party/node/linux/node-linux-${NODE_ARCH}/bin/node"
+fi
+
+# -- Rust std library from system rust-src --
+echo "==> Copying Rust std library from system rust-src package"
+RUST_SRC_LIB=$(ls -d /usr/src/rustc-*/library 2>/dev/null | tail -1)
+if [ -z "${RUST_SRC_LIB}" ] || [ ! -d "${RUST_SRC_LIB}" ]; then
+    echo "ERROR: System rust-src not found. Install: apt install rust-src"
+    exit 1
+fi
+mkdir -p "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/"
+cp -a "${RUST_SRC_LIB}" "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/"
+if [ ! -f "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/sync/nonpoison/condvar.rs" ]; then
+    echo "ERROR: condvar.rs missing - rust-src version too old (need >= 1.91.1)"
+    exit 1
+fi
+mkdir -p "${CHROMIUM}/third_party/rust-toolchain/bin"
+ln -sf /usr/bin/rustc "${CHROMIUM}/third_party/rust-toolchain/bin/rustc"
+
+# Cross-platform os stubs (never used on Linux, needed for Rust module resolution)
+mkdir -p "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin"
+mkdir -p "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin"
+cp "${STUBS}/cygwin-net.rs" "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin/net.rs"
+cp "${STUBS}/darwin-objc.rs" "${CHROMIUM}/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin/objc.rs"
+
+# -- Verify Rust crates from Chromium tarball --
+echo "==> Verifying Rust crates from Chromium tarball"
+app_crates=$(ls -1d "${CHROMIUM}/third_party/rust/"*/ 2>/dev/null | wc -l)
+vendor_crates=$(ls -1 "${CHROMIUM}/third_party/rust/chromium_crates_io/vendor/" 2>/dev/null | wc -l)
+if [ "${app_crates}" -ge 140 ] && [ "${vendor_crates}" -ge 150 ]; then
+    echo "OK: Rust crates verified (app: ${app_crates}, vendor: ${vendor_crates})"
+else
+    echo "ERROR: Missing Rust crates (app: ${app_crates}, vendor: ${vendor_crates})"
+    exit 1
+fi
+
+echo "==> Build environment setup complete"
