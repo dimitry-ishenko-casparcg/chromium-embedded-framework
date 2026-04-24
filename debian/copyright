@@ -4,16 +4,15 @@ Upstream-Contact: Marshall A. Greenblatt <magreenblatt@gmail.com>
 Source: https://bitbucket.org/chromiumembedded/cef
 Files-Excluded:
  depot-tools/*.exe
- depot-tools/win_tools*
  depot-tools/*.bat
+ depot-tools/win_tools*
+ depot-tools/.cipd_bin
+ depot-tools/bootstrap-2*
  depot-tools/bootstrap/*.bat
  depot-tools/python-bin/*.bat
  depot-tools/python2-bin/*.bat
  depot-tools/testing_support/*.bat
  depot-tools/tests/git_common_test.inputs/*/*.bat
- depot-tools/.cipd_bin/*.exe
- depot-tools/.cipd_bin/*.dll
- depot-tools/.cipd_bin/*/lib/python*/site-packages/*
  chromium/third_party/node/linux/*
  *.wasm
  *.jar
@@ -21,6 +20,7 @@ Files-Excluded:
 Comment: This package uses Multiple Upstream Tarballs (MUT) format with components:
  - Main tarball: CEF source
  - chromium component: Chromium browser source (from Debian chromium package)
+ - chromium-debian component: Debian Chromium patches and build configuration
  - depot-tools component: Google's build tools
 
 Files: *
@@ -53,6 +53,13 @@ Copyright: 2006-2016 Mitch Garnaat <mitch@garnaat.org>
            2011 Nexenta Systems, Inc.
            2011 Blue Pines Technologies LLC, Brad Carleton
 License: Expat
+
+Files: chromium-debian/*
+Copyright: 2009-2026 The Debian Chromium Maintainers
+License: BSD-3-Clause
+Comment: Debian Chromium packaging patches and configuration from the
+ Debian chromium source package. Applied during build to integrate
+ Chromium with Debian system libraries and toolchains.
 
 Files: depot-tools/*
 Copyright: 2009-2025 The Chromium Authors
