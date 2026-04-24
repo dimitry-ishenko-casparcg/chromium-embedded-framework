@@ -6,6 +6,11 @@ Files-Excluded:
  depot-tools/*.exe
  depot-tools/win_tools*
  depot-tools/*.bat
+ depot-tools/bootstrap/*.bat
+ depot-tools/python-bin/*.bat
+ depot-tools/python2-bin/*.bat
+ depot-tools/testing_support/*.bat
+ depot-tools/tests/git_common_test.inputs/*/*.bat
  depot-tools/.cipd_bin/*.exe
  depot-tools/.cipd_bin/*.dll
  depot-tools/.cipd_bin/*/lib/python*/site-packages/*

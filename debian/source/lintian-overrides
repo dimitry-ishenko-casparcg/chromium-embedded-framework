@@ -6,9 +6,12 @@
 # - These are build-time dependencies only, not runtime
 # Package targets experimental until dependencies can be unbundled.
 
-# depot_tools contains Windows binaries for cross-platform support.
+# depot_tools contains Windows binaries and batch files for cross-platform support.
 # These are part of Google's official toolchain and not used during Linux builds.
+# The .bat files in subdirectories will be excluded in the next +ds tarball repackaging
+# (Files-Excluded patterns updated in debian/copyright).
 chromium-embedded-framework source: source-contains-prebuilt-windows-binary
+chromium-embedded-framework source: source-ships-excluded-file [depot-tools/*]
 
 # depot_tools bundles pre-compiled binaries (Python interpreters, reclient, cipd,
 # node.js) required for the Chromium/CEF build system. These are Google's official
@@ -21,7 +24,7 @@ chromium-embedded-framework source: source-is-missing
 chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/chromium/*]
 
 # Patch 0009 is conditionally used and may be disabled in some configurations.
-chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/0009-update-cef-mac-frame-patch.cef.patch]
+chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/0009-remove-tracing-resources-chromium145.cef.patch]
 
 # =============================================================================
 # CHROMIUM BUNDLED THIRD-PARTY LICENSE ISSUES
