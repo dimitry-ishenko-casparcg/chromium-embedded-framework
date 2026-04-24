@@ -46,10 +46,8 @@ else
   $(error Unsupported architecture: $(DEB_HOST_ARCH). CEF supports amd64, arm64, armhf.)
 endif
 
-export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 # Disable dpkg LTO flags -- CEF uses GN's use_thin_lto flag instead
-export DEB_BUILD_MAINT_OPTIONS += optimize=-lto
-# Indicate that binary targets do not require root
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all optimize=-lto
 export DEB_RULES_REQUIRES_ROOT = no
 export DEBIAN_BUILD = 1
 
@@ -122,17 +120,8 @@ NINJA_JOBS := $(shell \
         echo "$(RAM_SAFE_JOBS)"; \
     fi)
 
-# Calculate the offset needed for autoninja's NINJA_CORE_ADDITION
-# autoninja.py calculates: j_value = num_cores + NINJA_CORE_ADDITION (default +2)
-# We want: j_value = NINJA_JOBS (our RAM-safe value)
-# So: NINJA_CORE_ADDITION = NINJA_JOBS - num_cores
-# Note: nproc is from coreutils (Essential package, always available)
-NUM_CORES := $(shell nproc 2>/dev/null || echo 1)
-CORE_ADDITION := $(shell echo $$(($(NINJA_JOBS) - $(NUM_CORES))))
-export NINJA_CORE_ADDITION := $(CORE_ADDITION)
-
 # Debug output (visible in build logs)
-$(info CEF Build: RAM=$(RAM_AVAILABLE_MB)MB, Requested=$(REQUESTED_JOBS) jobs, RAM-safe=$(RAM_SAFE_JOBS) jobs, Using=$(NINJA_JOBS) jobs, NINJA_CORE_ADDITION=$(CORE_ADDITION))
+$(info CEF Build: RAM=$(RAM_AVAILABLE_MB)MB, Requested=$(REQUESTED_JOBS) jobs, RAM-safe=$(RAM_SAFE_JOBS) jobs, Using=$(NINJA_JOBS) jobs)
 
 # Enable unstable Rust features with stable rustc (from Debian chromium line 67)
 # Chromium uses -Z flags (nightly-only) but Debian only provides stable rustc
@@ -412,9 +401,9 @@ override_dh_auto_install:
 	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Resources/icudtl.dat \
 		$(CURDIR)/debian/libcef-common/usr/share/cef/
 
-	# Install V8 context snapshot (CRITICAL for JavaScript) - use _$(CEF_DISTRIB_DIR)_minimal pattern
+	# Install V8 context snapshot (required for JavaScript execution)
 	cp chromium_src/chromium/src/cef/binary_distrib/cef_binary_*_$(CEF_DISTRIB_DIR)_minimal/Release/v8_context_snapshot.bin \
-		$(CURDIR)/debian/libcef-common/usr/share/cef/ || true
+		$(CURDIR)/debian/libcef-common/usr/share/cef/
 
 	# Install locales - use _$(CEF_DISTRIB_DIR)_minimal pattern
 	# Locales are in Resources/ directory, NOT Release/
