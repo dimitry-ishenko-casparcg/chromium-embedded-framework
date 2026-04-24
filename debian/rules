@@ -284,9 +284,9 @@ override_dh_dwz:
 ##
 ## 1. EXEC_SCRIPT RESTRICTION FIX
 ##    - Problem: CEF uses exec_script in BUILD.gn (security-restricted by GN)
-##    - Solution: Step 7b patches .gn to add //cef/BUILD.gn to exec_script_allowlist
+##    - Solution: setup-build patches .gn to add //cef/BUILD.gn to exec_script_allowlist
 ##
-## 2. STUB BUILD.GN FILES (32 stubs in debian/stubs/)
+## 2. STUB BUILD.GN FILES (18 custom stubs + 17 upstream unbundle)
 ##    - Problem: GN requires BUILD.gn files for all dependencies during configuration
 ##    - Challenge: Debian strips bundled third-party sources per policy
 ##    - Solution: Install stub BUILD.gn files with group() or source_set() targets
@@ -294,7 +294,7 @@ override_dh_dwz:
 ## 3. GIT REPOSITORY REQUIREMENTS
 ##    - Problem: patcher.py and make_distrib.py expect git repositories
 ##    - Challenge: Debian source packages are not git repositories
-##    - Solution: Initialize temporary git repos in Steps 3.5 and 6
+##    - Solution: Initialize temporary git repos (setup-source steps 2 and 8)
 ## ============================================================================
 
 override_dh_auto_build:
@@ -304,10 +304,10 @@ override_dh_auto_build:
 	# Phase 2: Install stubs, symlinks, and toolchain wrappers
 	debian/scripts/setup-build $(CURDIR) $(DEB_HOST_MULTIARCH) $(LLVM_TRIPLE) $(LLVM_ARCH) $(NODE_ARCH) $(CLANG_MVERS)
 
-	## Step 8: Build CEF (direct gn/ninja)
+	## Phase 3: Build CEF (direct gn/ninja)
 	## Like Debian Chromium, we call system /usr/bin/gn and /usr/bin/ninja directly.
 
-	# Step 8a: Create rust-toolchain VERSION stub and symlinks (was CEF patch 0010)
+	# 3a. Create rust-toolchain VERSION stub and symlinks
 	@echo "==> Creating rust-toolchain stubs for system Rust"
 	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
 	@# VERSION is checked by Chromium's build system; generate from system rustc
@@ -316,22 +316,22 @@ override_dh_auto_build:
 	@ln -sf /usr/bin/bindgen $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/bindgen
 	@ln -sf /usr/bin/rustfmt $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustfmt
 
-	# Step 8b: Run version_manager.py (generates CEF version/API headers)
+	# 3b. Run version_manager.py (generates CEF version/API headers)
 	@echo "==> Running CEF version_manager.py"
 	cd $(CURDIR)/chromium_src/chromium/src/cef && python3 tools/version_manager.py -u --fast-check
 
-	# Step 8c: Write args.gn directly (GN_DEFINES defined at top of rules file)
+	# 3c. Write args.gn directly (GN_DEFINES defined at top of rules file)
 	@echo "==> Writing out/Release_GN_$(GN_CPU)/args.gn"
 	@mkdir -p $(CURDIR)/chromium_src/chromium/src/out/Release_GN_$(GN_CPU)
 	@echo '$(GN_DEFINES)' | tr ' ' '\n' | sed 's/\\"/"/g' > $(CURDIR)/chromium_src/chromium/src/out/Release_GN_$(GN_CPU)/args.gn
 
-	# Step 8d: Run gn gen (system /usr/bin/gn from generate-ninja package)
+	# 3d. Run gn gen (system /usr/bin/gn from generate-ninja package)
 	@echo "==> Running gn gen out/Release_GN_$(GN_CPU)"
 	cd $(CURDIR)/chromium_src/chromium/src && \
 	PATH=/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH \
 	/usr/bin/gn gen out/Release_GN_$(GN_CPU)
 
-	# Step 8e: Run ninja (system /usr/bin/ninja from ninja-build package)
+	# 3e. Run ninja (system /usr/bin/ninja from ninja-build package)
 	@echo "==> Building CEF with ninja -j$(NINJA_JOBS)"
 	cd $(CURDIR)/chromium_src/chromium/src && \
 	export CC=clang-$(CLANG_MVERS) && \
@@ -342,9 +342,8 @@ override_dh_auto_build:
 	export LIBCLANG_PATH=/usr/lib/llvm-$(CLANG_MVERS)/lib && \
 	/usr/bin/ninja -j$(NINJA_JOBS) -C out/Release_GN_$(GN_CPU) libcef chrome_sandbox
 
-	# Step 8f: Run make_distrib.py (creates binary_distrib/ for packaging)
+	# 3f. Run make_distrib.py (creates binary_distrib/ for packaging)
 	# Re-init git in cef/ -- make_distrib.py requires git.is_checkout().
-	# The .git from Step 3.5 cp -a is absorbed by the parent chromium/src/.git.
 	@cd $(CURDIR)/chromium_src/chromium/src/cef && \
 		git init -q && git add -A && git commit --no-gpg-sign -q -m "CEF" 2>/dev/null || true
 	@echo "==> Creating CEF distribution"

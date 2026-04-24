@@ -29,30 +29,30 @@ if [ -f "${CURDIR}/chromium/chrome/VERSION" ]; then
     echo "==> Chromium version verified: ${CHROMIUM_VERSION}"
 fi
 
-# Step 1: Copy CEF source to build directory
+# 1. Copy CEF source to build directory
 # With MUT + quilt format, dpkg-source -x already applies CEF patches
 mkdir -p "${SRCDIR}"
 cp -a "${CURDIR}/cef" "${SRCDIR}/"
 rm -rf "${SRCDIR}/cef/.pc"
 
-# Step 3.5: Initialize CEF as git repository (required by patcher.py)
+# 2. Initialize CEF as git repository (required by patcher.py)
 echo "==> Initializing git repository in CEF source"
 cd "${SRCDIR}/cef"
 git init
 git add .
 git commit --no-gpg-sign -m "CEF source with Debian patches applied" || true
 
-# Step 4: Fix version mismatch (CEF may target different Chromium version)
+# 3. Fix version mismatch (CEF may target different Chromium version)
 sed -i "s|'refs/tags/[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+'|'refs/tags/${CHROMIUM_VERSION}'|" \
     "${SRCDIR}/cef/CHROMIUM_BUILD_COMPATIBILITY.txt"
 
-# Step 5: Move Chromium source from MUT-extracted directory
+# 4. Move Chromium source from MUT-extracted directory
 # Use mv (not cp) to avoid reading/writing 5.6GB which fills page cache
 echo "==> Moving Chromium source from MUT-extracted directory"
 mkdir -p "${SRCDIR}/chromium"
 mv "${CURDIR}/chromium" "${SRCDIR}/chromium/src"
 
-# Step 5.1: Apply CEF patches to vanilla Chromium (BEFORE Debian patches)
+# 5. Apply CEF patches to vanilla Chromium (BEFORE Debian patches)
 # patcher.py uses git apply, so we need a temporary git repo.
 echo "==> Applying CEF patches to vanilla Chromium source"
 cd "${CHROMIUM}"
@@ -89,7 +89,7 @@ grep -q 'enable_cef' "${CHROMIUM}/chrome/chrome_repack_locales.gni" || \
     { echo "ERROR: Critical CEF patch (gn_config) did not apply to chrome_repack_locales.gni"; exit 1; }
 echo "==> CEF patches applied to vanilla Chromium"
 
-# Step 5.2: Setup system Node.js and rollup
+# 6. Setup system Node.js and rollup
 echo "==> Setting up system Node.js and rollup"
 mkdir -p "${CHROMIUM}/third_party/node/linux/node-linux-${NODE_ARCH}/bin"
 ln -sf /usr/bin/node "${CHROMIUM}/third_party/node/linux/node-linux-${NODE_ARCH}/bin/node" 2>/dev/null || true
@@ -97,7 +97,7 @@ cp -ra /usr/share/nodejs/rollup "${CHROMIUM}/third_party/node/node_modules/"
 test -L "${CHROMIUM}/third_party/devtools-frontend/src/node_modules/rollup3" || \
     ln -s /usr/share/nodejs/rollup "${CHROMIUM}/third_party/devtools-frontend/src/node_modules/rollup3"
 
-# Step 5.3: Apply Debian Chromium patches
+# 7. Apply Debian Chromium patches
 echo "==> Applying Debian Chromium patches for system integration"
 cd "${CHROMIUM}"
 grep -v '^\#' "${CURDIR}/chromium-debian/patches/series" | grep -v '^\s*$' | \
@@ -112,7 +112,7 @@ grep -v '^\#' "${CURDIR}/chromium-debian/patches/series" | grep -v '^\s*$' | \
     done
 echo "==> Debian Chromium patches applied"
 
-# Step 6: Initialize git repository in chromium (required by make_distrib.py)
+# 8. Initialize git repository in chromium (required by make_distrib.py)
 echo "==> Initializing git repository in chromium source"
 find "${CHROMIUM}" -type d -name '.git' -exec rm -rf {} + 2>/dev/null || true
 cd "${CHROMIUM}"
@@ -121,17 +121,16 @@ git config user.name "Debian Builder"
 git config user.email "builder@debian.org"
 git commit --no-gpg-sign --allow-empty -m "Initial chromium source from Debian tarball"
 
-# Step 6.3: Copy locale stub source
+# 9. Copy locale stub source and patch DEPS
 mkdir -p "${CHROMIUM}/debian"
 cp "${SRCDIR}/cef/tools/debian_stubs/cef_locale_stub.cpp" "${CHROMIUM}/debian/"
 
-# Step 6.5: Patch DEPS to disable git submodule checking
 if [ -f "${CHROMIUM}/DEPS" ]; then
     sed -i "s/git_dependencies = 'SYNC'/git_dependencies = 'DEPS'/" "${CHROMIUM}/DEPS"
     echo "==> DEPS patched: git_dependencies set to 'DEPS'"
 fi
 
-# Step 6.7: Apply Debian-specific Chromium patches
+# 10. Apply Debian-specific Chromium patches
 echo "==> Applying Debian Chromium patches from debian/patches/chromium/series"
 cd "${CURDIR}"
 grep -v '^\#' debian/patches/chromium/series | grep -v '^\s*$' | \
@@ -144,7 +143,7 @@ grep -v '^\#' debian/patches/chromium/series | grep -v '^\s*$' | \
     done
 echo "==> Debian Chromium patches applied"
 
-# Step 6.8: Fix generate_location_tags condition in DEPS
+# Fix generate_location_tags condition in DEPS
 sed -i "s/'condition': 'generate_location_tags',/'condition': 'generate_location_tags and not source_tarball',/" \
     "${CHROMIUM}/DEPS"
 
