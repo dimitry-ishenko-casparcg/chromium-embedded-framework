@@ -24,7 +24,7 @@ chromium-embedded-framework source: source-is-missing
 chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/chromium/*]
 
 # Patch 0009 is conditionally used and may be disabled in some configurations.
-chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/0009-remove-tracing-resources-chromium145.cef.patch]
+chromium-embedded-framework source: patch-file-present-but-not-mentioned-in-series [debian/patches/0009-remove-tracing-resources.cef.patch]
 
 # =============================================================================
 # CHROMIUM BUNDLED THIRD-PARTY LICENSE ISSUES

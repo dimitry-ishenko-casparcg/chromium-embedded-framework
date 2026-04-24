@@ -6,5 +6,5 @@
 0006-remove-pseudolocales-conditional.cef.patch
 0007-disable-assert-redefinition-cef-logging.cef.patch
 0008-add-debian-cef-rpath-for-angle.cef.patch
-0009-remove-tracing-resources-chromium145.cef.patch
+0009-remove-tracing-resources.cef.patch
 0010-debian-resource-dir-fallback.cef.patch
