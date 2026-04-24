@@ -1,3 +1,0 @@
-# Stub BUILD.gn for Debian builds - uses system double-conversion
-config("double_conversion_config") { libs = [ "double-conversion" ] }
-source_set("double_conversion") { sources = [] public_configs = [ ":double_conversion_config" ] }

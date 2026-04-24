@@ -1,3 +1,0 @@
-# Stub BUILD.gn for Debian builds - uses system libxslt
-config("libxslt_config") { libs = [ "xslt" ] }
-source_set("libxslt") { sources = [] public_configs = [ ":libxslt_config" ] }

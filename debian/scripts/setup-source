@@ -62,23 +62,31 @@ git config user.email "builder@debian.org"
 git commit --no-gpg-sign --allow-empty -m "Vanilla Chromium source"
 cp -a "${SRCDIR}/cef" "${CHROMIUM}/cef"
 
-# patcher.py exit code is non-zero when ANY patch fails, including patches
-# targeting Windows/bundled files stripped from the Debian tarball.
+# Apply CEF patches via patcher.py (git apply).
+# Two patches need fuzz due to Chromium version line offsets -- skip them here
+# and apply manually with patch(1) which supports fuzz.
 cd "${CHROMIUM}/cef"
-DEBIAN_BUILD=0 python3 tools/patcher.py || true
+FUZZ_PATCHES="gn_config,chrome_browser_context_menus"
+DEBIAN_BUILD=0 DEBIAN_SKIP_PATCHES="${FUZZ_PATCHES}" python3 tools/patcher.py
+echo "==> patcher.py completed (${FUZZ_PATCHES} skipped for manual application)"
 
-# Re-apply patches that fail with git apply due to line offset (fuzz needed)
+# Apply the skipped patches with fuzz (Chromium version shifted lines).
+# Some hunks target Windows-only files stripped from Debian tarball -- allow those
+# to fail, but verify critical Linux files are patched afterwards.
 cd "${CHROMIUM}"
 for p in gn_config chrome_browser_context_menus; do
+    echo "Applying ${p}.patch with fuzz..."
     patch -p0 --fuzz=3 --forward --no-backup-if-mismatch \
-        < cef/patch/patches/${p}.patch 2>/dev/null || true
+        < cef/patch/patches/${p}.patch || true
 done
 
-# Verify critical CEF patches applied
+# Verify critical CEF patches applied (fail hard if these are missing)
 grep -q 'enable_cef' "${CHROMIUM}/chrome/chrome_paks.gni" || \
     { echo "ERROR: Critical CEF patch (gn_config) did not apply to chrome_paks.gni"; exit 1; }
 grep -q 'enable_cef' "${CHROMIUM}/BUILD.gn" || \
     { echo "ERROR: Critical CEF patch (gn_config) did not apply to BUILD.gn"; exit 1; }
+grep -q 'enable_cef' "${CHROMIUM}/chrome/chrome_repack_locales.gni" || \
+    { echo "ERROR: Critical CEF patch (gn_config) did not apply to chrome_repack_locales.gni"; exit 1; }
 echo "==> CEF patches applied to vanilla Chromium"
 
 # Step 5.2: Setup system Node.js and rollup

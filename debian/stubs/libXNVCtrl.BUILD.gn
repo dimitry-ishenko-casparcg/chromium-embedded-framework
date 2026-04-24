@@ -1,5 +1,0 @@
-# Stub BUILD.gn for Debian builds - link system libxnvctrl-dev
-source_set("libXNVCtrl") {
-  sources = []
-  libs = [ "XNVCtrl" ]
-}

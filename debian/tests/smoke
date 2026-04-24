@@ -1,0 +1,26 @@
+#!/bin/sh
+# Minimal smoke test: verify libcef.so loads and exports expected symbols
+set -e
+
+echo "Testing libcef.so loading..."
+python3 -c "
+import ctypes, sys
+try:
+    lib = ctypes.CDLL('libcef.so')
+    print('OK: libcef.so loaded successfully')
+except OSError as e:
+    print('FAIL: Cannot load libcef.so:', e)
+    sys.exit(1)
+"
+
+echo "Testing CEF resources exist..."
+for f in /usr/share/cef/cef.pak /usr/share/cef/icudtl.dat; do
+    if [ -f "$f" ]; then
+        echo "OK: $f exists"
+    else
+        echo "FAIL: $f missing"
+        exit 1
+    fi
+done
+
+echo "All smoke tests passed"

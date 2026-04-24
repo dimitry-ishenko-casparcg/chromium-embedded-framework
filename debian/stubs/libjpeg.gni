@@ -1,2 +1,0 @@
-# Stub libjpeg.gni for Debian builds - uses system libjpeg
-declare_args() { use_system_libjpeg = true }

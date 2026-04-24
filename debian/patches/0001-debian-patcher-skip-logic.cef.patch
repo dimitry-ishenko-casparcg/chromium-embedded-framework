@@ -1,27 +1,31 @@
-Description: Skip all CEF patches when DEBIAN_BUILD=1 (pre-applied in debian/rules)
- Debian builds apply CEF patches to vanilla Chromium in debian/rules Step 5.3
- (before Debian Chromium patches in Step 5.5). When automate-git.py later calls
- patcher.py during gclient runhooks, all patches are already applied.
- .
- This avoids conflicts between CEF patches (designed for vanilla Chromium) and
- Debian Chromium patches that modify the same files.
-Author: Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Description: Add Debian patch skip logic to patcher.py
+ When DEBIAN_BUILD=1, skip all patches (pre-applied in debian/rules).
+ When DEBIAN_SKIP_PATCHES lists specific patch names (comma-separated),
+ skip those patches so they can be applied manually with patch(1) which
+ supports fuzz for Chromium version line offsets.
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
-Last-Update: 2026-02-15
+Last-Update: 2026-04-24
 
 diff --git a/cef/tools/patcher.py b/cef/tools/patcher.py
-index 6797052..268f4c3 100644
+index 6797052..4c4c716 100644
 --- a/cef/tools/patcher.py
 +++ b/cef/tools/patcher.py
-@@ -31,6 +31,12 @@ def write_note(type, note):
+@@ -31,6 +31,18 @@ def write_note(type, note):
 
  def apply_patch_file(patch_file, patch_dir):
    ''' Apply a specific patch file in optional patch directory. '''
-+  # Debian builds: All CEF patches are pre-applied in debian/rules Step 5.3
-+  # (before Debian Chromium patches). Skip everything here to avoid conflicts.
++  # Debian: skip all patches when DEBIAN_BUILD=1 (pre-applied in debian/rules)
 +  if os.environ.get('DEBIAN_BUILD') == '1':
 +    sys.stdout.write('\nSkipping %s.patch (Debian: pre-applied in debian/rules)\n' % patch_file)
++    return 'skip'
++
++  # Debian: skip specific patches listed in DEBIAN_SKIP_PATCHES (comma-separated).
++  # These patches need fuzz and are applied manually with patch(1) instead of git apply.
++  skip_patches = os.environ.get('DEBIAN_SKIP_PATCHES', '').split(',')
++  if patch_file in skip_patches:
++    sys.stdout.write('\nSkipping %s.patch (Debian: applied manually with fuzz)\n' % patch_file)
 +    return 'skip'
 +
    patch_name = patch_file + '.patch'

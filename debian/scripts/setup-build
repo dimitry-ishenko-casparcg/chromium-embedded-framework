@@ -19,63 +19,62 @@ NODE_ARCH="$5"
 CLANG_MVERS="$6"
 CHROMIUM="${CURDIR}/chromium_src/chromium/src"
 
-# -- Stub BUILD.gn/gni files from debian/stubs/ --
-echo "==> Installing stub BUILD.gn/gni files from debian/stubs/"
-
-# Install stubs from manifest (stub-file:target-dir pairs)
-# Each line: stub_filename relative_target_dir
+# -- System library unbundling --
+# Use Chromium's upstream unbundle .gn files where available (same approach as
+# Debian Chromium's debian/scripts/unbundle). These replace bundled BUILD.gn
+# with system library linkage. Falls back to debian/stubs/ for components
+# without upstream unbundle support.
+echo "==> Unbundling system libraries (upstream unbundle .gn files)"
+UNBUNDLE="${CHROMIUM}/build/linux/unbundle"
 STUBS="${CURDIR}/debian/stubs"
 
-install_stub() {
-    mkdir -p "${CHROMIUM}/$2"
-    cp "${STUBS}/$1" "${CHROMIUM}/$2/$1"
+unbundle_lib() {
+    # $1=unbundle name, $2=target path relative to chromium/src
+    mkdir -p "${CHROMIUM}/$(dirname "$2")"
+    cp "${UNBUNDLE}/$1.gn" "${CHROMIUM}/$2"
 }
 
-install_stub_as() {
+install_stub() {
     mkdir -p "${CHROMIUM}/$(dirname "$2")"
     cp "${STUBS}/$1" "${CHROMIUM}/$2"
 }
 
-# Common stub for empty executables
-install_stub stub_main.cc third_party/debian_stubs
+# System libraries via Chromium's unbundle infrastructure
+unbundle_lib dav1d          third_party/dav1d/BUILD.gn
+unbundle_lib double-conversion base/third_party/double_conversion/BUILD.gn
+unbundle_lib flac            third_party/flac/BUILD.gn
+unbundle_lib fontconfig      third_party/fontconfig/BUILD.gn
+unbundle_lib freetype        build/config/freetype/freetype.gni
+unbundle_lib harfbuzz-ng     third_party/harfbuzz-ng/harfbuzz.gni
+unbundle_lib libjpeg         third_party/libjpeg.gni
+unbundle_lib libjpeg         third_party/libjpeg_turbo/BUILD.gn
+unbundle_lib libpng          third_party/libpng/BUILD.gn
+unbundle_lib libsecret       third_party/libsecret/BUILD.gn
+unbundle_lib libxml          third_party/libxml/BUILD.gn
+unbundle_lib libxslt         third_party/libxslt/BUILD.gn
+unbundle_lib libXNVCtrl      third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
+unbundle_lib openh264        third_party/openh264/BUILD.gn
+unbundle_lib opus            third_party/opus/BUILD.gn
+unbundle_lib zlib            third_party/zlib/BUILD.gn
+unbundle_lib zstd            third_party/zstd/BUILD.gn
 
-# System library stubs
-install_stub_as opus.BUILD.gn third_party/opus/BUILD.gn
-install_stub_as libjpeg_turbo.BUILD.gn third_party/libjpeg_turbo/BUILD.gn
-install_stub_as libpng.BUILD.gn third_party/libpng/BUILD.gn
-install_stub_as fontconfig.BUILD.gn third_party/fontconfig/BUILD.gn
-install_stub_as fontconfig.gni third_party/fontconfig/fontconfig.gni
-install_stub_as zlib.BUILD.gn third_party/zlib/BUILD.gn
-install_stub_as zstd.BUILD.gn third_party/zstd/BUILD.gn
-install_stub_as flac.BUILD.gn third_party/flac/BUILD.gn
-install_stub_as dav1d.BUILD.gn third_party/dav1d/BUILD.gn
-install_stub_as openh264.BUILD.gn third_party/openh264/BUILD.gn
-install_stub_as libxslt.BUILD.gn third_party/libxslt/BUILD.gn
-install_stub_as libsecret.BUILD.gn third_party/libsecret/BUILD.gn
-install_stub_as double_conversion.BUILD.gn base/third_party/double_conversion/BUILD.gn
-install_stub_as libXNVCtrl.BUILD.gn third_party/angle/src/third_party/libXNVCtrl/BUILD.gn
-install_stub_as harfbuzz.gni third_party/harfbuzz-ng/harfbuzz.gni
-install_stub_as libjpeg.gni third_party/libjpeg.gni
-install_stub_as freetype.gni build/config/freetype/freetype.gni
-
-# Stripped directory stubs
-install_stub_as catapult-telemetry.BUILD.gn third_party/catapult/telemetry/BUILD.gn
-install_stub_as catapult-typ.BUILD.gn third_party/catapult/third_party/typ/BUILD.gn
-install_stub_as catapult-tracing-tracing.BUILD.gn third_party/catapult/tracing/tracing/BUILD.gn
-install_stub_as catapult-tracing.BUILD.gn third_party/catapult/tracing/BUILD.gn
-install_stub_as catapult.BUILD.gn third_party/catapult/BUILD.gn
-install_stub_as catapult-gsutil.BUILD.gn third_party/catapult/third_party/gsutil/BUILD.gn
-install_stub_as enterprise_companion.BUILD.gn third_party/enterprise_companion/BUILD.gn
-install_stub_as updater.BUILD.gn third_party/updater/BUILD.gn
-install_stub_as puffin_patch_test.BUILD.gn components/test/data/update_client/puffin_patch_test/BUILD.gn
-install_stub_as swiftshader-SystemUnitTests.BUILD.gn third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
-install_stub_as swiftshader-ReactorUnitTests.BUILD.gn third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
-install_stub_as android-modules-buildflags.gni chrome/android/modules/buildflags.gni
-install_stub_as deps_revisions.gni buildtools/deps_revisions.gni
-
-# libxml uses upstream unbundle .gn file
-mkdir -p "${CHROMIUM}/third_party/libxml"
-cp "${CHROMIUM}/build/linux/unbundle/libxml.gn" "${CHROMIUM}/third_party/libxml/BUILD.gn"
+# Stubs for components without upstream unbundle support
+echo "==> Installing custom stubs from debian/stubs/"
+install_stub stub_main.cc                          third_party/debian_stubs/stub_main.cc
+install_stub fontconfig.gni                        third_party/fontconfig/fontconfig.gni
+install_stub catapult-telemetry.BUILD.gn           third_party/catapult/telemetry/BUILD.gn
+install_stub catapult-typ.BUILD.gn                 third_party/catapult/third_party/typ/BUILD.gn
+install_stub catapult-tracing-tracing.BUILD.gn     third_party/catapult/tracing/tracing/BUILD.gn
+install_stub catapult-tracing.BUILD.gn             third_party/catapult/tracing/BUILD.gn
+install_stub catapult.BUILD.gn                     third_party/catapult/BUILD.gn
+install_stub catapult-gsutil.BUILD.gn              third_party/catapult/third_party/gsutil/BUILD.gn
+install_stub enterprise_companion.BUILD.gn         third_party/enterprise_companion/BUILD.gn
+install_stub updater.BUILD.gn                      third_party/updater/BUILD.gn
+install_stub puffin_patch_test.BUILD.gn            components/test/data/update_client/puffin_patch_test/BUILD.gn
+install_stub swiftshader-SystemUnitTests.BUILD.gn  third_party/swiftshader/tests/SystemUnitTests/BUILD.gn
+install_stub swiftshader-ReactorUnitTests.BUILD.gn third_party/swiftshader/tests/ReactorUnitTests/BUILD.gn
+install_stub android-modules-buildflags.gni        chrome/android/modules/buildflags.gni
+install_stub deps_revisions.gni                    buildtools/deps_revisions.gni
 
 # -- System header symlinks --
 echo "==> Creating system header symlinks"

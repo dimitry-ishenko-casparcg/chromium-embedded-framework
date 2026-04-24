@@ -1,9 +1,0 @@
-# Stub freetype.gni for Debian builds
-# Debian uses system freetype instead of bundled version
-
-declare_args() {
-  # Use system freetype (overridden by GN_DEFINES)
-  use_system_freetype = true
-  # Enable freetype rendering
-  enable_freetype = true
-}
