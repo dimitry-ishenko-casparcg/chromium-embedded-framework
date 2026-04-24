@@ -87,8 +87,6 @@ Build-Depends: debhelper-compat (= 13),
                libsystemd-dev,
                yasm,
                git,
-               curl,
-               wget,
                esbuild,
                rollup,
                node-rollup-plugin-node-resolve,
@@ -124,6 +122,7 @@ Vcs-Git: https://salsa.debian.org/debian/chromium-embedded-framework.git
 
 Package: libcef147
 Architecture: amd64 arm64
+Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}, chromium-sandbox, libegl1, libgles2,
          libvulkan1
 Breaks: libcef138, libcef144, libcef145, libcef146
@@ -145,6 +144,7 @@ Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)
 
 Package: libcef-dev
 Architecture: amd64 arm64
+Multi-Arch: same
 Section: libdevel
 Depends: libcef147 (= ${binary:Version}), ${misc:Depends}
 Description: Chromium Embedded Framework - development files
@@ -158,6 +158,7 @@ Description: Chromium Embedded Framework - development files
 
 Package: libcef-common
 Architecture: all
+Multi-Arch: foreign
 Depends: ${misc:Depends}
 Description: Chromium Embedded Framework - common data files
  The Chromium Embedded Framework (CEF) is a simple framework for embedding

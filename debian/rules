@@ -47,6 +47,10 @@ else
 endif
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+# Disable dpkg LTO flags -- CEF uses GN's use_thin_lto flag instead
+export DEB_BUILD_MAINT_OPTIONS += optimize=-lto
+# Indicate that binary targets do not require root
+export DEB_RULES_REQUIRES_ROOT = no
 export DEBIAN_BUILD = 1
 
 ## ============================================================================
@@ -143,15 +147,19 @@ export CC = clang-19
 export CXX = clang++-19
 
 # Debian hardening flags (from Debian Chromium lines 39-42)
-# Strip -g from both CFLAGS and CXXFLAGS to avoid debug info bloating libcef.so
-export DEB_CFLAGS_MAINT_STRIP=-g
+# Strip -g from CXXFLAGS to avoid debug info bloating libcef.so (~260MB)
 export DEB_CXXFLAGS_MAINT_STRIP=-g
 
 # Standard build flags with system libc++ support
 # These are read by CEF's unbundle toolchain (patch 0011) at GN parse time
 # via getenv() to enable system libc++ (use_custom_libcxx=false)
-export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++
-export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++
+export CXXFLAGS:=$(shell dpkg-buildflags --get CXXFLAGS) -stdlib=libc++ \
+	-Wno-conversion -Wno-unused-function -Wno-unused-variable \
+	-Wno-unused-private-field -Wno-deprecated-declarations -Wno-unknown-pragmas \
+	-fno-delete-null-pointer-checks
+export LDFLAGS:=$(shell dpkg-buildflags --get LDFLAGS) -stdlib=libc++ -static-libstdc++
+# More verbose linker output (matches Debian Chromium)
+export LDFLAGS+=-Wl,--stats
 
 # Rust toolchain configuration (from Debian chromium lines 66-74)
 # Use system Rust instead of downloading from GCS
@@ -170,6 +178,7 @@ export GN_DEFINES += target_cpu=\"$(GN_CPU)\"
 export GN_DEFINES += enable_cef=true
 export GN_DEFINES += cef_build_tests=false
 export GN_DEFINES += is_debug=false
+# is_official_build enables size optimizations (identical to Debian Chromium)
 export GN_DEFINES += is_official_build=true
 export GN_DEFINES += symbol_level=0
 
@@ -180,6 +189,8 @@ export GN_DEFINES += treat_warnings_as_errors=false
 export GN_DEFINES += is_cfi=false
 export GN_DEFINES += chrome_pgo_phase=0
 export GN_DEFINES += use_thin_lto=false
+export GN_DEFINES += toolchain_supports_rust_thin_lto=false
+export GN_DEFINES += clang_warning_suppression_file=\"\"
 export GN_DEFINES += custom_toolchain=\"//build/toolchain/linux/unbundle:default\"
 export GN_DEFINES += host_toolchain=\"//build/toolchain/linux/unbundle:default\"
 
@@ -203,6 +214,14 @@ export GN_DEFINES += enable_background_mode=false
 export GN_DEFINES += enable_resource_allowlist_generation=false
 export GN_DEFINES += enable_downgrade_processing=false
 export GN_DEFINES += blink_heap_inside_shared_library=true
+
+# Enabled features (matching Debian Chromium)
+export GN_DEFINES += use_gio=true
+export GN_DEFINES += use_pulseaudio=true
+export GN_DEFINES += link_pulseaudio=true
+export GN_DEFINES += rtc_use_pipewire=true
+export GN_DEFINES += v8_enable_backtrace=true
+export GN_DEFINES += angle_has_histograms=false
 
 # Disable unused features
 export GN_DEFINES += enable_vr=false
@@ -279,6 +298,21 @@ override_dh_dwz:
 ## ============================================================================
 
 override_dh_auto_build:
+	# Verify CHROMIUM_VERSION matches the Chromium tarball
+	@if [ -f $(CURDIR)/chromium/chrome/VERSION ]; then \
+		TARBALL_MAJOR=$$(grep MAJOR $(CURDIR)/chromium/chrome/VERSION | cut -d= -f2); \
+		TARBALL_MINOR=$$(grep MINOR $(CURDIR)/chromium/chrome/VERSION | cut -d= -f2); \
+		TARBALL_BUILD=$$(grep BUILD $(CURDIR)/chromium/chrome/VERSION | cut -d= -f2); \
+		TARBALL_PATCH=$$(grep PATCH $(CURDIR)/chromium/chrome/VERSION | cut -d= -f2); \
+		TARBALL_VER="$$TARBALL_MAJOR.$$TARBALL_MINOR.$$TARBALL_BUILD.$$TARBALL_PATCH"; \
+		if [ "$$TARBALL_VER" != "$(CHROMIUM_VERSION)" ]; then \
+			echo "ERROR: CHROMIUM_VERSION ($(CHROMIUM_VERSION)) != tarball ($$TARBALL_VER)"; \
+			echo "Update CHROMIUM_VERSION in debian/rules"; \
+			exit 1; \
+		fi; \
+		echo "==> Chromium version verified: $(CHROMIUM_VERSION)"; \
+	fi
+
 	## Step 1: Copy CEF source to build directory
 	## NOTE: With MUT + quilt format, dpkg-source -x already applies CEF patches
 	## The cef/ directory has patches already applied when we copy it
@@ -325,9 +359,19 @@ override_dh_auto_build:
 		git config user.email "builder@debian.org" && \
 		git commit --no-gpg-sign --allow-empty -m "Vanilla Chromium source"
 	cp -a $(CURDIR)/chromium_src/cef $(CURDIR)/chromium_src/chromium/src/cef
+	# patcher.py exit code is non-zero when ANY patch fails, including patches
+	# targeting Windows/bundled files stripped from the Debian tarball.
+	# We allow this, then verify critical Linux patches were applied.
 	cd $(CURDIR)/chromium_src/chromium/src/cef && \
-		DEBIAN_BUILD=0 python3 tools/patcher.py || \
-		echo "==> Some CEF patches failed (expected: targets stripped files like Windows/bundled libs)"
+		DEBIAN_BUILD=0 python3 tools/patcher.py; \
+		CEF_PATCH_EXIT=$$?; \
+		if [ $$CEF_PATCH_EXIT -ne 0 ]; then \
+			echo "==> patcher.py exited with code $$CEF_PATCH_EXIT (expected: some patches target stripped files)"; \
+		fi
+	# Verify critical CEF patches applied (these MUST succeed for a working build)
+	@test -f $(CURDIR)/chromium_src/chromium/src/chrome/browser/ui/browser_command_controller.cc && \
+		grep -q 'enable_cef' $(CURDIR)/chromium_src/chromium/src/chrome/browser/ui/browser_command_controller.cc || \
+		{ echo "ERROR: Critical CEF patch did not apply to browser_command_controller.cc"; exit 1; }
 	# Re-apply context menu patch with fuzz (Chromium 147.0.7727.101 shifted lines)
 	# git apply (used by patcher.py) doesn't support fuzz; patch(1) does.
 	cd $(CURDIR)/chromium_src/chromium/src && \
@@ -362,7 +406,8 @@ override_dh_auto_build:
 		while read patch; do \
 			echo "Applying $$patch"; \
 			patch -p1 < "$(CURDIR)/chromium-debian/patches/$$patch" || { \
-				echo "WARNING: Patch $$patch failed, continuing..."; \
+				echo "ERROR: Debian Chromium patch $$patch failed"; \
+				exit 1; \
 			}; \
 		done
 	@echo "==> Debian Chromium patches applied successfully"
@@ -622,26 +667,11 @@ endif
 	## Solution: Create minimal stub files that re-export Unix functionality
 	## Note: These stubs are NEVER used (Debian only builds for Linux), but must exist
 	## for Rust compiler's module resolution during std lib compilation
-	@echo "==> Creating stubs for missing cross-platform os files (Windows, macOS, Cygwin)"
+	@echo "==> Installing cross-platform os stubs from debian/stubs/"
 	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin
 	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin
-	@printf '%s\n' \
-		'//! Cygwin-specific networking functionality (stub for Debian builds).' \
-		'//! Cygwin is a POSIX compatibility layer for Windows.' \
-		'//! This file is NOT used in Debian builds (Linux-only), but must exist' \
-		'//! for Rust compiler module resolution during std library compilation.' \
-		'' \
-		'// Re-export Unix networking (Cygwin is POSIX-compatible)' \
-		'pub use crate::os::unix::net::*;' \
-		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin/net.rs
-	@printf '%s\n' \
-		'//! macOS-specific Objective-C functionality (stub for Debian builds).' \
-		'//! This file is NOT used in Debian builds (Linux-only), but must exist' \
-		'//! for Rust compiler module resolution during std library compilation.' \
-		'' \
-		'// Empty module - no Objective-C on Linux' \
-		> $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin/objc.rs
-	@echo "==> Created stubs: cygwin/net.rs, darwin/objc.rs"
+	cp debian/stubs/cygwin-net.rs $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/cygwin/net.rs
+	cp debian/stubs/darwin-objc.rs $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/lib/rustlib/src/rust/library/std/src/os/darwin/objc.rs
 
 	## Step 7f: Verify Rust vendor crates from Chromium tarball exist
 	## Why: Chromium tarball (extracted in Step 5) ALREADY contains all Rust dependencies:
@@ -674,7 +704,8 @@ endif
 	# Step 8a: Create rust-toolchain VERSION stub and symlinks (was CEF patch 0010)
 	@echo "==> Creating rust-toolchain stubs for system Rust"
 	@mkdir -p $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin
-	@echo 'rustc 1.88.0 stub (15283f6fe95e5b604273d13a428bab5fc0788f5a-1-llvmorg-22-init-8940-g4d4cb757 chromium)' > $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/VERSION
+	@# VERSION is checked by Chromium's build system; generate from system rustc
+	@rustc --version | sed 's/$$/ (system)/' > $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/VERSION
 	@ln -sf /usr/bin/rustc $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustc
 	@ln -sf /usr/bin/bindgen $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/bindgen
 	@ln -sf /usr/bin/rustfmt $(CURDIR)/chromium_src/chromium/src/third_party/rust-toolchain/bin/rustfmt
@@ -821,24 +852,25 @@ override_dh_auto_install:
 		> $(CURDIR)/debian/libcef147/usr/share/vulkan/icd.d/vk_swiftshader_icd.json
 
 	# chrome-sandbox: CEF looks for it next to libcef.so (via dladdr/DIR_ASSETS).
-	# We depend on chromium-sandbox and symlink to it (see libcef147.links).
+	# We depend on chromium-sandbox and symlink to it.
+	ln -s /usr/lib/chromium/chrome-sandbox \
+		$(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/chrome-sandbox
+
+	# ANGLE library version symlinks (CEF's dlopen looks for versioned sonames)
+	ln -s libEGL.so $(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/cef/libEGL.so.1
+	ln -s libGLESv2.so $(CURDIR)/debian/libcef147/usr/lib/$(DEB_HOST_MULTIARCH)/cef/libGLESv2.so.2
+
+	# Dev symlink for -lcef linking
+	mkdir -p $(CURDIR)/debian/libcef-dev/usr/lib/$(DEB_HOST_MULTIARCH)
+	ln -s libcef.so.$(CEF_MAJOR) \
+		$(CURDIR)/debian/libcef-dev/usr/lib/$(DEB_HOST_MULTIARCH)/libcef.so
 
 override_dh_auto_test:
 	# Skip tests for now - CEF tests require X display
 	@echo "Skipping CEF tests (require X display)"
 
 override_dh_auto_clean:
-	# Clean Node.js and rollup symlinks (following Debian Chromium approach)
-	# These are inside chromium_src/ but we clean them explicitly for clarity
-	rm -rf chromium_src/chromium/src/third_party/node/linux/node-linux-$(NODE_ARCH) 2>/dev/null || true
-	rm -rf chromium_src/chromium/src/third_party/node/node_modules/rollup 2>/dev/null || true
-	rm -f chromium_src/chromium/src/third_party/devtools-frontend/src/node_modules/rollup3 2>/dev/null || true
-	# Clean entire build directory
-	rm -rf chromium_src/ || find chromium_src -type f -delete && find chromium_src -type d -empty -delete 2>/dev/null; rm -rf chromium_src/ 2>/dev/null || true
-	# Clean stale quilt state to prevent desync between .pc/ and source tree
+	rm -rf chromium_src/
 	rm -rf .pc
-	# Remove stale depot_tools/ (underscore) from manual clones
 	rm -rf depot_tools/
-	# Note: depot-tools/ (hyphen, MUT component) is no longer used for builds.
-	# System /usr/bin/gn and /usr/bin/ninja are used directly instead.
 	dh_auto_clean
