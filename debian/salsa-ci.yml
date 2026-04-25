@@ -186,7 +186,7 @@ publish-arm64:
 
 build-armhf:
   extends: .build-template
-  timeout: 72h
+  timeout: 96h
   script:
     - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
     - DEB_VERSION=$(dpkg-parsechangelog -S Version)
