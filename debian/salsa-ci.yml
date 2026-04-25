@@ -20,6 +20,9 @@ variables:
   stage: build
   tags: ["cef-builder"]
   cache: []
+  before_script:
+    # Remove stale sbuild chroot directories (owned by root via usernsexec)
+    - sudo rm -rf tmp/tmp.sbuild.* 2>/dev/null || true
   rules:
     - if: $GITLAB_USER_LOGIN == "mendezr"
       when: manual
