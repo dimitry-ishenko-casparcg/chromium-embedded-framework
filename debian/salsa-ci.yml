@@ -1,7 +1,7 @@
 ---
 # CEF multi-architecture build pipeline for Salsa custom runner
-# Two independent chains: build -> check -> publish (one per arch)
-# Either architecture can run alone or both together
+# Three independent chains: build -> check -> publish (one per arch)
+# Any architecture can run alone or all together
 #
 # Requires custom runner -- shared runners have 3h timeout (CEF needs 7h+)
 
@@ -120,7 +120,7 @@ publish-amd64:
 
 build-arm64:
   extends: .build-template
-  timeout: 48h
+  timeout: 72h
   script:
     - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
     - DEB_VERSION=$(dpkg-parsechangelog -S Version)
@@ -180,4 +180,70 @@ publish-arm64:
   extends: .publish-template
   needs:
     - job: build-arm64
+      artifacts: true
+
+# ── armhf chain ───────────────────────────────────────────────────────
+
+build-armhf:
+  extends: .build-template
+  timeout: 72h
+  script:
+    - UPSTREAM_VERSION=$(dpkg-parsechangelog -S Version | cut -d'-' -f1)
+    - DEB_VERSION=$(dpkg-parsechangelog -S Version)
+    - echo "Building CEF ${UPSTREAM_VERSION} for armhf"
+    - echo "CPU cores:$(nproc) RAM:$(free -h | grep Mem | awk '{print $2}') Disk:$(df -h . | tail -1 | awk '{print $4}')"
+
+    - export TMPDIR="$PWD/tmp"
+    - mkdir -p "$TMPDIR"
+
+    - CHROMIUM_VERSION=$(sed -n 's/^CHROMIUM_VERSION := //p' debian/rules)
+    - CEF_BRANCH=$(echo "$CHROMIUM_VERSION" | cut -d. -f3)
+    - echo "Chromium ${CHROMIUM_VERSION}, CEF branch ${CEF_BRANCH}"
+
+    # Clean stale files from previous runs
+    - cd .. && rm -f ${PKG}_*.orig*.tar.xz ${PKG}_*.debian.tar.xz ${PKG}_*.dsc chromium_*.tar.xz chromium_*.dsc *.deb *.buildinfo *.changes
+
+    # Obtain MUT tarballs
+    - chmod +x ./${PKG}/debian/scripts/get-orig-tarballs.sh
+    - ./${PKG}/debian/scripts/get-orig-tarballs.sh "$UPSTREAM_VERSION" "$CEF_BRANCH" "$CHROMIUM_VERSION" && cd ${PKG}
+
+    # Build source package, then use sbuild for armhf (QEMU emulation)
+    - dpkg-source -b .
+    - cd ..
+    - |
+      sbuild --arch=armhf --host=armhf \
+        --chroot=sid-armhf-sbuild --dist=experimental \
+        --no-clean-source --build-dep-resolver=apt --verbose \
+        ${PKG}_${UPSTREAM_VERSION}-*.dsc
+
+    # Collect artifacts (sbuild output in current directory, source pkg too)
+    - rm -rf ${CI_PROJECT_DIR}/build-output-armhf
+    - mkdir -p ${CI_PROJECT_DIR}/build-output-armhf
+    - cp *.deb *.buildinfo *.changes ${CI_PROJECT_DIR}/build-output-armhf/
+    - cp ${PKG}_${UPSTREAM_VERSION}-*.dsc ${PKG}_${UPSTREAM_VERSION}-*.debian.tar.* ${CI_PROJECT_DIR}/build-output-armhf/
+
+    # Export metadata for publish job
+    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build-armhf.env
+    - echo "DEB_VERSION=${DEB_VERSION}" >> ${CI_PROJECT_DIR}/build-armhf.env
+    - echo "ARCH=armhf" >> ${CI_PROJECT_DIR}/build-armhf.env
+    - echo "ARTIFACT_DIR=build-output-armhf" >> ${CI_PROJECT_DIR}/build-armhf.env
+
+  artifacts:
+    paths:
+      - build-output-armhf/
+    reports:
+      dotenv: build-armhf.env
+    expire_in: 30 days
+    when: on_success
+
+lintian-armhf:
+  extends: .lintian-template
+  needs: ["build-armhf"]
+  variables:
+    ARCH: armhf
+
+publish-armhf:
+  extends: .publish-template
+  needs:
+    - job: build-armhf
       artifacts: true
