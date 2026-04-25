@@ -121,7 +121,7 @@ Vcs-Browser: https://salsa.debian.org/debian/chromium-embedded-framework
 Vcs-Git: https://salsa.debian.org/debian/chromium-embedded-framework.git
 
 Package: libcef147
-Architecture: amd64 arm64
+Architecture: amd64 arm64 armhf
 Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}, chromium-sandbox, libegl1, libgles2,
          libvulkan1
@@ -143,7 +143,7 @@ Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)
  stremio-gtk (media center application), and casparcg-server (HTTP support).
 
 Package: libcef-dev
-Architecture: amd64 arm64
+Architecture: amd64 arm64 armhf
 Multi-Arch: same
 Section: libdevel
 Depends: libcef147 (= ${binary:Version}), ${misc:Depends}
