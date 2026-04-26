@@ -1,0 +1,26 @@
+Description: Link libgcc_s for SwiftShader on armhf
+ On armhf, __register_frame and __deregister_frame symbols from LLVM-16's
+ RTDyldMemoryManager.cpp are not implicitly linked into libvk_swiftshader.so.
+ These symbols are provided by libgcc_s. On amd64/arm64 they resolve
+ implicitly, but armhf requires an explicit -lgcc_s.
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-26
+
+diff --git a/third_party/swiftshader/src/Vulkan/BUILD.gn b/third_party/swiftshader/src/Vulkan/BUILD.gn
+index 852068c..43ce83c 100644
+--- a/third_party/swiftshader/src/Vulkan/BUILD.gn
++++ b/third_party/swiftshader/src/Vulkan/BUILD.gn
+@@ -226,6 +226,11 @@ swiftshader_shared_library("swiftshader_libvulkan") {
+       "-Wl,--version-script=" +
+           rebase_path("vk_swiftshader.lds", root_build_dir),
+     ]
++    if (current_cpu == "arm") {
++      # On armhf, __register_frame/__deregister_frame from LLVM-16's
++      # RTDyldMemoryManager are not implicitly linked. Pull them from libgcc_s.
++      libs = [ "gcc_s" ]
++    }
+   }
+
+   deps = [ ":_swiftshader_libvulkan" ]
