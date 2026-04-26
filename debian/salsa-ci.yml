@@ -23,6 +23,9 @@ variables:
   before_script:
     # Remove stale sbuild chroot directories (owned by root via usernsexec)
     - sudo rm -rf tmp/tmp.sbuild.* 2>/dev/null || true
+  after_script:
+    # Clean sbuild chroot leftovers so gitlab-runner's git clean can succeed
+    - sudo rm -rf tmp/tmp.sbuild.* 2>/dev/null || true
   rules:
     - if: $GITLAB_USER_LOGIN == "mendezr"
       when: manual
