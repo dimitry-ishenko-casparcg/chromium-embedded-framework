@@ -82,6 +82,7 @@ build-amd64:
     # Build source package, then use sbuild for clean chroot build
     - dpkg-source -b .
     - cd ..
+    - sudo sbuild-update --update --upgrade --clean unstable-amd64-sbuild 2>/dev/null || true
     - |
       sbuild --arch=amd64 --dist=experimental \
         --no-clean-source --build-dep-resolver=apt --verbose \
@@ -147,6 +148,7 @@ build-arm64:
     # Build source package, then use sbuild for arm64 (QEMU emulation)
     - dpkg-source -b .
     - cd ..
+    - sudo sbuild-update --update --upgrade --clean sid-arm64-sbuild
     - |
       sbuild --arch=arm64 --host=arm64 \
         --chroot=sid-arm64-sbuild --dist=experimental \
@@ -213,6 +215,7 @@ build-armhf:
     # Build source package, then use sbuild for armhf (QEMU emulation)
     - dpkg-source -b .
     - cd ..
+    - sudo sbuild-update --update --upgrade --clean sid-armhf-sbuild
     - |
       sbuild --arch=armhf --host=armhf \
         --chroot=sid-armhf-sbuild --dist=experimental \
