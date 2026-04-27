@@ -13,6 +13,9 @@ stages:
 variables:
   DEBIAN_FRONTEND: noninteractive
   PKG: chromium-embedded-framework
+  # Exclude tmp/ from git clean -- sbuild chroot dirs are root-owned and
+  # git clean cannot remove them, causing job failures on cleanup
+  GIT_CLEAN_FLAGS: -ffdx -e tmp/
 
 # ── Shared templates ──────────────────────────────────────────────────
 
