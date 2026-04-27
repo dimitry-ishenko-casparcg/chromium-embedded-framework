@@ -315,10 +315,17 @@ override_dh_auto_build:
 	@echo '$(GN_DEFINES)' | tr ' ' '\n' | sed 's/\\"/"/g' > $(CURDIR)/chromium_src/chromium/src/out/Release_GN_$(GN_CPU)/args.gn
 
 	# 3d. Run gn gen (system /usr/bin/gn from generate-ninja package)
+	# armhf: --threads=1 avoids QEMU user-mode emulation threading deadlock
 	@echo "==> Running gn gen out/Release_GN_$(GN_CPU)"
+ifeq ($(DEB_HOST_ARCH),armhf)
+	cd $(CURDIR)/chromium_src/chromium/src && \
+	PATH=/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH \
+	/usr/bin/gn gen --threads=1 out/Release_GN_$(GN_CPU)
+else
 	cd $(CURDIR)/chromium_src/chromium/src && \
 	PATH=/usr/lib/llvm-$(CLANG_MVERS)/bin:$$PATH \
 	/usr/bin/gn gen out/Release_GN_$(GN_CPU)
+endif
 
 	# 3e. Run ninja (system /usr/bin/ninja from ninja-build package)
 	@echo "==> Building CEF with ninja -j$(NINJA_JOBS)"
