@@ -4,25 +4,31 @@ Description: Link libgcc_s for SwiftShader on armhf
  These symbols are provided by libgcc_s. On amd64/arm64 they resolve
  implicitly, but armhf requires an explicit -lgcc_s.
  .
- Use ldflags (not libs) to ensure the flag appears in the linker command
- regardless of GN toolchain template forwarding.
+ Use --no-as-needed to defeat link-order sensitivity: ldflags appear before
+ the object response file, so without --no-as-needed the linker discards
+ the library before seeing the references in RTDyldMemoryManager.o.
 Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-04-27
 
 diff --git a/third_party/swiftshader/src/Vulkan/BUILD.gn b/third_party/swiftshader/src/Vulkan/BUILD.gn
-index 852068c..a02aec6 100644
+index 852068c..c2c3c23 100644
 --- a/third_party/swiftshader/src/Vulkan/BUILD.gn
 +++ b/third_party/swiftshader/src/Vulkan/BUILD.gn
-@@ -226,6 +226,11 @@ swiftshader_shared_library("swiftshader_libvulkan") {
+@@ -226,6 +226,16 @@ swiftshader_shared_library("swiftshader_libvulkan") {
        "-Wl,--version-script=" +
            rebase_path("vk_swiftshader.lds", root_build_dir),
      ]
 +    if (current_cpu == "arm") {
 +      # On armhf, __register_frame/__deregister_frame from LLVM-16's
 +      # RTDyldMemoryManager are not implicitly linked. Pull them from libgcc_s.
-+      ldflags += [ "-lgcc_s" ]
++      # --no-as-needed ensures the library is kept regardless of link order.
++      ldflags += [
++        "-Wl,--no-as-needed",
++        "-lgcc_s",
++        "-Wl,--as-needed",
++      ]
 +    }
    }
 
