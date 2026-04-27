@@ -4,32 +4,30 @@ Description: Link libgcc_s for SwiftShader on armhf
  These symbols are provided by libgcc_s. On amd64/arm64 they resolve
  implicitly, but armhf requires an explicit -lgcc_s.
  .
- Use --no-as-needed to defeat link-order sensitivity: ldflags appear before
- the object response file, so without --no-as-needed the linker discards
- the library before seeing the references in RTDyldMemoryManager.o.
+ Add the library on the _swiftshader_libvulkan source_set (not the
+ shared_library target) so GN places -lgcc_s AFTER the object files
+ in the link command. lld requires libraries to appear after the
+ objects that reference them.
 Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 Bug-Debian: https://bugs.debian.org/915400
 Forwarded: not-needed
 Last-Update: 2026-04-27
 
 diff --git a/third_party/swiftshader/src/Vulkan/BUILD.gn b/third_party/swiftshader/src/Vulkan/BUILD.gn
-index 852068c..c2c3c23 100644
+index 852068c..5a58e36 100644
 --- a/third_party/swiftshader/src/Vulkan/BUILD.gn
 +++ b/third_party/swiftshader/src/Vulkan/BUILD.gn
-@@ -226,6 +226,16 @@ swiftshader_shared_library("swiftshader_libvulkan") {
-       "-Wl,--version-script=" +
-           rebase_path("vk_swiftshader.lds", root_build_dir),
+@@ -175,6 +175,13 @@ swiftshader_source_set("_swiftshader_libvulkan") {
+       "gdi32.lib",
+       "user32.lib",
      ]
-+    if (current_cpu == "arm") {
-+      # On armhf, __register_frame/__deregister_frame from LLVM-16's
-+      # RTDyldMemoryManager are not implicitly linked. Pull them from libgcc_s.
-+      # --no-as-needed ensures the library is kept regardless of link order.
-+      ldflags += [
-+        "-Wl,--no-as-needed",
-+        "-lgcc_s",
-+        "-Wl,--as-needed",
-+      ]
-+    }
++  } else if (current_cpu == "arm") {
++    # On armhf, __register_frame/__deregister_frame from LLVM-16's
++    # RTDyldMemoryManager are not implicitly linked. Pull from libgcc_s.
++    # Must be in the source_set (not shared_library) so GN places the
++    # library AFTER the object files in the link command -- lld requires
++    # libraries to appear after the objects that reference them.
++    libs += [ "gcc_s" ]
    }
 
-   deps = [ ":_swiftshader_libvulkan" ]
+   public_deps = [
