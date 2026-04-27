@@ -1,0 +1,36 @@
+Description: Disable DWARF EH frame registration in SwiftShader LLVM-16 on armhf
+ ARM 32-bit uses EHABI for unwinding, not DWARF FDE-based
+ __register_frame/__deregister_frame. These symbols do not exist in
+ libgcc_s.so on armhf, causing undefined symbol errors at link time.
+ .
+ The bundled LLVM-16 config assumes all Linux platforms have these
+ symbols (Android correctly undefines them). Guard with __arm__ so
+ RTDyldMemoryManager.cpp falls back to the safe runtime dlsym lookup
+ that already exists for platforms without these symbols.
+Author: Juan Manuel Mendez Rey <juan.mendezr@proton.me>
+Bug-Debian: https://bugs.debian.org/915400
+Forwarded: not-needed
+Last-Update: 2026-04-27
+
+diff --git a/third_party/swiftshader/third_party/llvm-16.0/configs/linux/include/llvm/Config/config.h b/third_party/swiftshader/third_party/llvm-16.0/configs/linux/include/llvm/Config/config.h
+index 5e169c0..f3df86d 100644
+--- a/third_party/swiftshader/third_party/llvm-16.0/configs/linux/include/llvm/Config/config.h
++++ b/third_party/swiftshader/third_party/llvm-16.0/configs/linux/include/llvm/Config/config.h
+@@ -60,10 +60,17 @@
+ #define HAVE_DLADDR 1
+
+ /* Define to 1 if we can register EH frames on this platform. */
++/* ARM EHABI does not use DWARF FDE-based __register_frame/__deregister_frame.
++   These symbols do not exist in libgcc_s on armhf. Undefining falls back to
++   a safe runtime dlsym lookup in RTDyldMemoryManager.cpp. */
++#if !defined(__arm__)
+ #define HAVE_REGISTER_FRAME 1
++#endif
+
+ /* Define to 1 if we can deregister EH frames on this platform. */
++#if !defined(__arm__)
+ #define HAVE_DEREGISTER_FRAME 1
++#endif
+
+ /* Define if __unw_add_dynamic_fde() is available on this platform. */
+ /* #undef HAVE_UNW_ADD_DYNAMIC_FDE */

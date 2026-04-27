@@ -36,4 +36,4 @@
 0034-disable-bytemuck-nightly-portable-simd.chromium.patch
 0035-disable-sanitize-c-array-bounds-clang19-ice.chromium.patch
 0036-fix-origin-wildcards-spaceship-clang19-ice.chromium.patch
-0037-swiftshader-link-gcc-s-armhf.chromium.patch
+0037-swiftshader-disable-eh-frame-armhf.chromium.patch
