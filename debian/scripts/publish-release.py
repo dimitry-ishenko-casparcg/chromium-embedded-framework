@@ -5,10 +5,12 @@ Creates a tag and release if they don't exist, or appends asset links to an
 existing release (for multi-architecture builds where the other arch published
 first).
 
+Artifacts are uploaded directly to the GitLab generic package registry so
+they persist independently of CI job artifact expiration.
+
 Required environment variables:
-    ARCH             - Build architecture (amd64, arm64)
-    BUILD_JOB_ID     - GitLab CI job ID that produced the artifacts
-    DEB_VERSION      - Full Debian version (e.g. 147.0.3+ds2-1)
+    ARCH             - Build architecture (amd64, arm64, armhf)
+    DEB_VERSION      - Full Debian version (e.g. 147.0.3+ds3-1)
     ARTIFACT_DIR     - Artifact subdirectory name (e.g. build-output-amd64)
     CI_API_V4_URL    - GitLab API base URL
     CI_PROJECT_ID    - GitLab project numeric ID
@@ -46,19 +48,46 @@ def api(method, url, token, data=None):
         raise
 
 
+def upload_file(base_api, token, ver, filename, filepath):
+    """Upload a file to the GitLab generic package registry.
+
+    Returns the download URL on success, None on failure.
+    """
+    pkg_name = "cef-release"
+    pkg_ver = urllib.parse.quote(ver, safe="")
+    fname = urllib.parse.quote(filename, safe="")
+    url = f"{base_api}/packages/generic/{pkg_name}/{pkg_ver}/{fname}"
+
+    with open(filepath, "rb") as f:
+        file_data = f.read()
+
+    req = urllib.request.Request(
+        url,
+        data=file_data,
+        headers={"PRIVATE-TOKEN": token, "Content-Type": "application/octet-stream"},
+        method="PUT",
+    )
+    try:
+        resp = urllib.request.urlopen(req)
+        return url
+    except urllib.error.HTTPError as e:
+        # 409 = already uploaded (idempotent)
+        if e.code == 409:
+            print(f"  {filename}: already uploaded")
+            return url
+        print(f"  ERROR uploading {filename}: {e.code} {e.read().decode()}",
+              file=sys.stderr)
+        return None
+
+
 def main():
     arch = os.environ["ARCH"]
     ver = os.environ["DEB_VERSION"]
     major = ver.split(".")[0]
     tag = f"debian/{ver}"
-    job_id = os.environ["BUILD_JOB_ID"]
     artifact_dir = os.environ["ARTIFACT_DIR"]
     base_api = (
         f"{os.environ['CI_API_V4_URL']}/projects/{os.environ['CI_PROJECT_ID']}"
-    )
-    base_url = (
-        f"{os.environ['CI_PROJECT_URL']}/-/jobs/{job_id}"
-        f"/artifacts/raw/{artifact_dir}"
     )
     token = os.environ["SALSA_API_TOKEN"].strip()
     sha = os.environ["CI_COMMIT_SHA"]
@@ -76,55 +105,38 @@ def main():
     else:
         print(f"Tag {tag} already exists")
 
-    # Step 2: build asset links for this architecture
+    # Step 2: collect artifact files for this architecture
     pkg = "chromium-embedded-framework"
-    links = [
-        # Binary packages (arch-specific)
-        {
-            "name": f"libcef{major}_{ver}_{arch}.deb",
-            "url": f"{base_url}/libcef{major}_{ver}_{arch}.deb",
-            "link_type": "package",
-        },
-        {
-            "name": f"libcef{major}-dbgsym_{ver}_{arch}.deb",
-            "url": f"{base_url}/libcef{major}-dbgsym_{ver}_{arch}.deb",
-            "link_type": "package",
-        },
-        {
-            "name": f"libcef-dev_{ver}_{arch}.deb",
-            "url": f"{base_url}/libcef-dev_{ver}_{arch}.deb",
-            "link_type": "package",
-        },
-        {
-            "name": f"libcef-common_{ver}_all.deb",
-            "url": f"{base_url}/libcef-common_{ver}_all.deb",
-            "link_type": "package",
-        },
-        # Source package (for mentors/sponsor review)
-        {
-            "name": f"{pkg}_{ver}.dsc",
-            "url": f"{base_url}/{pkg}_{ver}.dsc",
-            "link_type": "other",
-        },
-        {
-            "name": f"{pkg}_{ver}.debian.tar.xz",
-            "url": f"{base_url}/{pkg}_{ver}.debian.tar.xz",
-            "link_type": "other",
-        },
-        # Build metadata (arch-specific)
-        {
-            "name": f"{pkg}_{ver}_{arch}.buildinfo",
-            "url": f"{base_url}/{pkg}_{ver}_{arch}.buildinfo",
-            "link_type": "other",
-        },
-        {
-            "name": f"{pkg}_{ver}_{arch}.changes",
-            "url": f"{base_url}/{pkg}_{ver}_{arch}.changes",
-            "link_type": "other",
-        },
+    files = [
+        f"libcef{major}_{ver}_{arch}.deb",
+        f"libcef{major}-dbgsym_{ver}_{arch}.deb",
+        f"libcef-dev_{ver}_{arch}.deb",
+        f"libcef-common_{ver}_all.deb",
+        f"{pkg}_{ver}.dsc",
+        f"{pkg}_{ver}.debian.tar.xz",
+        f"{pkg}_{ver}_{arch}.buildinfo",
+        f"{pkg}_{ver}_{arch}.changes",
     ]
 
-    # Step 3: create release or append links to existing one
+    # Step 3: upload each file to generic package registry
+    print(f"Uploading {arch} artifacts to package registry")
+    links = []
+    for filename in files:
+        filepath = os.path.join(artifact_dir, filename)
+        if not os.path.exists(filepath):
+            print(f"  {filename}: not found, skipping")
+            continue
+        url = upload_file(base_api, token, ver, filename, filepath)
+        if url:
+            link_type = "package" if filename.endswith(".deb") else "other"
+            links.append({"name": filename, "url": url, "link_type": link_type})
+            print(f"  {filename}: uploaded")
+
+    if not links:
+        print("ERROR: no files uploaded", file=sys.stderr)
+        sys.exit(1)
+
+    # Step 4: create release or append links to existing one
     ok, _ = api(
         "POST",
         f"{base_api}/releases",
@@ -152,17 +164,6 @@ def main():
             )
             status = "added" if ok else "skipped (already exists)"
             print(f"  {link['name']}: {status}")
-
-    # Step 4: mark build job artifacts as permanent
-    ok, _ = api(
-        "POST",
-        f"{base_api}/jobs/{job_id}/artifacts/keep",
-        token,
-    )
-    if ok:
-        print(f"Artifacts for job {job_id} marked as permanent")
-    else:
-        print(f"Could not mark artifacts for job {job_id} as permanent")
 
 
 if __name__ == "__main__":

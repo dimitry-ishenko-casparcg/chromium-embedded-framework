@@ -52,7 +52,7 @@ variables:
     - DEB_VERSION=$(dpkg-parsechangelog -S Version)
     - >-
       export ARCH DEB_VERSION
-      BUILD_JOB_ID ARTIFACT_DIR
+      ARTIFACT_DIR
       CI_API_V4_URL CI_PROJECT_ID CI_PROJECT_URL CI_COMMIT_SHA
       SALSA_API_TOKEN
     - python3 debian/scripts/publish-release.py
@@ -98,8 +98,7 @@ build-amd64:
     - cp ${PKG}_${UPSTREAM_VERSION}-*.dsc ${PKG}_${UPSTREAM_VERSION}-*.debian.tar.* ${CI_PROJECT_DIR}/build-output-amd64/
 
     # Export metadata for publish job
-    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build-amd64.env
-    - echo "DEB_VERSION=${DEB_VERSION}" >> ${CI_PROJECT_DIR}/build-amd64.env
+    - echo "DEB_VERSION=${DEB_VERSION}" > ${CI_PROJECT_DIR}/build-amd64.env
     - echo "ARCH=amd64" >> ${CI_PROJECT_DIR}/build-amd64.env
     - echo "ARTIFACT_DIR=build-output-amd64" >> ${CI_PROJECT_DIR}/build-amd64.env
 
@@ -164,8 +163,7 @@ build-arm64:
     - cp ${PKG}_${UPSTREAM_VERSION}-*.dsc ${PKG}_${UPSTREAM_VERSION}-*.debian.tar.* ${CI_PROJECT_DIR}/build-output-arm64/
 
     # Export metadata for publish job
-    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build-arm64.env
-    - echo "DEB_VERSION=${DEB_VERSION}" >> ${CI_PROJECT_DIR}/build-arm64.env
+    - echo "DEB_VERSION=${DEB_VERSION}" > ${CI_PROJECT_DIR}/build-arm64.env
     - echo "ARCH=arm64" >> ${CI_PROJECT_DIR}/build-arm64.env
     - echo "ARTIFACT_DIR=build-output-arm64" >> ${CI_PROJECT_DIR}/build-arm64.env
 
@@ -230,8 +228,7 @@ build-armhf:
     - cp ${PKG}_${UPSTREAM_VERSION}-*.dsc ${PKG}_${UPSTREAM_VERSION}-*.debian.tar.* ${CI_PROJECT_DIR}/build-output-armhf/
 
     # Export metadata for publish job
-    - echo "BUILD_JOB_ID=${CI_JOB_ID}" > ${CI_PROJECT_DIR}/build-armhf.env
-    - echo "DEB_VERSION=${DEB_VERSION}" >> ${CI_PROJECT_DIR}/build-armhf.env
+    - echo "DEB_VERSION=${DEB_VERSION}" > ${CI_PROJECT_DIR}/build-armhf.env
     - echo "ARCH=armhf" >> ${CI_PROJECT_DIR}/build-armhf.env
     - echo "ARTIFACT_DIR=build-output-armhf" >> ${CI_PROJECT_DIR}/build-armhf.env
 
