@@ -89,7 +89,7 @@ Quick Start (copy-paste these commands):
     apt-cache policy chromium | grep Candidate
     # Example output: Candidate: 147.0.7727.116-2
 
-    # 3. Download MUT tarballs (use the version from step 2)
+    # 3. Download MUT tarballs (adapt versions to match your release)
     #
     #    Parameters:
     #      147.0.3+ds3       = CEF package version with +ds suffix (from debian/changelog)
@@ -353,7 +353,7 @@ most commonly when Debian Chromium releases a security update. This is required
 because Debian archive orig tarballs are immutable: a new tarball with different
 content requires a new upstream version.
 
-Example version progression:
+Example version progression (from CEF 146 era):
 
     146.0.5+ds1-1     <- initial (chromium 146.0.7680.71)
     146.0.5+ds1-2     <- packaging fix only (same tarballs)
