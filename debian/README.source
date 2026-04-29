@@ -92,11 +92,11 @@ Quick Start (copy-paste these commands):
     # 3. Download MUT tarballs (use the version from step 2)
     #
     #    Parameters:
-    #      147.0.3+ds1       = CEF package version with +ds suffix (from debian/changelog)
+    #      147.0.3+ds3       = CEF package version with +ds suffix (from debian/changelog)
     #      7727              = CEF upstream branch (from cef/CHROMIUM_BUILD_COMPATIBILITY.txt)
     #      147.0.7727.116-1~deb13u1 = Chromium Debian version (from step 2)
     #
-    ./debian/scripts/get-orig-tarballs.sh 147.0.3+ds1 7727 147.0.7727.116-1~deb13u1
+    ./debian/scripts/get-orig-tarballs.sh 147.0.3+ds3 7727 147.0.7727.116-1~deb13u1
 
     # 4. Create source package
     dpkg-source -b .
@@ -148,7 +148,7 @@ it to the MUT component name automatically.
 Obtained from: Debian chromium source package (chromium_*.debian.tar.xz)
 
 Contains the Debian Chromium packaging directory (patches/, rules, etc.).
-These patches are applied during Step 5.5 of debian/rules to integrate
+These patches are applied during Phase 1 (setup-source) of debian/rules to integrate
 Chromium with Debian system libraries (libc++, system FFmpeg, build fixes, etc.).
 
 The get-orig-tarballs.sh script creates this MUT component automatically from

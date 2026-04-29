@@ -111,7 +111,7 @@ Comment: Debian Chromium packaging patches and configuration from the
  Chromium with Debian system libraries and toolchains.
 
 Files: debian/*
-Copyright: 2025-2026 Juan Manuel Mendez Rey <juan.mendezr@proton.me>
+Copyright: 2025-2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>
 License: BSD-3-Clause
 
 License: BSD-3-Clause
