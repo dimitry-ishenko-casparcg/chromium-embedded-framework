@@ -133,11 +133,10 @@ Description: Chromium Embedded Framework - shared library (EXPERIMENTAL)
  .
  This package provides the CEF shared library.
  .
- WARNING: This package is EXPERIMENTAL and targets unstable/testing only.
- It currently builds against upstream Chromium sources. When the
- chromium-source package becomes available (bug #893448), this will
- migrate to using Debian's patched Chromium sources for improved
- security consistency.
+ WARNING: This package is EXPERIMENTAL and targets experimental only.
+ It builds against Debian Chromium sources (orig tarball + Debian patches)
+ bundled as MUT components. When the chromium-source package becomes
+ available (bug #893448), this will migrate to a Build-Depends.
  .
  This package enables functionality in obs-studio (browser sources),
  stremio-gtk (media center application), and casparcg-server (HTTP support).

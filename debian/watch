@@ -8,8 +8,8 @@ Untrackable: CEF has no git tags; version derived from internal VERSION file
 # CEF version (e.g., 146.0.5) is derived from the VERSION file inside the
 # source tree, which uscan cannot extract from git refs.
 #
-# The chromium component comes from Debian's chromium source package, and
-# depot-tools is a rolling repository with no versioned releases.
+# The chromium and chromium-debian components come from Debian's chromium
+# source package.
 #
 # Use debian/scripts/get-orig-tarballs.sh to obtain MUT tarballs.
 # See debian/README.source for full details.
@@ -31,13 +31,4 @@ Matching-Pattern: .*@ANY_VERSION@@ARCHIVE_EXT@
 # Pgp-Mode: none
 # Compression: xz
 # Dversion-Mangle: s/-\d+$//
-# Version-Constraint: ignore
-#
-# Component: depot-tools
-# Mode: git
-# Git-Mode: shallow
-# Source: https://chromium.googlesource.com/chromium/tools/depot_tools.git
-# Matching-Pattern: HEAD
-# Pgp-Mode: none
-# Compression: xz
 # Version-Constraint: ignore

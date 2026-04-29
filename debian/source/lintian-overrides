@@ -33,10 +33,9 @@ chromium-embedded-framework source: license-problem-non-free-RFC-BCP78 [chromium
 # wayland-protocols demos, not shipped in the binary package.
 chromium-embedded-framework source: inconsistent-appstream-metadata-license *
 
-# libsync and ukey2 NOTICE files are fetched by gclient sync during build
-# (Step 7 in debian/rules). They are not present in the chromium/ MUT tarball
-# because they are part of Chromium's DEPS dependencies. The NOTICE files exist
-# at build time in chromium_src/chromium/src/third_party/*/src/NOTICE.
+# libsync and ukey2 NOTICE files are not present in the chromium/ MUT tarball.
+# They are part of Chromium's DEPS dependencies that upstream fetches separately.
+# Debian chromium's orig tarball does not include them either.
 chromium-embedded-framework source: missing-notice-file-for-apache-license [chromium/third_party/libsync/src/NOTICE]
 chromium-embedded-framework source: missing-notice-file-for-apache-license [chromium/third_party/ukey2/src/NOTICE]
 
