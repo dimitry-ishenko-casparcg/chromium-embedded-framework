@@ -152,7 +152,8 @@ build-arm64:
     # cause threading deadlocks in gn under QEMU emulation
     - dpkg-source -b .
     - cd ..
-    - sudo sbuild-update --update --upgrade --clean sid-arm64-sbuild
+    - sudo schroot -c source:sid-arm64-sbuild -u root -- apt-get -y update
+    - sudo schroot -c source:sid-arm64-sbuild -u root -- apt-get -y upgrade
     - |
       sbuild --arch=arm64 --host=arm64 \
         --chroot=sid-arm64-sbuild --dist=experimental \
@@ -220,7 +221,8 @@ build-armhf:
     # cause threading deadlocks in gn under QEMU emulation
     - dpkg-source -b .
     - cd ..
-    - sudo sbuild-update --update --upgrade --clean sid-armhf-sbuild
+    - sudo schroot -c source:sid-armhf-sbuild -u root -- apt-get -y update
+    - sudo schroot -c source:sid-armhf-sbuild -u root -- apt-get -y upgrade
     - |
       sbuild --arch=armhf --host=armhf \
         --chroot=sid-armhf-sbuild --dist=experimental \
