@@ -12,8 +12,8 @@ Binary Packages
 
 This source package produces four binary packages:
 
-  libcef147        - CEF shared library (libcef.so.145)
-                     The version number (145) is the CEF major version.
+  libcef147        - CEF shared library (libcef.so.147)
+                     The version number (147) is the CEF major version.
                      See "CEF and Chromium Version Alignment" section below.
 
   libcef147-dbgsym - Debug symbols for libcef147 (auto-generated)
@@ -31,17 +31,17 @@ This package uses Multiple Upstream Tarballs (MUT) format. All components
 are distributed as separate tarballs and automatically extracted by
 dpkg-source:
 
-  orig.tar.xz           - CEF source code (main tarball)
-  orig-chromium.tar.xz  - Chromium browser source
-  orig-depot-tools.tar.xz - Google's depot_tools build system
+  orig.tar.xz                  - CEF source code (main tarball)
+  orig-chromium.tar.xz         - Chromium browser source
+  orig-chromium-debian.tar.xz  - Debian Chromium patches
 
 When extracted with `dpkg-source -x`, these create:
 
   chromium-embedded-framework-VERSION/
-  ├── cef/           <- CEF source
-  ├── chromium/      <- Chromium source
-  ├── depot-tools/   <- Google's build tools
-  └── debian/        <- Packaging files
+  ├── cef/              <- CEF source
+  ├── chromium/         <- Chromium source
+  ├── chromium-debian/  <- Debian Chromium patches
+  └── debian/           <- Packaging files
 
 **No manual setup required** - all components are included in the source
 package. See debian/README.source for detailed MUT documentation.
@@ -54,9 +54,8 @@ These components are bundled as MUT tarballs as an interim solution:
     is resolved. This will allow automatic version tracking with Debian's
     Chromium security updates.
 
-  - depot-tools: Could migrate to a Debian package if one is ever created.
-    Currently bundled because depot_tools has no stable releases and
-    requires specific commit alignment with Chromium versions.
+  - chromium-debian: Debian Chromium patches applied during build. Will be
+    unnecessary once chromium-source provides pre-patched source.
 
 Build Instructions
 ------------------
@@ -194,14 +193,6 @@ When the Debian Chromium team provides a chromium-source binary package:
   - Add Build-Depends: chromium-source
   - Update debian/rules to copy from /usr/src/chromium/
   - Benefits: Automatic security updates, reduced source package size
-
-**depot-tools (hypothetical):**
-
-If a depot-tools Debian package is ever created:
-
-  - Remove orig-depot-tools.tar.xz from MUT
-  - Add Build-Depends: depot-tools
-  - Benefits: Shared maintenance, automatic updates
 
 **rust-src:**
 

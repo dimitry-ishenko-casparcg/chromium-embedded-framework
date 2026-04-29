@@ -473,5 +473,4 @@ override_dh_auto_test:
 override_dh_auto_clean:
 	rm -rf chromium_src/
 	rm -rf .pc
-	rm -rf depot_tools/
 	dh_auto_clean
