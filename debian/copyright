@@ -3,16 +3,6 @@ Upstream-Name: Chromium Embedded Framework
 Upstream-Contact: Marshall A. Greenblatt <magreenblatt@gmail.com>
 Source: https://bitbucket.org/chromiumembedded/cef
 Files-Excluded:
- depot-tools/*.exe
- depot-tools/*.bat
- depot-tools/win_tools*
- depot-tools/.cipd_bin
- depot-tools/bootstrap-2*
- depot-tools/bootstrap/*.bat
- depot-tools/python-bin/*.bat
- depot-tools/python2-bin/*.bat
- depot-tools/testing_support/*.bat
- depot-tools/tests/git_common_test.inputs/*/*.bat
  chromium/third_party/node/linux/*
  *.wasm
  *.jar
@@ -21,7 +11,6 @@ Comment: This package uses Multiple Upstream Tarballs (MUT) format with componen
  - Main tarball: CEF source
  - chromium component: Chromium browser source (from Debian chromium package)
  - chromium-debian component: Debian Chromium patches and build configuration
- - depot-tools component: Google's build tools
 
 Files: *
 Copyright: 2008-2025 The Chromium Embedded Framework Authors
@@ -33,13 +22,73 @@ Copyright: 2008-2025 The Chromium Embedded Framework Authors
            2006-2009 Google Inc.
 License: BSD-3-Clause
 
+Files: cef/tools/yapf/*
+Copyright: 2015 Google Inc.
+License: Apache-2.0
+Comment: YAPF (Yet Another Python Formatter) bundled as a CEF development tool.
+
+Files: cef/tools/yapf/platformdirs/*
+Copyright: 2010-2023 The platformdirs developers
+License: Expat
+Comment: Vendored dependency of YAPF. Upstream: https://github.com/platformdirs/platformdirs
+ MIT-licensed per upstream PyPI metadata and GitHub repository. No LICENSE file
+ is included in this vendored copy.
+
+Files: cef/tools/yapf/yapf_third_party/_ylib2to3/*
+Copyright: 2001-2023 Python Software Foundation
+License: PSF-2.0
+Comment: Python lib2to3 library adapted for YAPF. Contains the PSF License
+ covering multiple historical Python license grants (CWI, CNRI, BeOpen, PSF).
+
+Files: cef/tools/yapf/yapf_third_party/yapf_diff/*
+Copyright: 2003-2019 University of Illinois at Urbana-Champaign
+License: Apache-2.0
+Comment: Modified copy of clang-format-diff.py. Licensed under Apache-2.0
+ with LLVM Exceptions. The LLVM Exception permits combining with other
+ licenses without requiring the combined work to be Apache-2.0.
+
+Files: cef/bazel/linux/pkg_config/*
+Copyright: cherrry (https://github.com/cherrry/bazel_pkg_config)
+License: Expat
+Comment: Bazel rules for pkg-config. MIT-licensed per upstream GitHub repository.
+ No LICENSE file included in vendored copy. Commit 284219a.
+
+Files: cef/tests/gtest/teamcity/*
+Copyright: 2011 JetBrains s.r.o.
+           2015 Paul Shmakov
+License: Apache-2.0
+Comment: TeamCity C++ Unit Test Reporting library (teamcity-cpp v1.8).
+ Upstream: https://github.com/JetBrains/teamcity-cpp
+
+Files: cef/libcef/browser/osr/video_consumer_osr.cc
+Copyright: 2015 GitHub, Inc.
+License: Expat
+Comment: Off-screen rendering video consumer, originally from Electron/GitHub.
+
+Files: cef/tests/cefclient/resources/menu_icon.*.png
+Copyright: none (CC0 public domain dedication)
+License: CC0-1.0
+Comment: Menu icons with CC0 Public Domain Dedication embedded in PNG metadata.
+
+Files: cef/tests/cefclient/browser/osr_d3d11_win.*
+Copyright: 2018 The Chromium Embedded Framework Authors
+           2018 Daktronics
+License: BSD-3-Clause and Expat
+Comment: Direct3D 11 off-screen rendering helper. CEF portions are BSD-3-Clause;
+ Daktronics portions are MIT/Expat (inline license grant in file headers).
+
 Files: chromium/*
 Copyright: The Chromium Authors
 License: BSD-3-Clause
-Comment: Chromium source from Debian chromium package.
- This component contains pre-patched Chromium source with Debian's patches
- applied. For complete third-party licensing details, see the chromium
- package's copyright file (/usr/share/doc/chromium/copyright).
+Comment: Chromium source (MUT component), byte-identical to the Debian chromium
+ package orig tarball. Complete third-party licensing for all files under
+ chromium/ is documented in chromium-debian/copyright (3375 lines), which is
+ also part of this source package as the chromium-debian MUT component.
+ .
+ This delegation avoids duplicating a 3000+ line copyright file that changes
+ with every Chromium security update. When the chromium-source binary package
+ exists (Bug #893448), the chromium MUT component will be replaced by a
+ Build-Depends and this delegation will no longer be needed.
 
 Files: chromium/third_party/depot_tools/external_bin/gsutil/*
 Copyright: Google Inc.
@@ -61,24 +110,8 @@ Comment: Debian Chromium packaging patches and configuration from the
  Debian chromium source package. Applied during build to integrate
  Chromium with Debian system libraries and toolchains.
 
-Files: depot-tools/*
-Copyright: 2009-2025 The Chromium Authors
-License: BSD-3-Clause
-
-Files: depot-tools/third_party/colorama/*
-Copyright: 2010 Jonathan Hartley
-License: BSD-3-Clause
-
-Files: depot-tools/third_party/schema/*
-Copyright: 2012 Vladimir Keleshev <vladimir@keleshev.com>
-License: Expat
-
-Files: depot-tools/third_party/repo/*
-Copyright: 2008 The Android Open Source Project
-License: Apache-2.0
-
 Files: debian/*
-Copyright: 2025-2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>
+Copyright: 2025-2026 Juan Manuel Mendez Rey <juan.mendezr@proton.me>
 License: BSD-3-Clause
 
 License: BSD-3-Clause
@@ -144,3 +177,65 @@ License: Expat
  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+License: PSF-2.0
+ PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
+ .
+ 1. This LICENSE AGREEMENT is between the Python Software Foundation
+ ("PSF"), and the Individual or Organization ("Licensee") accessing and
+ otherwise using this software ("Python") in source or binary form and
+ its associated documentation.
+ .
+ 2. Subject to the terms and conditions of this License Agreement, PSF
+ hereby grants Licensee a nonexclusive, royalty-free, world-wide
+ license to reproduce, analyze, test, perform and/or display publicly,
+ prepare derivative works, distribute, and otherwise use Python alone
+ or in any derivative version, provided, however, that PSF's License
+ Agreement and PSF's notice of copyright, i.e., "Copyright (c) 2001,
+ 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012,
+ 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023
+ Python Software Foundation; All Rights Reserved" are retained in
+ Python alone or in any derivative version prepared by Licensee.
+ .
+ 3. In the event Licensee prepares a derivative work that is based on
+ or incorporates Python or any part thereof, and wants to make the
+ derivative work available to others as provided herein, then Licensee
+ hereby agrees to include in any such work a brief summary of the
+ changes made to Python.
+ .
+ 4. PSF is making Python available to Licensee on an "AS IS" basis.
+ PSF MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED.  BY
+ WAY OF EXAMPLE, BUT NOT LIMITATION, PSF MAKES NO AND DISCLAIMS ANY
+ REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS FOR ANY
+ PARTICULAR PURPOSE OR THAT THE USE OF PYTHON WILL NOT INFRINGE ANY
+ THIRD PARTY RIGHTS.
+ .
+ 5. PSF SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF PYTHON
+ FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS AS A
+ RESULT OF MODIFYING, DISTRIBUTING, OR OTHERWISE USING PYTHON, OR ANY
+ DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
+ .
+ 6. This License Agreement will automatically terminate upon a material
+ breach of its terms and conditions.
+ .
+ 7. Nothing in this License Agreement shall be deemed to create any
+ relationship of agency, partnership, or joint venture between PSF and
+ Licensee.  This License Agreement does not grant permission to use PSF
+ trademarks or trade name in a trademark sense to endorse or promote
+ products or services of Licensee, or any third party.
+ .
+ 8. By copying, installing or otherwise using Python, Licensee agrees
+ to be bound by the terms and conditions of this License Agreement.
+
+License: CC0-1.0
+ CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE
+ LEGAL SERVICES. DISTRIBUTION OF THIS DOCUMENT DOES NOT CREATE AN
+ ATTORNEY-CLIENT RELATIONSHIP.
+ .
+ Statement of Purpose: The person who associated a work with this deed
+ has dedicated the work to the public domain by waiving all of his or
+ her rights to the work worldwide under copyright law, including all
+ related and neighboring rights, to the extent allowed by law.
+ .
+ On Debian systems, the complete text of the CC0-1.0 license can be
+ found in "/usr/share/common-licenses/CC0-1.0".
