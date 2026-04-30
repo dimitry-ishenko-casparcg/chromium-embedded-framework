@@ -26,7 +26,14 @@ variables:
   before_script:
     # Remove stale sbuild chroot directories (owned by root via usernsexec)
     - sudo rm -rf tmp/tmp.sbuild.* 2>/dev/null || true
+    # Background tick -- prevents GitLab from killing the job as "stuck"
+    # when sbuild/ninja produce no output for extended periods (QEMU builds)
+    - |
+      (while true; do sleep 300; echo "[tick] $(date -u '+%Y-%m-%d %H:%M:%S UTC') -- build alive"; done) &
+      echo $! > /tmp/tick.pid
   after_script:
+    # Stop background tick
+    - kill $(cat /tmp/tick.pid 2>/dev/null) 2>/dev/null || true
     # Clean sbuild chroot leftovers so gitlab-runner's git clean can succeed
     - sudo rm -rf tmp/tmp.sbuild.* 2>/dev/null || true
   rules:
