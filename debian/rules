@@ -11,7 +11,7 @@ CEF_MAJOR := $(firstword $(subst ., ,$(CEF_VERSION)))
 
 # Chromium version tracking (update when syncing with new Debian Chromium)
 # To find current version: apt-cache show chromium | grep ^Version
-CHROMIUM_VERSION := 147.0.7727.116
+CHROMIUM_VERSION := 147.0.7727.137
 
 include /usr/share/dpkg/buildopts.mk
 include /usr/share/dpkg/architecture.mk
